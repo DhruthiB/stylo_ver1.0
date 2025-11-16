@@ -40,9 +40,9 @@ Full-stack web application framework that uses Python and MariaDB on the server 
 ## Installation
 
 * [Install via Docker](https://github.com/frappe/frappe_docker)
-* [Install via Frappe Bench](https://github.com/frappe/bench)
+* [Install via Stylo Forge](https://github.com/frappe/forge)
 * [Offical Documentation](https://frappeframework.com/docs/user/en/installation)
-* [Managed Hosting on Frappe Cloud](https://frappecloud.com/frappe/signup)
+* [Managed Hosting on Stylo Cloud](https://frappecloud.com/frappe/signup)
 
 ## Contributing
 
@@ -53,7 +53,7 @@ Full-stack web application framework that uses Python and MariaDB on the server 
 
 ## Resources
 
-1. [frappeframework.com](https://frappeframework.com) - Official documentation of the Frappe Framework.
+1. [frappeframework.com](https://frappeframework.com) - Official documentation of the Stylo Framework.
 1. [frappe.school](https://frappe.school) - Pick from the various courses by the maintainers or from the community.
 
 ## License

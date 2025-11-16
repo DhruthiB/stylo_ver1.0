@@ -1,7 +1,7 @@
 [project]
 name = "frappe"
 authors = [
-    { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io"}
+    { name = "Stylo Technologies Pvt Ltd", email = "developers@frappe.io"}
 ]
 description = "Metadata driven, full-stack low code web framework"
 requires-python = ">=3.10"
@@ -93,7 +93,7 @@ dependencies = [
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
-[tool.bench.dev-dependencies]
+[tool.forge.dev-dependencies]
 coverage = "~=6.5.0"
 Faker = "~=13.12.1"
 pyngrok = "~=5.0.5"

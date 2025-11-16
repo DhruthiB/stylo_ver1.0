@@ -1,8 +1,8 @@
-frappe/public/js/lib/*
-frappe/public/js/frappe/misc/tests/*
-frappe/public/js/frappe/views/test_runner.js
-frappe/core/doctype/doctype/boilerplate/*
-frappe/core/doctype/report/boilerplate/*
-frappe/public/js/frappe/class.js
-frappe/templates/includes/*
-frappe/www/website_script.js
+stylo/public/js/lib/*
+stylo/public/js/stylo/misc/tests/*
+stylo/public/js/stylo/views/test_runner.js
+stylo/core/doctype/doctype/boilerplate/*
+stylo/core/doctype/report/boilerplate/*
+stylo/public/js/stylo/class.js
+stylo/templates/includes/*
+stylo/www/website_script.js

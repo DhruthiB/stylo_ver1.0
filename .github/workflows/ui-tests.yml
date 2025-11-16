@@ -130,33 +130,33 @@ jobs:
       - name: Verify yarn.lock
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-bench/apps/frappe
+          cd ~/frappe-forge/apps/frappe
           yarn install --immutable --immutable-cache --check-cache
           git diff --exit-code yarn.lock
 
       - name: Instrument Source Code
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: cd ~/frappe-bench/apps/frappe/ && npx nyc instrument -x 'frappe/public/dist/**' -x 'frappe/public/js/lib/**' -x '**/*.bundle.js' --compact=false --in-place frappe
+        run: cd ~/frappe-forge/apps/frappe/ && npx nyc instrument -x 'frappe/public/dist/**' -x 'frappe/public/js/lib/**' -x '**/*.bundle.js' --compact=false --in-place frappe
 
       - name: Build
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: cd ~/frappe-bench/ && bench build --apps frappe
+        run: cd ~/frappe-forge/ && forge build --apps frappe
 
       - name: Site Setup
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-bench/
-          bench --site test_site execute frappe.utils.install.complete_setup_wizard
-          bench --site test_site execute frappe.tests.ui_test_helpers.create_test_user
+          cd ~/frappe-forge/
+          forge --site test_site execute frappe.utils.install.complete_setup_wizard
+          forge --site test_site execute frappe.tests.ui_test_helpers.create_test_user
 
       - name: UI Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-bench/
-          bench --site test_site run-ui-tests frappe --headless -- --record
+          cd ~/frappe-forge/
+          forge --site test_site run-ui-tests frappe --headless -- --record
         env:
           CYPRESS_RECORD_KEY: 4a48f41c-11b3-425b-aa88-c58048fa69eb
 
-      - name: Show bench console if tests failed
+      - name: Show forge console if tests failed
         if: ${{ failure() }}
-        run: cat ~/frappe-bench/bench_start.log
+        run: cat ~/frappe-forge/forge_start.log

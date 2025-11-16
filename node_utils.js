@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const redis = require("redis");
-const bench_path = path.resolve(__dirname, "..", "..");
+const forge_path = path.resolve(__dirname, "..", "..");
 
 function get_conf() {
 	// defaults
@@ -11,19 +11,19 @@ function get_conf() {
 	};
 
 	var read_config = function (file_path) {
-		const full_path = path.resolve(bench_path, file_path);
+		const full_path = path.resolve(forge_path, file_path);
 
 		if (fs.existsSync(full_path)) {
-			var bench_config = JSON.parse(fs.readFileSync(full_path));
-			for (var key in bench_config) {
-				if (bench_config[key]) {
-					conf[key] = bench_config[key];
+			var forge_config = JSON.parse(fs.readFileSync(full_path));
+			for (var key in forge_config) {
+				if (forge_config[key]) {
+					conf[key] = forge_config[key];
 				}
 			}
 		}
 	};
 
-	// get ports from bench/config.json
+	// get ports from forge/config.json
 	read_config("config.json");
 	read_config("sites/common_site_config.json");
 

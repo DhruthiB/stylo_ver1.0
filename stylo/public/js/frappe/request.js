@@ -1,0 +1,647 @@
+// Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
+// MIT License. See license.txt
+
+// My HTTP Request
+
+stylo.provide("stylo.request");
+stylo.provide("stylo.request.error_handlers");
+stylo.request.url = "/";
+stylo.request.ajax_count = 0;
+stylo.request.waiting_for_ajax = [];
+stylo.request.logs = {};
+
+stylo.xcall = function (method, params) {
+	return new Promise((resolve, reject) => {
+		stylo.call({
+			method: method,
+			args: params,
+			callback: (r) => {
+				resolve(r.message);
+			},
+			error: (r) => {
+				reject(r.message);
+			},
+		});
+	});
+};
+
+// generic server call (call page, object)
+stylo.call = function (opts) {
+	if (!stylo.is_online()) {
+		stylo.show_alert(
+			{
+				indicator: "orange",
+				message: __("Connection Lost"),
+				subtitle: __("You are not connected to Internet. Retry after sometime."),
+			},
+			3
+		);
+		opts.always && opts.always();
+		return $.ajax();
+	}
+	if (typeof arguments[0] === "string") {
+		opts = {
+			method: arguments[0],
+			args: arguments[1],
+			callback: arguments[2],
+			headers: arguments[3],
+		};
+	}
+
+	if (opts.quiet) {
+		opts.no_spinner = true;
+	}
+	var args = $.extend({}, opts.args);
+
+	if (args.freeze) {
+		opts.freeze = opts.freeze || args.freeze;
+		opts.freeze_message = opts.freeze_message || args.freeze_message;
+	}
+
+	// cmd
+	if (opts.module && opts.page) {
+		args.cmd = opts.module + ".page." + opts.page + "." + opts.page + "." + opts.method;
+	} else if (opts.doc) {
+		$.extend(args, {
+			cmd: "run_doc_method",
+			docs: stylo.get_doc(opts.doc.doctype, opts.doc.name),
+			method: opts.method,
+			args: opts.args,
+		});
+	} else if (opts.method) {
+		args.cmd = opts.method;
+	}
+
+	var callback = function (data, response_text) {
+		if (data.task_id) {
+			// async call, subscribe
+			stylo.socketio.subscribe(data.task_id, opts);
+
+			if (opts.queued) {
+				opts.queued(data);
+			}
+		} else if (opts.callback) {
+			// ajax
+			return opts.callback(data, response_text);
+		}
+	};
+
+	let url = opts.url;
+	if (!url) {
+		url = "/api/method/" + args.cmd;
+		if (window.cordova) {
+			let host = stylo.request.url;
+			host = host.slice(0, host.length - 1);
+			url = host + url;
+		}
+		delete args.cmd;
+	}
+
+	// debouce if required
+	if (opts.debounce && stylo.request.is_fresh(args, opts.debounce)) {
+		return Promise.resolve();
+	}
+
+	return stylo.request.call({
+		type: opts.type || "POST",
+		args: args,
+		success: callback,
+		error: opts.error,
+		always: opts.always,
+		btn: opts.btn,
+		freeze: opts.freeze,
+		freeze_message: opts.freeze_message,
+		headers: opts.headers || {},
+		error_handlers: opts.error_handlers || {},
+		// show_spinner: !opts.no_spinner,
+		async: opts.async,
+		silent: opts.silent,
+		url,
+	});
+};
+
+stylo.request.call = function (opts) {
+	stylo.request.prepare(opts);
+
+	var statusCode = {
+		200: function (data, xhr) {
+			opts.success_callback && opts.success_callback(data, xhr.responseText);
+		},
+		401: function (xhr) {
+			if (stylo.app.session_expired_dialog && stylo.app.session_expired_dialog.display) {
+				stylo.app.redirect_to_login();
+			} else {
+				stylo.app.handle_session_expired();
+			}
+		},
+		404: function (xhr) {
+			stylo.msgprint({
+				title: __("Not found"),
+				indicator: "red",
+				message: __("The resource you are looking for is not available"),
+			});
+		},
+		403: function (xhr) {
+			if (stylo.session.user === "Guest" && stylo.session.logged_in_user !== "Guest") {
+				// session expired
+				stylo.app.handle_session_expired();
+			} else if (xhr.responseJSON && xhr.responseJSON._error_message) {
+				stylo.msgprint({
+					title: __("Not permitted"),
+					indicator: "red",
+					message: xhr.responseJSON._error_message,
+				});
+
+				xhr.responseJSON._server_messages = null;
+			} else if (xhr.responseJSON && xhr.responseJSON._server_messages) {
+				var _server_messages = JSON.parse(xhr.responseJSON._server_messages);
+
+				// avoid double messages
+				if (_server_messages.indexOf(__("Not permitted")) !== -1) {
+					return;
+				}
+			} else {
+				stylo.msgprint({
+					title: __("Not permitted"),
+					indicator: "red",
+					message: __(
+						"You do not have enough permissions to access this resource. Please contact your manager to get access."
+					),
+				});
+			}
+		},
+		508: function (xhr) {
+			stylo.utils.play_sound("error");
+			stylo.msgprint({
+				title: __("Please try again"),
+				indicator: "red",
+				message: __(
+					"Another transaction is blocking this one. Please try again in a few seconds."
+				),
+			});
+		},
+		413: function (data, xhr) {
+			stylo.msgprint({
+				indicator: "red",
+				title: __("File too big"),
+				message: __("File size exceeded the maximum allowed size of {0} MB", [
+					(stylo.boot.max_file_size || 5242880) / 1048576,
+				]),
+			});
+		},
+		417: function (xhr) {
+			var r = xhr.responseJSON;
+			if (!r) {
+				try {
+					r = JSON.parse(xhr.responseText);
+				} catch (e) {
+					r = xhr.responseText;
+				}
+			}
+
+			opts.error_callback && opts.error_callback(r);
+		},
+		501: function (data, xhr) {
+			if (typeof data === "string") data = JSON.parse(data);
+			opts.error_callback && opts.error_callback(data, xhr.responseText);
+		},
+		500: function (xhr) {
+			stylo.utils.play_sound("error");
+			try {
+				opts.error_callback && opts.error_callback();
+				stylo.request.report_error(xhr, opts);
+			} catch (e) {
+				stylo.request.report_error(xhr, opts);
+			}
+		},
+		504: function (xhr) {
+			stylo.msgprint(__("Request Timed Out"));
+			opts.error_callback && opts.error_callback();
+		},
+		502: function (xhr) {
+			stylo.msgprint(__("Internal Server Error"));
+		},
+	};
+
+	var exception_handlers = {
+		QueryTimeoutError: function () {
+			stylo.utils.play_sound("error");
+			stylo.msgprint({
+				title: __("Request Timeout"),
+				indicator: "red",
+				message: __("Server was too busy to process this request. Please try again."),
+			});
+		},
+		QueryDeadlockError: function () {
+			stylo.utils.play_sound("error");
+			stylo.msgprint({
+				title: __("Deadlock Occurred"),
+				indicator: "red",
+				message: __(
+					"Server failed to process this request because of a concurrent conflicting request. Please try again."
+				),
+			});
+		},
+	};
+
+	var ajax_args = {
+		url: opts.url || stylo.request.url,
+		data: opts.args,
+		type: opts.type,
+		dataType: opts.dataType || "json",
+		async: opts.async,
+		headers: Object.assign(
+			{
+				"X-Stylo-CSRF-Token": stylo.csrf_token,
+				Accept: "application/json",
+				"X-Stylo-CMD": (opts.args && opts.args.cmd) || "" || "",
+			},
+			opts.headers
+		),
+		cache: false,
+	};
+
+	if (opts.args && opts.args.doctype) {
+		ajax_args.headers["X-Stylo-Doctype"] = encodeURIComponent(opts.args.doctype);
+	}
+
+	stylo.last_request = ajax_args.data;
+
+	return $.ajax(ajax_args)
+		.done(function (data, textStatus, xhr) {
+			try {
+				if (typeof data === "string") data = JSON.parse(data);
+
+				// sync attached docs
+				if (data.docs || data.docinfo) {
+					stylo.model.sync(data);
+				}
+
+				// sync translated messages
+				if (data.__messages) {
+					$.extend(stylo._messages, data.__messages);
+				}
+
+				// sync link titles
+				if (data._link_titles) {
+					if (!stylo._link_titles) {
+						stylo._link_titles = {};
+					}
+					$.extend(stylo._link_titles, data._link_titles);
+				}
+
+				// callbacks
+				var status_code_handler = statusCode[xhr.statusCode().status];
+				if (status_code_handler) {
+					status_code_handler(data, xhr);
+				}
+			} catch (e) {
+				console.log("Unable to handle success response", data); // eslint-disable-line
+				console.error(e); // eslint-disable-line
+			}
+		})
+		.always(function (data, textStatus, xhr) {
+			try {
+				if (typeof data === "string") {
+					data = JSON.parse(data);
+				}
+				if (data.responseText) {
+					var xhr = data;
+					data = JSON.parse(data.responseText);
+				}
+			} catch (e) {
+				data = null;
+				// pass
+			}
+			stylo.request.cleanup(opts, data);
+			if (opts.always) {
+				opts.always(data);
+			}
+		})
+		.fail(function (xhr, textStatus) {
+			try {
+				if (
+					xhr.getResponseHeader("content-type") == "application/json" &&
+					xhr.responseText
+				) {
+					var data;
+					try {
+						data = JSON.parse(xhr.responseText);
+					} catch (e) {
+						console.log("Unable to parse reponse text");
+						console.log(xhr.responseText);
+						console.log(e);
+					}
+					if (data && data.exception) {
+						// stylo.exceptions.CustomError: (1024, ...) -> CustomError
+						var exception = data.exception.split(".").at(-1).split(":").at(0);
+						var exception_handler = exception_handlers[exception];
+						if (exception_handler) {
+							exception_handler(data);
+							return;
+						}
+					}
+				}
+				var status_code_handler = statusCode[xhr.statusCode().status];
+				if (status_code_handler) {
+					status_code_handler(xhr);
+					return;
+				}
+				// if not handled by error handler!
+				opts.error_callback && opts.error_callback(xhr);
+			} catch (e) {
+				console.log("Unable to handle failed response"); // eslint-disable-line
+				console.error(e); // eslint-disable-line
+			}
+		});
+};
+
+stylo.request.is_fresh = function (args, threshold) {
+	// return true if a request with similar args has been sent recently
+	if (!stylo.request.logs[args.cmd]) {
+		stylo.request.logs[args.cmd] = [];
+	}
+
+	for (let past_request of stylo.request.logs[args.cmd]) {
+		// check if request has same args and was made recently
+		if (
+			new Date() - past_request.timestamp < threshold &&
+			stylo.utils.deep_equal(args, past_request.args)
+		) {
+			// eslint-disable-next-line no-console
+			console.log("throttled");
+			return true;
+		}
+	}
+
+	// log the request
+	stylo.request.logs[args.cmd].push({ args: args, timestamp: new Date() });
+	return false;
+};
+
+// call execute serverside request
+stylo.request.prepare = function (opts) {
+	$("body").attr("data-ajax-state", "triggered");
+
+	// btn indicator
+	if (opts.btn) $(opts.btn).prop("disabled", true);
+
+	// freeze page
+	if (opts.freeze) stylo.dom.freeze(opts.freeze_message);
+
+	// stringify args if required
+	for (var key in opts.args) {
+		if (opts.args[key] && ($.isPlainObject(opts.args[key]) || $.isArray(opts.args[key]))) {
+			opts.args[key] = JSON.stringify(opts.args[key]);
+		}
+	}
+
+	// no cmd?
+	if (!opts.args.cmd && !opts.url) {
+		console.log(opts);
+		throw "Incomplete Request";
+	}
+
+	opts.success_callback = opts.success;
+	opts.error_callback = opts.error;
+	delete opts.success;
+	delete opts.error;
+};
+
+stylo.request.cleanup = function (opts, r) {
+	// stop button indicator
+	if (opts.btn) {
+		$(opts.btn).prop("disabled", false);
+	}
+
+	$("body").attr("data-ajax-state", "complete");
+
+	// un-freeze page
+	if (opts.freeze) stylo.dom.unfreeze();
+
+	if (r) {
+		// session expired? - Guest has no business here!
+		if (
+			r.session_expired ||
+			(stylo.session.user === "Guest" && stylo.session.logged_in_user !== "Guest")
+		) {
+			stylo.app.handle_session_expired();
+			return;
+		}
+
+		// error handlers
+		let global_handlers = stylo.request.error_handlers[r.exc_type] || [];
+		let request_handler = opts.error_handlers ? opts.error_handlers[r.exc_type] : null;
+		let handlers = [].concat(global_handlers, request_handler).filter(Boolean);
+
+		if (r.exc_type) {
+			handlers.forEach((handler) => {
+				handler(r);
+			});
+		}
+
+		// show messages
+		if (r._server_messages && !opts.silent) {
+			// show server messages if no handlers exist
+			if (handlers.length === 0) {
+				r._server_messages = JSON.parse(r._server_messages);
+				stylo.hide_msgprint();
+				stylo.msgprint(r._server_messages);
+			}
+		}
+
+		// show errors
+		if (r.exc) {
+			r.exc = JSON.parse(r.exc);
+			if (r.exc instanceof Array) {
+				r.exc.forEach((exc) => {
+					if (exc) {
+						console.error(exc);
+					}
+				});
+			} else {
+				console.error(r.exc);
+			}
+		}
+
+		// debug messages
+		if (r._debug_messages) {
+			if (opts.args) {
+				console.log("======== arguments ========");
+				console.log(opts.args);
+				console.log("========");
+			}
+			$.each(JSON.parse(r._debug_messages), function (i, v) {
+				console.log(v);
+			});
+			console.log("======== response ========");
+			delete r._debug_messages;
+			console.log(r);
+			console.log("========");
+		}
+	}
+
+	stylo.last_response = r;
+};
+
+stylo.after_server_call = () => {
+	if (stylo.request.ajax_count) {
+		return new Promise((resolve) => {
+			stylo.request.waiting_for_ajax.push(() => {
+				resolve();
+			});
+		});
+	} else {
+		return null;
+	}
+};
+
+stylo.after_ajax = function (fn) {
+	return new Promise((resolve) => {
+		if (stylo.request.ajax_count) {
+			stylo.request.waiting_for_ajax.push(() => {
+				if (fn) return resolve(fn());
+				resolve();
+			});
+		} else {
+			if (fn) return resolve(fn());
+			resolve();
+		}
+	});
+};
+
+stylo.request.report_error = function (xhr, request_opts) {
+	var data = JSON.parse(xhr.responseText);
+	var exc;
+	if (data.exc) {
+		try {
+			exc = (JSON.parse(data.exc) || []).join("\n");
+		} catch (e) {
+			exc = data.exc;
+		}
+		delete data.exc;
+	} else {
+		exc = "";
+	}
+
+	const copy_markdown_to_clipboard = () => {
+		const code_block = (snippet) => "```\n" + snippet + "\n```";
+		const traceback_info = [
+			"### App Versions",
+			code_block(JSON.stringify(stylo.boot.versions, null, "\t")),
+			"### Route",
+			code_block(stylo.get_route_str()),
+			"### Traceback",
+			code_block(exc),
+			"### Request Data",
+			code_block(JSON.stringify(request_opts, null, "\t")),
+			"### Response Data",
+			code_block(JSON.stringify(data, null, "\t")),
+		].join("\n");
+		stylo.utils.copy_to_clipboard(traceback_info);
+	};
+
+	var show_communication = function () {
+		var error_report_message = [
+			"<h5>Please type some additional information that could help us reproduce this issue:</h5>",
+			'<div style="min-height: 100px; border: 1px solid #bbb; \
+				border-radius: 5px; padding: 15px; margin-bottom: 15px;"></div>',
+			"<hr>",
+			"<h5>App Versions</h5>",
+			"<pre>" + JSON.stringify(stylo.boot.versions, null, "\t") + "</pre>",
+			"<h5>Route</h5>",
+			"<pre>" + stylo.get_route_str() + "</pre>",
+			"<hr>",
+			"<h5>Error Report</h5>",
+			"<pre>" + exc + "</pre>",
+			"<hr>",
+			"<h5>Request Data</h5>",
+			"<pre>" + JSON.stringify(request_opts, null, "\t") + "</pre>",
+			"<hr>",
+			"<h5>Response JSON</h5>",
+			"<pre>" + JSON.stringify(data, null, "\t") + "</pre>",
+		].join("\n");
+
+		var communication_composer = new stylo.views.CommunicationComposer({
+			subject: "Error Report [" + stylo.datetime.nowdate() + "]",
+			recipients: error_report_email,
+			message: error_report_message,
+			doc: {
+				doctype: "User",
+				name: stylo.session.user,
+			},
+		});
+		communication_composer.dialog.$wrapper.css(
+			"z-index",
+			cint(stylo.msg_dialog.$wrapper.css("z-index")) + 1
+		);
+	};
+
+	if (exc) {
+		var error_report_email = stylo.boot.error_report_email;
+
+		request_opts = stylo.request.cleanup_request_opts(request_opts);
+
+		// window.msg_dialog = stylo.msgprint({message:error_message, indicator:'red', big: true});
+
+		if (!stylo.error_dialog) {
+			stylo.error_dialog = new stylo.ui.Dialog({
+				title: __("Server Error"),
+				primary_action_label: __("Report"),
+				primary_action: () => {
+					if (error_report_email) {
+						show_communication();
+					} else {
+						stylo.msgprint(__("Support Email Address Not Specified"));
+					}
+					stylo.error_dialog.hide();
+				},
+				secondary_action_label: __("Copy error to clipboard"),
+				secondary_action: () => {
+					copy_markdown_to_clipboard();
+					stylo.error_dialog.hide();
+				},
+			});
+			stylo.error_dialog.wrapper.classList.add("msgprint-dialog");
+		}
+
+		let parts = strip(exc).split("\n");
+
+		stylo.error_dialog.$body.html(parts[parts.length - 1]);
+		stylo.error_dialog.show();
+	}
+};
+
+stylo.request.cleanup_request_opts = function (request_opts) {
+	var doc = (request_opts.args || {}).doc;
+	if (doc) {
+		doc = JSON.parse(doc);
+		$.each(Object.keys(doc), function (i, key) {
+			if (key.indexOf("password") !== -1 && doc[key]) {
+				// mask the password
+				doc[key] = "*****";
+			}
+		});
+		request_opts.args.doc = JSON.stringify(doc);
+	}
+	return request_opts;
+};
+
+stylo.request.on_error = function (error_type, handler) {
+	stylo.request.error_handlers[error_type] = stylo.request.error_handlers[error_type] || [];
+	stylo.request.error_handlers[error_type].push(handler);
+};
+
+$(document).ajaxSend(function () {
+	stylo.request.ajax_count++;
+});
+
+$(document).ajaxComplete(function () {
+	stylo.request.ajax_count--;
+	if (!stylo.request.ajax_count) {
+		$.each(stylo.request.waiting_for_ajax || [], function (i, fn) {
+			fn();
+		});
+		stylo.request.waiting_for_ajax = [];
+	}
+});

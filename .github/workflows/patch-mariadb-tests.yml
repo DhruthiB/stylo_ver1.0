@@ -109,7 +109,7 @@ jobs:
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
           bash ${GITHUB_WORKSPACE}/.github/helper/install_dependencies.sh
-          pip install frappe-bench
+          pip install frappe-forge
           bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
         env:
           BEFORE: ${{ env.GITHUB_EVENT_PATH.before }}
@@ -120,15 +120,15 @@ jobs:
       - name: Run Patch Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-bench/
+          cd ~/frappe-forge/
           wget https://frappeframework.com/files/v13-frappe.sql.gz
-          bench --site test_site --force restore ~/frappe-bench/v13-frappe.sql.gz
+          forge --site test_site --force restore ~/frappe-forge/v13-frappe.sql.gz
 
           source env/bin/activate
           cd apps/frappe/
 
           echo "Updating to last commit"
           git checkout -q -f "$GITHUB_SHA"
-          rm -rf ~/frappe-bench/env
-          bench -v setup env
-          bench --site test_site migrate
+          rm -rf ~/frappe-forge/env
+          forge -v setup env
+          forge --site test_site migrate

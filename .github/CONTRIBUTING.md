@@ -1,6 +1,6 @@
 ### Introduction (first timers)
 
-Thank you for your interest in raising an Issue with the Frappe Framework. An Issue could mean a bug report or a request for a missing feature. By raising a bug report, you are contributing to the development of the Frappe Framework and this is the first step of participating in the community. Bug reports are very helpful for developers as they quickly fix the issue before other users start facing it.
+Thank you for your interest in raising an Issue with the Stylo Framework. An Issue could mean a bug report or a request for a missing feature. By raising a bug report, you are contributing to the development of the Stylo Framework and this is the first step of participating in the community. Bug reports are very helpful for developers as they quickly fix the issue before other users start facing it.
 
 Feature requests are also a great way to take the product forward. New ideas can come in any user scenario and the issue list also acts a roadmap of future features.
 
