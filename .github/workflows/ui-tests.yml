@@ -3,7 +3,7 @@ name: UI
 on:
   pull_request:
   repository_dispatch:
-    types: [frappe-framework-change]
+    types: [stylo-framework-change]
   workflow_dispatch:
   schedule:
     # Run everday at midnight UTC / 5:30 IST

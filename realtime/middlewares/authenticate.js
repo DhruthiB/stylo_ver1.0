@@ -3,7 +3,7 @@ const { get_conf } = require("../../node_utils");
 const { get_url } = require("../utils");
 const conf = get_conf();
 
-function authenticate_with_frappe(socket, next) {
+function authenticate_with_stylo(socket, next) {
 	let namespace = socket.nsp.name;
 	namespace = namespace.slice(1, namespace.length); // remove leading `/`
 
@@ -35,7 +35,7 @@ function authenticate_with_frappe(socket, next) {
 	socket.sid = cookies.sid;
 	socket.authorization_header = authorization_header;
 
-	socket.frappe_request = (path, args = {}, opts = {}) => {
+	socket.stylo_request = (path, args = {}, opts = {}) => {
 		let query_args = new URLSearchParams(args);
 		if (query_args.toString()) {
 			path = path + "?" + query_args.toString();
@@ -55,7 +55,7 @@ function authenticate_with_frappe(socket, next) {
 	};
 
 	socket
-		.frappe_request("/api/method/frappe.realtime.get_user_info")
+		.stylo_request("/api/method/stylo.realtime.get_user_info")
 		.then((res) => res.json())
 		.then(({ message }) => {
 			socket.user = message.user;
@@ -71,8 +71,8 @@ function authenticate_with_frappe(socket, next) {
 function get_site_name(socket) {
 	if (socket.site_name) {
 		return socket.site_name;
-	} else if (socket.request.headers["x-frappe-site-name"]) {
-		socket.site_name = get_hostname(socket.request.headers["x-frappe-site-name"]);
+	} else if (socket.request.headers["x-stylo-site-name"]) {
+		socket.site_name = get_hostname(socket.request.headers["x-stylo-site-name"]);
 	} else if (
 		conf.default_site &&
 		["localhost", "127.0.0.1"].indexOf(get_hostname(socket.request.headers.host)) !== -1
@@ -94,4 +94,4 @@ function get_hostname(url) {
 	return url.match(/:/g) ? url.slice(0, url.indexOf(":")) : url;
 }
 
-module.exports = authenticate_with_frappe;
+module.exports = authenticate_with_stylo;

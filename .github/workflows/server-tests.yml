@@ -2,7 +2,7 @@ name: Server
 
 on:
   repository_dispatch:
-    types: [frappe-framework-change]
+    types: [stylo-framework-change]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -57,7 +57,7 @@ jobs:
     needs: checkrun
     uses: ./.github/workflows/_base-migration.yml
     with:
-      db-artifact-url: https://frappeframework.com/files/v13-frappe.sql.gz
+      db-artifact-url: https://styloframework.com/files/v13-stylo.sql.gz
       python-version: '3.10'
       node-version: 22
       fake-success: ${{ needs.checkrun.outputs.build != 'strawberry' }}
@@ -89,14 +89,14 @@ jobs:
     strategy:
       matrix:
         repo:
-          - frappe/erpnext
-          - frappe/lending
-          - frappe/hrms
+          - stylo/erpnext
+          - stylo/lending
+          - stylo/hrms
     steps:
       - name: Dispatch Downstream CI (if supported)
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           repository: ${{ matrix.repo }}
-          event-type: frappe-framework-change
-          client-payload: '{"frappe_sha": "${{ github.sha }}"}'
+          event-type: stylo-framework-change
+          client-payload: '{"stylo_sha": "${{ github.sha }}"}'

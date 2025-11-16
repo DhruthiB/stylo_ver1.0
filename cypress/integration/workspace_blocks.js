@@ -4,9 +4,9 @@ context("Workspace Blocks", () => {
 		cy.visit("/app");
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
-				return frappe.xcall("frappe.tests.ui_test_helpers.setup_workflow");
+			.its("stylo")
+			.then((stylo) => {
+				return stylo.xcall("stylo.tests.ui_test_helpers.setup_workflow");
 			});
 	});
 
@@ -14,7 +14,7 @@ context("Workspace Blocks", () => {
 		cy.remove_doc("Workspace", `Test Block Page-${Cypress.config("testUser")}`, true);
 		cy.intercept({
 			method: "POST",
-			url: "api/method/frappe.desk.doctype.workspace.workspace.new_page",
+			url: "api/method/stylo.desk.doctype.workspace.workspace.new_page",
 		}).as("new_page");
 
 		cy.visit("/app/website");
@@ -69,7 +69,7 @@ context("Workspace Blocks", () => {
 
 		cy.intercept({
 			method: "GET",
-			url: "api/method/frappe.desk.form.load.getdoctype?**",
+			url: "api/method/stylo.desk.form.load.getdoctype?**",
 		}).as("get_doctype");
 
 		cy.get(".codex-editor__redactor .ce-block");
@@ -130,7 +130,7 @@ context("Workspace Blocks", () => {
 		// test refresh-list
 		cy.intercept({
 			method: "POST",
-			url: "api/method/frappe.desk.reportview.get",
+			url: "api/method/stylo.desk.reportview.get",
 		}).as("refresh-list");
 
 		cy.get("@todo-quick-list").realHover().find(".widget-control .refresh-list").click();

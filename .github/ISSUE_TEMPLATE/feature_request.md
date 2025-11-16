@@ -1,15 +1,15 @@
 ---
 name: Feature request
-about: Suggest an idea to improve Frappe
+about: Suggest an idea to improve Stylo
 labels: feature-request
 ---
 
 <!--
-Welcome to the Frappe Framework issue tracker! Before creating an issue, please heed the following:
+Welcome to the Stylo Framework issue tracker! Before creating an issue, please heed the following:
 
-1. This tracker should only be used to report bugs and request features / enhancements to Frappe
-    - For questions and general support, refer to https://stackoverflow.com/questions/tagged/frappe
-    - For documentation issues, use https://frappeframework.com/docs/user/en or the developer cheetsheet https://frappeframework.com/docs/user/en/bench/resources/bench-commands-cheatsheet
+1. This tracker should only be used to report bugs and request features / enhancements to Stylo
+    - For questions and general support, refer to https://stackoverflow.com/questions/tagged/stylo
+    - For documentation issues, use https://styloframework.com/docs/user/en or the developer cheetsheet https://styloframework.com/docs/user/en/forge/resources/forge-commands-cheatsheet
 2. Use the search function before creating a new issue. Duplicates will be closed and directed to
    the original discussion.
 3. When making a feature request, make sure to be as verbose as possible. The better you convey your message, the     greater the drive to make it happen.

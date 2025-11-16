@@ -1,7 +1,7 @@
 [project]
-name = "frappe"
+name = "stylo"
 authors = [
-    { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io"}
+    { name = "Stylo Technologies Pvt Ltd", email = "developers@stylo.io"}
 ]
 description = "Metadata driven, full-stack low code web framework"
 requires-python = ">=3.10,<3.15"
@@ -21,7 +21,7 @@ dependencies = [
     # do NOT add loose requirements on PyMySQL versions.
     "PyMySQL==1.1.1",
     "pypdf~=6.1.3",
-    "PyPika @ git+https://github.com/frappe/pypika@2c50e6142b2d61d2d243e466fdd5dc03b3d918f2",
+    "PyPika @ git+https://github.com/stylo/pypika@2c50e6142b2d61d2d243e466fdd5dc03b3d918f2",
     "mysqlclient==2.2.7",
     "PyQRCode~=1.2.1",
     "PyYAML~=6.0.2",
@@ -38,7 +38,7 @@ dependencies = [
     "cryptography~=46.0.2",
     "cssutils~=2.11.1",
     "email-reply-parser~=0.5.12",
-    "gunicorn @ git+https://github.com/frappe/gunicorn@bb554053bb87218120d76ab6676af7015680e8b6",
+    "gunicorn @ git+https://github.com/stylo/gunicorn@bb554053bb87218120d76ab6676af7015680e8b6",
     "html5lib~=1.1",
     "ipython~=8.37.0",
     "ldap3~=2.9",
@@ -95,9 +95,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://frappeframework.com/"
-Repository = "https://github.com/frappe/frappe.git"
-"Bug Reports" = "https://github.com/frappe/frappe/issues"
+Homepage = "https://styloframework.com/"
+Repository = "https://github.com/stylo/stylo.git"
+"Bug Reports" = "https://github.com/stylo/stylo/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -141,14 +141,14 @@ test = [
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
-[tool.frappe.testing.function_type_validation]
+[tool.stylo.testing.function_type_validation]
 max_module_depth = 0
 skip_namespaces = [
-    "frappe.deprecation_dumpster",
-    "frappe.utils.typing_validations",
+    "stylo.deprecation_dumpster",
+    "stylo.utils.typing_validations",
 ]
 
-[tool.bench.dev-dependencies]
+[tool.forge.dev-dependencies]
 coverage = "~=7.10.0"
 Faker = "~=18.10.1"
 pyngrok = "~=6.0.0"
@@ -193,7 +193,7 @@ ignore = [
     "UP031", # Use format specifiers instead of percent format
     "UP032", # Use f-string instead of `format` call (translations)
 ]
-typing-modules = ["frappe.types.DF"]
+typing-modules = ["stylo.types.DF"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -221,24 +221,24 @@ incremental = true
 sqlite_cache = true
 files = [
     # start small, with a lot of multiplication potential
-    "frappe/types/__init__.py",
-    "frappe/types/DF.py",
-    "frappe/types/frappedict.py",
-    "frappe/types/filter.py",
+    "stylo/types/__init__.py",
+    "stylo/types/DF.py",
+    "stylo/types/stylodict.py",
+    "stylo/types/filter.py",
 ]
 exclude = [
     # permanent excludes
-    "^frappe/patches",
+    "^stylo/patches",
     '/test_.+\.py$',
-    "^frappe/tests/ui_test_helpers.py",
-    "^frappe/parallel_test_runner.py",
-    "^frappe/deprecation_dumpster.py",
+    "^stylo/tests/ui_test_helpers.py",
+    "^stylo/parallel_test_runner.py",
+    "^stylo/deprecation_dumpster.py",
 ]
 disable_error_code = [
 ]
 
 [[tool.mypy.overrides]]
-module = "frappe"
+module = "stylo"
 # Too many for a start
 disable_error_code = [
     "no-any-expr",

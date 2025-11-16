@@ -2,16 +2,16 @@ const fg = require("fast-glob");
 const path = require("path");
 const fs = require("fs");
 const chalk = require("chalk");
-let bench_path;
+let forge_path;
 if (process.env.FRAPPE_BENCH_ROOT) {
-	bench_path = process.env.FRAPPE_BENCH_ROOT;
+	forge_path = process.env.FRAPPE_BENCH_ROOT;
 } else {
-	const frappe_path = path.resolve(__dirname, "..");
-	bench_path = path.resolve(frappe_path, "..", "..");
+	const stylo_path = path.resolve(__dirname, "..");
+	forge_path = path.resolve(stylo_path, "..", "..");
 }
 
-const apps_path = path.resolve(bench_path, "apps");
-const sites_path = path.resolve(bench_path, "sites");
+const apps_path = path.resolve(forge_path, "apps");
+const sites_path = path.resolve(forge_path, "sites");
 const assets_path = path.resolve(sites_path, "assets");
 const app_list = get_apps_list();
 
@@ -79,20 +79,20 @@ function get_apps_list() {
 
 function get_cloned_apps() {
 	/**
-	 * Returns frappe apps in the bench/apps folder
+	 * Returns stylo apps in the forge/apps folder
 	 */
 	const apps = [];
 	for (const app of fs.readdirSync(apps_path)) {
 		const app_path = path.resolve(apps_path, app);
-		if (is_frappe_app(app, app_path)) apps.push(app);
+		if (is_stylo_app(app, app_path)) apps.push(app);
 	}
 
 	return apps;
 }
 
-function is_frappe_app(app_name, app_path) {
+function is_stylo_app(app_name, app_path) {
 	/**
-	 * Same as the is_frappe_app check in frappe/bench
+	 * Same as the is_stylo_app check in stylo/forge
 	 */
 
 	const files_in_app = ["hooks.py", "modules.txt", "patches.txt"];
@@ -160,7 +160,7 @@ function get_redis_subscriber(kind) {
 
 module.exports = {
 	app_list,
-	bench_path,
+	forge_path,
 	assets_path,
 	sites_path,
 	apps_path,

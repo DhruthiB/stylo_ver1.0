@@ -38,7 +38,7 @@ c0c5b2ebdddbe8898ce2d5e5365f4931ff73b6bf
 # minor formatting fix in `user.py`
 f223bc02490902dfcc32892058f13f343d51fbaf
 
-# frappe.cache() -> frappe.cache
+# stylo.cache() -> stylo.cache
 fa6dc03cc87ad74e11609e7373078366fdcb3e1b
 
 # Bulk refactor with sourcery
@@ -59,7 +59,7 @@ e9bbe03354079cfcef65a77b0c33f57b047a7c93
 # ruff update
 84ef6ec677c8657c3243ac456a1ef794bfb34a50
 
-# replace `frappe.flags.in_test` with `frappe.in_test`
+# replace `stylo.flags.in_test` with `stylo.in_test`
 653c80b8483cc41aef25cd7d66b9b6bb188bf5f8
 
 # another ruff update

@@ -1,5 +1,5 @@
 name: 'Setup Environment'
-description: 'Sets up the environment for Frappe development'
+description: 'Sets up the environment for Stylo development'
 inputs:
   python-version:
     description: 'Python version to use'
@@ -63,13 +63,13 @@ runs:
           exit 1
       fi
 
-  - name: Checkout Frappe
+  - name: Checkout Stylo
     uses: actions/checkout@v4
     with:
-      repository: ${{ env.FRAPPE_GH_ORG || github.repository_owner }}/frappe
-      ref: ${{ github.event.client_payload.frappe_sha || github.base_ref || github.ref_name }}
-      path: apps/frappe
-    if: github.event.repository.name != 'frappe'
+      repository: ${{ env.FRAPPE_GH_ORG || github.repository_owner }}/stylo
+      ref: ${{ github.event.client_payload.stylo_sha || github.base_ref || github.ref_name }}
+      path: apps/stylo
+    if: github.event.repository.name != 'stylo'
 
   - uses: actions/setup-node@v4
     with:
@@ -121,7 +121,7 @@ runs:
     env:
       DB: ${{ inputs.db }}
     run: |
-      # Init Bench & test_site
+      # Init Forge & test_site
       start_time=$(date +%s)
       mkdir ${GITHUB_WORKSPACE}/{sites,config,logs,config/pids,sites/test_site}
       python -m venv ${GITHUB_WORKSPACE}/env
@@ -129,21 +129,21 @@ runs:
       pip install --quiet --upgrade pip
       pip cache remove mysqlclient
 
-      pip install --quiet frappe-bench
+      pip install --quiet stylo-forge
 
       python <<EOF
-      from bench.config.common_site_config import setup_config
-      from bench.config.redis import generate_config
-      from bench.config.procfile import setup_procfile
+      from forge.config.common_site_config import setup_config
+      from forge.config.redis import generate_config
+      from forge.config.procfile import setup_procfile
 
-      bench_path = "${{ github.workspace }}"
+      forge_path = "${{ github.workspace }}"
       is_true = lambda str: True if str == "true" else False
       is_not_true = lambda str: True if str != "true" else False
 
-      setup_config(bench_path)
-      generate_config(bench_path)
+      setup_config(forge_path)
+      generate_config(forge_path)
       setup_procfile(
-        bench_path,
+        forge_path,
         skip_redis=False,
         skip_web=is_true("${{ inputs.disable-web }}"),
         skip_watch=is_not_true("${{ inputs.enable-watch }}"),
@@ -153,7 +153,7 @@ runs:
       )
       EOF
       end_time=$(date +%s)
-      echo -e "\033[33mInit Bench: $((end_time - start_time)) seconds\033[0m"
+      echo -e "\033[33mInit Forge: $((end_time - start_time)) seconds\033[0m"
       cat ${GITHUB_WORKSPACE}/Procfile | awk '{print "\033[0;34m" $0 "\033[0m"}'
       # Attempt to copy the configuration file
       if cp "${GITHUB_WORKSPACE}/apps/${{ github.event.repository.name }}/.github/helper/db/$DB.json" ${GITHUB_WORKSPACE}/sites/test_site/site_config.json; then
@@ -168,18 +168,18 @@ runs:
         mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "SET GLOBAL character_set_server = 'utf8mb4'";
         mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'";
 
-        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "CREATE DATABASE test_frappe";
-        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "CREATE USER 'test_frappe'@'localhost' IDENTIFIED BY 'test_frappe'";
-        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "GRANT ALL PRIVILEGES ON \`test_frappe\`.* TO 'test_frappe'@'localhost'";
+        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "CREATE DATABASE test_stylo";
+        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "CREATE USER 'test_stylo'@'localhost' IDENTIFIED BY 'test_stylo'";
+        mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "GRANT ALL PRIVILEGES ON \`test_stylo\`.* TO 'test_stylo'@'localhost'";
 
         mariadb --host 127.0.0.1 --port 3306 -u root -p${{ inputs.db-root-password }} -e "FLUSH PRIVILEGES";
       fi
 
       if [ "$DB" == "postgres" ]; then
         export PGPASSWORD='travis'
-        psql -h 127.0.0.1 -p 5432 -c "CREATE DATABASE test_frappe" -U postgres
-        psql -h 127.0.0.1 -p 5432 -c "CREATE USER test_frappe WITH PASSWORD 'test_frappe'" -U postgres
-        psql -h 127.0.0.1 -p 5432 -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_frappe TO test_frappe;"
+        psql -h 127.0.0.1 -p 5432 -c "CREATE DATABASE test_stylo" -U postgres
+        psql -h 127.0.0.1 -p 5432 -c "CREATE USER test_stylo WITH PASSWORD 'test_stylo'" -U postgres
+        psql -h 127.0.0.1 -p 5432 -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_stylo TO test_stylo;"
         unset PGPASSWORD
       fi
 
@@ -217,9 +217,9 @@ runs:
 
   - shell: bash -e {0}
     run: |
-      # Start Bench
+      # Start Forge
       source ${GITHUB_WORKSPACE}/env/bin/activate
-      bench start &> ${GITHUB_WORKSPACE}/bench_start.log &
+      forge start &> ${GITHUB_WORKSPACE}/forge_start.log &
 
   - shell: bash -e {0}
     if: ${{ inputs.build-assets == 'true' }}
@@ -228,9 +228,9 @@ runs:
       start_time=$(date +%s)
 
       source ${GITHUB_WORKSPACE}/env/bin/activate
-      CI=Yes bench build --force --production &
+      CI=Yes forge build --force --production &
       build_pid=$!
-      bench --site test_site reinstall --yes
+      forge --site test_site reinstall --yes
       wait $build_pid
 
       end_time=$(date +%s)

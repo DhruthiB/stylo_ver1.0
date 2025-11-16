@@ -1,17 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 const redis = require("@redis/client");
-let bench_path;
+let forge_path;
 if (process.env.FRAPPE_BENCH_ROOT) {
-	bench_path = process.env.FRAPPE_BENCH_ROOT;
+	forge_path = process.env.FRAPPE_BENCH_ROOT;
 } else {
-	bench_path = path.resolve(__dirname, "..", "..");
+	forge_path = path.resolve(__dirname, "..", "..");
 }
 
 const dns = require("dns");
 
 // Since node17, node resolves to ipv6 unless system is configured otherwise.
-// In Frappe context using ipv4 - 127.0.0.1 is fine.
+// In Stylo context using ipv4 - 127.0.0.1 is fine.
 dns.setDefaultResultOrder("ipv4first");
 
 function get_conf() {
@@ -21,19 +21,19 @@ function get_conf() {
 	};
 
 	var read_config = function (file_path) {
-		const full_path = path.resolve(bench_path, file_path);
+		const full_path = path.resolve(forge_path, file_path);
 
 		if (fs.existsSync(full_path)) {
-			var bench_config = JSON.parse(fs.readFileSync(full_path));
-			for (var key in bench_config) {
-				if (bench_config[key]) {
-					conf[key] = bench_config[key];
+			var forge_config = JSON.parse(fs.readFileSync(full_path));
+			for (var key in forge_config) {
+				if (forge_config[key]) {
+					conf[key] = forge_config[key];
 				}
 			}
 		}
 	};
 
-	// get ports from bench/config.json
+	// get ports from forge/config.json
 	read_config("config.json");
 	read_config("sites/common_site_config.json");
 

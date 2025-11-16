@@ -4,16 +4,16 @@ context("Web Form", () => {
 		cy.visit("/app/");
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
-				return frappe.xcall("frappe.tests.ui_test_helpers.prepare_webform_test");
+			.its("stylo")
+			.then((stylo) => {
+				return stylo.xcall("stylo.tests.ui_test_helpers.prepare_webform_test");
 			});
 	});
 
 	it("Create Web Form", () => {
 		cy.visit("/app/web-form/new");
 
-		cy.intercept("POST", "/api/method/frappe.desk.form.save.savedocs").as("save_form");
+		cy.intercept("POST", "/api/method/stylo.desk.form.save.savedocs").as("save_form");
 
 		cy.fill_field("title", "Note");
 		cy.fill_field("doc_type", "Note", "Link");
@@ -184,7 +184,7 @@ context("Web Form", () => {
 
 		// Read Only Field
 		cy.get(".web-list-table tbody tr:last").click();
-		cy.get('.frappe-control[data-fieldname="title"] .control-input').should(
+		cy.get('.stylo-control[data-fieldname="title"] .control-input').should(
 			"have.css",
 			"display",
 			"none"
@@ -266,7 +266,7 @@ context("Web Form", () => {
 	});
 
 	it("Navigate and Submit a MultiStep WebForm", () => {
-		cy.call("frappe.tests.ui_test_helpers.update_webform_to_multistep").then(() => {
+		cy.call("stylo.tests.ui_test_helpers.update_webform_to_multistep").then(() => {
 			cy.visit("/update-profile-duplicate");
 
 			cy.get(".web-form-actions a").contains("Edit").click();

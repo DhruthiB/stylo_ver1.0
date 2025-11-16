@@ -40,21 +40,21 @@ flags:
 
 profiling:
    critical_files_paths:
-      - /frappe/api.py
-      - /frappe/app.py
-      - /frappe/auth.py
-      - /frappe/boot.py
-      - /frappe/client.py
-      - /frappe/handler.py
-      - /frappe/migrate.py
-      - /frappe/sessions.py
-      - /frappe/utils/*
-      - /frappe/desk/reportview.py
-      - /frappe/desk/form/*
-      - /frappe/model/*
-      - /frappe/core/doctype/doctype/*
-      - /frappe/core/doctype/data_import/*
-      - /frappe/core/doctype/user/*
-      - /frappe/core/doctype/user/*
-      - /frappe/query_builder/*
-      - /frappe/database/*
+      - /stylo/api.py
+      - /stylo/app.py
+      - /stylo/auth.py
+      - /stylo/boot.py
+      - /stylo/client.py
+      - /stylo/handler.py
+      - /stylo/migrate.py
+      - /stylo/sessions.py
+      - /stylo/utils/*
+      - /stylo/desk/reportview.py
+      - /stylo/desk/form/*
+      - /stylo/model/*
+      - /stylo/core/doctype/doctype/*
+      - /stylo/core/doctype/data_import/*
+      - /stylo/core/doctype/user/*
+      - /stylo/core/doctype/user/*
+      - /stylo/query_builder/*
+      - /stylo/database/*

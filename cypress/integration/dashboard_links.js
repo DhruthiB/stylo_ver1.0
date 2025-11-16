@@ -15,9 +15,9 @@ context("Dashboard links", () => {
 		cy.insert_doc("DocType", doctype_to_link, true);
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
-				frappe.call("frappe.tests.ui_test_helpers.update_child_table", {
+			.its("stylo")
+			.then((stylo) => {
+				stylo.call("stylo.tests.ui_test_helpers.update_child_table", {
 					name: child_table_doctype_name,
 				});
 			});
@@ -88,7 +88,7 @@ context("Dashboard links", () => {
 
 		cy.get(".document-link .btn-new").click();
 		cy.get(
-			'.frappe-control[data-fieldname="child_table"] .rows .data-row .col[data-fieldname="doctype_to_link"]'
+			'.stylo-control[data-fieldname="child_table"] .rows .data-row .col[data-fieldname="doctype_to_link"]'
 		).should("contain.text", "Test Linking");
 	});
 });

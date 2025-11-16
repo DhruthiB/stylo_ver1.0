@@ -122,9 +122,9 @@ jobs:
         run: |
           bash ${GITHUB_WORKSPACE}/.github/helper/install_dependencies.sh
 
-      - name: Init Bench
+      - name: Init Forge
         run: |
-          bash ${GITHUB_WORKSPACE}/.github/helper/install_bench.sh
+          bash ${GITHUB_WORKSPACE}/.github/helper/install_forge.sh
         env:
           TYPE: server
       - name: Init Test Site
@@ -135,4 +135,4 @@ jobs:
           DB: mariadb
 
       - name: Run Tests
-        run: 'cd ~/frappe-bench/ && bench --site test_site run-tests --app frappe --module ${{ matrix.test }}'
+        run: 'cd ~/stylo-forge/ && forge --site test_site run-tests --app stylo --module ${{ matrix.test }}'

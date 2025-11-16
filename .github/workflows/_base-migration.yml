@@ -61,7 +61,7 @@ jobs:
       run: |
         source ${GITHUB_WORKSPACE}/env/bin/activate
         wget "$DB_ARTIFACT_URL"
-        bench --site test_site --force restore ${GITHUB_WORKSPACE}/$(basename "$DB_ARTIFACT_URL")
+        forge --site test_site --force restore ${GITHUB_WORKSPACE}/$(basename "$DB_ARTIFACT_URL")
 
         function update_to_version() {
             version="$1"
@@ -111,7 +111,7 @@ jobs:
             if rm -rf ${GITHUB_WORKSPACE}/env && python -m venv ${GITHUB_WORKSPACE}/env; then
                 source ${GITHUB_WORKSPACE}/env/bin/activate
                 pip install --quiet --upgrade pip
-                pip install --quiet frappe-bench
+                pip install --quiet stylo-forge
                 echo "Environment setup completed."
             else
                 echo "Environment setup failed." >&2
@@ -128,11 +128,11 @@ jobs:
                 fi
             done
 
-            echo "Starting bench..."
-            bench start &>> ${GITHUB_WORKSPACE}/bench_start.log &
+            echo "Starting forge..."
+            forge start &>> ${GITHUB_WORKSPACE}/forge_start.log &
 
             echo "Running migrations on test_site..."
-            if bench --site test_site migrate; then
+            if forge --site test_site migrate; then
                 echo "Migration completed successfully."
             else
                 echo "Migration failed." >&2
@@ -162,16 +162,16 @@ jobs:
         source $RUNNER_TEMP/migrate
         update_to_version
         exit $?
-        bench --site test_site execute frappe.tests.utils.check_orpahned_doctypes
+        forge --site test_site execute stylo.tests.utils.check_orpahned_doctypes
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() && contains( github.event.pull_request.labels.*.name, 'debug-gha') }}
 
-    - name: Show bench output
+    - name: Show forge output
       if: ${{ always() }}
       run: |
-        cat bench_start.log || true
+        cat forge_start.log || true
         cd logs
         for f in ${GITHUB_WORKSPACE}/*.log*; do
           echo "Printing log: $f";
