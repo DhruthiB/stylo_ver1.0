@@ -3,21 +3,21 @@
 import json
 import time
 
-import frappe
-from frappe.desk.query_report import generate_report_result, get_report_doc
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.desk.query_report import generate_report_result, get_report_doc
+from stylo.tests.utils import StyloTestCase
 
 
 class TestPreparedReport(StyloTestCase):
 	@classmethod
 	def tearDownClass(cls):
-		for r in frappe.get_all("Prepared Report", pluck="name"):
-			frappe.delete_doc("Prepared Report", r, force=True, delete_permanently=True)
+		for r in stylo.get_all("Prepared Report", pluck="name"):
+			stylo.delete_doc("Prepared Report", r, force=True, delete_permanently=True)
 
-		frappe.db.commit()
+		stylo.db.commit()
 
 	def create_prepared_report(self, commit=False):
-		doc = frappe.get_doc(
+		doc = stylo.get_doc(
 			{
 				"doctype": "Prepared Report",
 				"report_name": "Database Storage Usage By Tables",
@@ -25,7 +25,7 @@ class TestPreparedReport(StyloTestCase):
 		).insert()
 
 		if commit:
-			frappe.db.commit()
+			stylo.db.commit()
 
 		return doc
 
@@ -34,10 +34,10 @@ class TestPreparedReport(StyloTestCase):
 		self.assertEqual("Queued", doc_.status)
 		self.assertTrue(doc_.queued_at)
 
-		frappe.db.commit()
+		stylo.db.commit()
 		time.sleep(5)
 
-		doc_ = frappe.get_last_doc("Prepared Report")
+		doc_ = stylo.get_last_doc("Prepared Report")
 		self.assertEqual("Completed", doc_.status)
 		self.assertTrue(doc_.job_id)
 		self.assertTrue(doc_.report_end_time)

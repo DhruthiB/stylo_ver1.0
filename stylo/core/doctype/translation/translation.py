@@ -3,10 +3,10 @@
 
 import json
 
-import frappe
-from frappe.model.document import Document
-from frappe.translate import MERGED_TRANSLATION_KEY, USER_TRANSLATION_KEY
-from frappe.utils import is_html, strip_html_tags
+import stylo
+from stylo.model.document import Document
+from stylo.translate import MERGED_TRANSLATION_KEY, USER_TRANSLATION_KEY
+from stylo.utils import is_html, strip_html_tags
 
 
 class Translation(Document):
@@ -30,14 +30,14 @@ class Translation(Document):
 		pass
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def create_translations(translation_map, language):
 	translation_map = json.loads(translation_map)
-	translation_map_to_send = frappe._dict({})
+	translation_map_to_send = stylo._dict({})
 	# first create / update local user translations
 	for source_id, translation_dict in translation_map.items():
-		translation_dict = frappe._dict(translation_dict)
-		existing_doc_name = frappe.get_all(
+		translation_dict = stylo._dict(translation_dict)
+		existing_doc_name = stylo.get_all(
 			"Translation",
 			{
 				"source_text": translation_dict.source_text,
@@ -47,7 +47,7 @@ def create_translations(translation_map, language):
 		)
 		translation_map_to_send[source_id] = translation_dict
 		if existing_doc_name:
-			frappe.db.set_value(
+			stylo.db.set_value(
 				"Translation",
 				existing_doc_name[0].name,
 				{
@@ -58,7 +58,7 @@ def create_translations(translation_map, language):
 			)
 			translation_map_to_send[source_id].name = existing_doc_name[0].name
 		else:
-			doc = frappe.get_doc(
+			doc = stylo.get_doc(
 				{
 					"doctype": "Translation",
 					"source_text": translation_dict.source_text,
@@ -74,5 +74,5 @@ def create_translations(translation_map, language):
 
 
 def clear_user_translation_cache(lang):
-	frappe.cache().hdel(USER_TRANSLATION_KEY, lang)
-	frappe.cache().hdel(MERGED_TRANSLATION_KEY, lang)
+	stylo.cache().hdel(USER_TRANSLATION_KEY, lang)
+	stylo.cache().hdel(MERGED_TRANSLATION_KEY, lang)

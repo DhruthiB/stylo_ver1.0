@@ -4,33 +4,33 @@
 import json
 from typing import TYPE_CHECKING
 
-import frappe
-import frappe.desk.form.load
-import frappe.desk.form.meta
-from frappe import _
-from frappe.core.doctype.file.utils import extract_images_from_html
-from frappe.desk.form.document_follow import follow_document
+import stylo
+import stylo.desk.form.load
+import stylo.desk.form.meta
+from stylo import _
+from stylo.core.doctype.file.utils import extract_images_from_html
+from stylo.desk.form.document_follow import follow_document
 
 if TYPE_CHECKING:
-	from frappe.core.doctype.comment.comment import Comment
+	from stylo.core.doctype.comment.comment import Comment
 
 
-@frappe.whitelist(methods=["DELETE", "POST"])
+@stylo.whitelist(methods=["DELETE", "POST"])
 def remove_attach():
 	"""remove attachment"""
-	fid = frappe.form_dict.get("fid")
-	frappe.delete_doc("File", fid)
+	fid = stylo.form_dict.get("fid")
+	stylo.delete_doc("File", fid)
 
 
-@frappe.whitelist(methods=["POST", "PUT"])
+@stylo.whitelist(methods=["POST", "PUT"])
 def add_comment(
 	reference_doctype: str, reference_name: str, content: str, comment_email: str, comment_by: str
 ) -> "Comment":
 	"""Allow logged user with permission to read document to add a comment"""
-	reference_doc = frappe.get_doc(reference_doctype, reference_name)
+	reference_doc = stylo.get_doc(reference_doctype, reference_name)
 	reference_doc.check_permission()
 
-	comment = frappe.new_doc("Comment")
+	comment = stylo.new_doc("Comment")
 	comment.update(
 		{
 			"comment_type": "Comment",
@@ -43,22 +43,22 @@ def add_comment(
 	)
 	comment.insert(ignore_permissions=True)
 
-	if frappe.get_cached_value("User", frappe.session.user, "follow_commented_documents"):
-		follow_document(comment.reference_doctype, comment.reference_name, frappe.session.user)
+	if stylo.get_cached_value("User", stylo.session.user, "follow_commented_documents"):
+		follow_document(comment.reference_doctype, comment.reference_name, stylo.session.user)
 
 	return comment
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_comment(name, content):
 	"""allow only owner to update comment"""
-	doc = frappe.get_doc("Comment", name)
+	doc = stylo.get_doc("Comment", name)
 
-	if frappe.session.user not in ["Administrator", doc.owner]:
-		frappe.throw(_("Comment can only be edited by the owner"), frappe.PermissionError)
+	if stylo.session.user not in ["Administrator", doc.owner]:
+		stylo.throw(_("Comment can only be edited by the owner"), stylo.PermissionError)
 
 	if doc.reference_doctype and doc.reference_name:
-		reference_doc = frappe.get_doc(doc.reference_doctype, doc.reference_name)
+		reference_doc = stylo.get_doc(doc.reference_doctype, doc.reference_name)
 		reference_doc.check_permission()
 
 		doc.content = extract_images_from_html(reference_doc, content, is_private=True)
@@ -68,7 +68,7 @@ def update_comment(name, content):
 	doc.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="modified"):
 	prev = int(prev)
 	if not filters:
@@ -85,9 +85,9 @@ def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="
 		condition = "<" if condition == ">" else ">"
 
 	# # add condition for next or prev item
-	filters.append([doctype, sort_field, condition, frappe.get_value(doctype, value, sort_field)])
+	filters.append([doctype, sort_field, condition, stylo.get_value(doctype, value, sort_field)])
 
-	res = frappe.get_list(
+	res = stylo.get_list(
 		doctype,
 		fields=["name"],
 		filters=filters,
@@ -98,11 +98,11 @@ def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="
 	)
 
 	if not res:
-		frappe.msgprint(_("No further records"))
+		stylo.msgprint(_("No further records"))
 		return None
 	else:
 		return res[0][0]
 
 
 def get_pdf_link(doctype, docname, print_format="Standard", no_letterhead=0):
-	return f"/api/method/frappe.utils.print_format.download_pdf?doctype={doctype}&name={docname}&format={print_format}&no_letterhead={no_letterhead}"
+	return f"/api/method/stylo.utils.print_format.download_pdf?doctype={doctype}&name={docname}&format={print_format}&no_letterhead={no_letterhead}"

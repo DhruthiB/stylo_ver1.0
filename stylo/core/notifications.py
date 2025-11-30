@@ -1,7 +1,7 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
+import stylo
 
 
 def get_notification_config():
@@ -9,8 +9,8 @@ def get_notification_config():
 		"for_doctype": {
 			"Error Log": {"seen": 0},
 			"Communication": {"status": "Open", "communication_type": "Communication"},
-			"ToDo": "frappe.core.notifications.get_things_todo",
-			"Event": "frappe.core.notifications.get_todays_events",
+			"ToDo": "stylo.core.notifications.get_things_todo",
+			"Event": "stylo.core.notifications.get_todays_events",
 			"Error Snapshot": {"seen": 0, "parent_error_snapshot": None},
 			"Workflow Action": {"status": "Open"},
 		},
@@ -19,13 +19,13 @@ def get_notification_config():
 
 def get_things_todo(as_list=False):
 	"""Returns a count of incomplete todos"""
-	data = frappe.get_list(
+	data = stylo.get_list(
 		"ToDo",
 		fields=["name", "description"] if as_list else "count(*)",
 		filters=[["ToDo", "status", "=", "Open"]],
 		or_filters=[
-			["ToDo", "allocated_to", "=", frappe.session.user],
-			["ToDo", "assigned_by", "=", frappe.session.user],
+			["ToDo", "allocated_to", "=", stylo.session.user],
+			["ToDo", "assigned_by", "=", stylo.session.user],
 		],
 		as_list=True,
 	)
@@ -38,8 +38,8 @@ def get_things_todo(as_list=False):
 
 def get_todays_events(as_list=False):
 	"""Returns a count of todays events in calendar"""
-	from frappe.desk.doctype.event.event import get_events
-	from frappe.utils import nowdate
+	from stylo.desk.doctype.event.event import get_events
+	from stylo.utils import nowdate
 
 	today = nowdate()
 	events = get_events(today, today)

@@ -2,9 +2,9 @@
 # License: MIT. See LICENSE
 from werkzeug.wrappers import Response
 
-import frappe
-from frappe.app import process_response
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.app import process_response
+from stylo.tests.utils import StyloTestCase
 
 HEADERS = (
 	"Access-Control-Allow-Origin",
@@ -27,7 +27,7 @@ class TestCORS(StyloTestCase):
 				"Access-Control-Request-Headers": "X-Test-Header",
 			}
 
-		frappe.utils.set_request(method="OPTIONS", headers=headers)
+		stylo.utils.set_request(method="OPTIONS", headers=headers)
 
 		self.response = Response()
 		process_response(self.response)
@@ -42,26 +42,26 @@ class TestCORS(StyloTestCase):
 					self.assertIn(header, self.response.headers)
 
 	def test_cors_disabled(self):
-		frappe.conf.allow_cors = None
+		stylo.conf.allow_cors = None
 		self.make_request_and_test("http://example.com", True)
 
 	def test_request_without_origin(self):
-		frappe.conf.allow_cors = "http://example.com"
+		stylo.conf.allow_cors = "http://example.com"
 		self.make_request_and_test(None, True)
 
 	def test_valid_origin(self):
-		frappe.conf.allow_cors = "http://example.com"
+		stylo.conf.allow_cors = "http://example.com"
 		self.make_request_and_test()
 
-		frappe.conf.allow_cors = "*"
+		stylo.conf.allow_cors = "*"
 		self.make_request_and_test()
 
-		frappe.conf.allow_cors = ["http://example.com", "https://example.com"]
+		stylo.conf.allow_cors = ["http://example.com", "https://example.com"]
 		self.make_request_and_test()
 
 	def test_invalid_origin(self):
-		frappe.conf.allow_cors = "http://example1.com"
+		stylo.conf.allow_cors = "http://example1.com"
 		self.make_request_and_test(absent=True)
 
-		frappe.conf.allow_cors = ["http://example1.com", "https://example.com"]
+		stylo.conf.allow_cors = ["http://example1.com", "https://example.com"]
 		self.make_request_and_test(absent=True)

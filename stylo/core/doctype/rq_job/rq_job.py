@@ -9,17 +9,17 @@ from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Job
 from rq.queue import Queue
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import (
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import (
 	cint,
 	compare,
 	convert_utc_to_system_timezone,
 	create_batch,
 	make_filter_dict,
 )
-from frappe.utils.background_jobs import get_queues, get_redis_conn
+from stylo.utils.background_jobs import get_queues, get_redis_conn
 
 QUEUES = ["default", "long", "short"]
 JOB_STATUSES = ["queued", "started", "failed", "finished", "deferred", "scheduled", "canceled"]
@@ -28,10 +28,10 @@ JOB_STATUSES = ["queued", "started", "failed", "finished", "deferred", "schedule
 def check_permissions(method):
 	@functools.wraps(method)
 	def wrapper(*args, **kwargs):
-		frappe.only_for("System Manager")
+		stylo.only_for("System Manager")
 		job = args[0].job
 		if not for_current_site(job):
-			raise frappe.PermissionError
+			raise stylo.PermissionError
 
 		return method(*args, **kwargs)
 
@@ -43,10 +43,10 @@ class RQJob(Document):
 		try:
 			job = Job.fetch(self.name, connection=get_redis_conn())
 		except NoSuchJobError:
-			raise frappe.DoesNotExistError
+			raise stylo.DoesNotExistError
 
 		if not for_current_site(job):
-			raise frappe.PermissionError
+			raise stylo.PermissionError
 
 		super(Document, self).__init__(serialize_job(job))
 		self._job_obj = job
@@ -102,14 +102,14 @@ class RQJob(Document):
 		try:
 			send_stop_job_command(connection=get_redis_conn(), job_id=self.job_id)
 		except InvalidJobOperation:
-			frappe.msgprint(_("Job is not running."), title=_("Invalid Operation"))
+			stylo.msgprint(_("Job is not running."), title=_("Invalid Operation"))
 
 	@check_permissions
 	def cancel(self):
 		if self.status == "queued":
 			self.job.cancel()
 		else:
-			frappe.msgprint(
+			stylo.msgprint(
 				_("Job is in {0} state and can't be cancelled").format(self.status),
 				title=_("Invalid Operation"),
 			)
@@ -131,7 +131,7 @@ class RQJob(Document):
 		pass
 
 
-def serialize_job(job: Job) -> frappe._dict:
+def serialize_job(job: Job) -> stylo._dict:
 	modified = job.last_heartbeat or job.ended_at or job.started_at or job.created_at
 	job_name = job.kwargs.get("kwargs", {}).get("job_type") or str(job.kwargs.get("job_name"))
 
@@ -140,7 +140,7 @@ def serialize_job(job: Job) -> frappe._dict:
 	if matches := re.match(r"<function (?P<func_name>.*) at 0x.*>", job_name):
 		job_name = matches.group("func_name")
 
-	return frappe._dict(
+	return stylo._dict(
 		name=job.id,
 		job_id=job.id,
 		queue=job.origin.rsplit(":", 1)[1],
@@ -150,7 +150,7 @@ def serialize_job(job: Job) -> frappe._dict:
 		ended_at=convert_utc_to_system_timezone(job.ended_at) if job.ended_at else "",
 		time_taken=(job.ended_at - job.started_at).total_seconds() if job.ended_at else "",
 		exc_info=job.exc_info,
-		arguments=frappe.as_json(job.kwargs),
+		arguments=stylo.as_json(job.kwargs),
 		timeout=job.timeout,
 		creation=convert_utc_to_system_timezone(job.created_at),
 		modified=convert_utc_to_system_timezone(modified),
@@ -161,7 +161,7 @@ def serialize_job(job: Job) -> frappe._dict:
 
 
 def for_current_site(job: Job) -> bool:
-	return job.kwargs.get("site") == frappe.local.site
+	return job.kwargs.get("site") == stylo.local.site
 
 
 def _eval_filters(filter, values: list[str]) -> list[str]:
@@ -190,9 +190,9 @@ def fetch_job_ids(queue: Queue, status: str) -> list[str]:
 	return []
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def remove_failed_jobs():
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	for queue in get_queues():
 		fail_registry = queue.failed_job_registry
 		for job_ids in create_batch(fail_registry.get_job_ids(), 100):
@@ -209,6 +209,6 @@ def get_all_queued_jobs():
 	return [job for job in jobs if for_current_site(job)]
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def stop_job(job_id):
-	frappe.get_doc("RQ Job", job_id).stop_job()
+	stylo.get_doc("RQ Job", job_id).stop_job()

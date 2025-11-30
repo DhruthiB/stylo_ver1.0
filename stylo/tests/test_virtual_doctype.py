@@ -2,12 +2,12 @@ import json
 import os
 from unittest.mock import patch
 
-import frappe
-import frappe.modules.utils
-from frappe.core.doctype.doctype.test_doctype import new_doctype
-from frappe.desk.form.save import savedocs
-from frappe.model.document import Document
-from frappe.tests.utils import StyloTestCase
+import stylo
+import stylo.modules.utils
+from stylo.core.doctype.doctype.test_doctype import new_doctype
+from stylo.desk.form.save import savedocs
+from stylo.model.document import Document
+from stylo.tests.utils import StyloTestCase
 
 TEST_DOCTYPE_NAME = "VirtualDoctypeTest"
 
@@ -68,7 +68,7 @@ class VirtualDoctypeTest(Document):
 	@staticmethod
 	def get_list(args):
 		data = VirtualDoctypeTest.get_current_data()
-		return [frappe._dict(doc) for name, doc in data.items()]
+		return [stylo._dict(doc) for name, doc in data.items()]
 
 	@staticmethod
 	def get_count(args):
@@ -83,14 +83,14 @@ class VirtualDoctypeTest(Document):
 class TestVirtualDoctypes(StyloTestCase):
 	@classmethod
 	def setUpClass(cls):
-		frappe.flags.allow_doctype_export = True
-		cls.addClassCleanup(frappe.flags.pop, "allow_doctype_export", None)
+		stylo.flags.allow_doctype_export = True
+		cls.addClassCleanup(stylo.flags.pop, "allow_doctype_export", None)
 
 		vdt = new_doctype(name=TEST_DOCTYPE_NAME, is_virtual=1, custom=0).insert()
 		cls.addClassCleanup(vdt.delete)
 
 		patch_virtual_doc = patch(
-			"frappe.controllers", new={frappe.local.site: {TEST_DOCTYPE_NAME: VirtualDoctypeTest}}
+			"stylo.controllers", new={stylo.local.site: {TEST_DOCTYPE_NAME: VirtualDoctypeTest}}
 		)
 		patch_virtual_doc.start()
 		cls.addClassCleanup(patch_virtual_doc.stop)
@@ -102,7 +102,7 @@ class TestVirtualDoctypes(StyloTestCase):
 	def test_insert_update_and_load_from_desk(self):
 		"""Insert, update, reload and assert changes"""
 
-		frappe.response.docs = []
+		stylo.response.docs = []
 		doc = json.dumps(
 			{
 				"docstatus": 0,
@@ -116,9 +116,9 @@ class TestVirtualDoctypes(StyloTestCase):
 		)
 		savedocs(doc, "Save")
 
-		docname = frappe.response.docs[0]["name"]
+		docname = stylo.response.docs[0]["name"]
 
-		doc = frappe.get_doc(TEST_DOCTYPE_NAME, docname)
+		doc = stylo.get_doc(TEST_DOCTYPE_NAME, docname)
 		doc.some_fieldname = "New Data"
 
 		savedocs(doc.as_json(), "Save")
@@ -127,8 +127,8 @@ class TestVirtualDoctypes(StyloTestCase):
 		self.assertEqual(doc.some_fieldname, "New Data")
 
 	def test_multiple_doc_insert_and_get_list(self):
-		doc1 = frappe.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="first").insert()
-		doc2 = frappe.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="second").insert()
+		doc1 = stylo.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="first").insert()
+		doc2 = stylo.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="second").insert()
 
 		docs = {doc1.name, doc2.name}
 
@@ -145,9 +145,9 @@ class TestVirtualDoctypes(StyloTestCase):
 		self.assertIsInstance(VirtualDoctypeTest.get_count(args), int)
 
 	def test_delete_doc(self):
-		doc = frappe.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="data").insert()
+		doc = stylo.get_doc(doctype=TEST_DOCTYPE_NAME, some_fieldname="data").insert()
 
-		frappe.delete_doc(doc.doctype, doc.name)
+		stylo.delete_doc(doc.doctype, doc.name)
 
 		listed_docs = {d.name for d in VirtualDoctypeTest.get_list({})}
 		self.assertNotIn(doc.name, listed_docs)

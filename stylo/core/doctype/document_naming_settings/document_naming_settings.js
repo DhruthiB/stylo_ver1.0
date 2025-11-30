@@ -1,14 +1,14 @@
 // Copyright (c) 2022, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Document Naming Settings", {
+stylo.ui.form.on("Document Naming Settings", {
 	refresh: function (frm) {
 		frm.trigger("setup_transaction_autocomplete");
 		frm.disable_save();
 	},
 
 	setup_transaction_autocomplete: function (frm) {
-		frappe.call({
+		stylo.call({
 			method: "get_transactions_and_prefixes",
 			doc: frm.doc,
 			callback: function (r) {
@@ -20,7 +20,7 @@ frappe.ui.form.on("Document Naming Settings", {
 
 	transaction_type: function (frm) {
 		frm.set_value("user_must_always_select", 0);
-		frappe.call({
+		stylo.call({
 			method: "get_options",
 			doc: frm.doc,
 			callback: function (r) {
@@ -32,7 +32,7 @@ frappe.ui.form.on("Document Naming Settings", {
 	},
 
 	prefix: function (frm) {
-		frappe.call({
+		stylo.call({
 			method: "get_current",
 			doc: frm.doc,
 			callback: function (r) {
@@ -42,7 +42,7 @@ frappe.ui.form.on("Document Naming Settings", {
 	},
 
 	update: function (frm) {
-		frappe.call({
+		stylo.call({
 			method: "update_series",
 			doc: frm.doc,
 			freeze: true,
@@ -55,7 +55,7 @@ frappe.ui.form.on("Document Naming Settings", {
 	},
 
 	try_naming_series(frm) {
-		frappe.call({
+		stylo.call({
 			method: "preview_series",
 			doc: frm.doc,
 			callback: function (r) {

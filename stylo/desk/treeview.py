@@ -1,11 +1,11 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
+import stylo
+from stylo import _
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_all_nodes(doctype, label, parent, tree_method, **filters):
 	"""Recursively gets all data from tree nodes"""
 
@@ -13,10 +13,10 @@ def get_all_nodes(doctype, label, parent, tree_method, **filters):
 		del filters["cmd"]
 	filters.pop("data", None)
 
-	tree_method = frappe.get_attr(tree_method)
+	tree_method = stylo.get_attr(tree_method)
 
-	if tree_method not in frappe.whitelisted:
-		frappe.throw(_("Not Permitted"), frappe.PermissionError)
+	if tree_method not in stylo.whitelisted:
+		stylo.throw(_("Not Permitted"), stylo.PermissionError)
 
 	data = tree_method(doctype, parent, **filters)
 	out = [dict(parent=label, data=data)]
@@ -36,18 +36,18 @@ def get_all_nodes(doctype, label, parent, tree_method, **filters):
 	return out
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_children(doctype, parent="", **filters):
 	return _get_children(doctype, parent)
 
 
 def _get_children(doctype, parent="", ignore_permissions=False):
-	parent_field = "parent_" + frappe.scrub(doctype)
+	parent_field = "parent_" + stylo.scrub(doctype)
 	filters = [[f"ifnull(`{parent_field}`,'')", "=", parent], ["docstatus", "<", 2]]
 
-	meta = frappe.get_meta(doctype)
+	meta = stylo.get_meta(doctype)
 
-	return frappe.get_list(
+	return stylo.get_list(
 		doctype,
 		fields=[
 			"name as value",
@@ -60,10 +60,10 @@ def _get_children(doctype, parent="", ignore_permissions=False):
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def add_node():
-	args = make_tree_args(**frappe.form_dict)
-	doc = frappe.get_doc(args)
+	args = make_tree_args(**stylo.form_dict)
+	doc = stylo.get_doc(args)
 
 	doc.save()
 
@@ -72,7 +72,7 @@ def make_tree_args(**kwarg):
 	kwarg.pop("cmd", None)
 
 	doctype = kwarg["doctype"]
-	parent_field = "parent_" + frappe.scrub(doctype)
+	parent_field = "parent_" + stylo.scrub(doctype)
 
 	if kwarg["is_root"] == "false":
 		kwarg["is_root"] = False
@@ -81,4 +81,4 @@ def make_tree_args(**kwarg):
 
 	kwarg.update({parent_field: kwarg.get("parent") or kwarg.get(parent_field)})
 
-	return frappe._dict(kwarg)
+	return stylo._dict(kwarg)

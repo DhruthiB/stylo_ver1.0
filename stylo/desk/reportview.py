@@ -5,20 +5,20 @@
 
 import json
 
-import frappe
-import frappe.permissions
-from frappe import _
-from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.model import child_table_fields, default_fields, get_permitted_fields, optional_fields
-from frappe.model.base_document import get_controller
-from frappe.model.db_query import DatabaseQuery
-from frappe.model.utils import is_virtual_doctype
-from frappe.utils import add_user_info, cint, cstr, format_duration
-from frappe.utils.data import sbool
+import stylo
+import stylo.permissions
+from stylo import _
+from stylo.core.doctype.access_log.access_log import make_access_log
+from stylo.model import child_table_fields, default_fields, get_permitted_fields, optional_fields
+from stylo.model.base_document import get_controller
+from stylo.model.db_query import DatabaseQuery
+from stylo.model.utils import is_virtual_doctype
+from stylo.utils import add_user_info, cint, cstr, format_duration
+from stylo.utils.data import sbool
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def get():
 	args = get_form_params()
 	# If virtual doctype get data from controller het_list method
@@ -30,8 +30,8 @@ def get():
 	return data
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def get_list():
 	args = get_form_params()
 
@@ -39,14 +39,14 @@ def get_list():
 		controller = get_controller(args.doctype)
 		data = controller.get_list(args)
 	else:
-		# uncompressed (refactored from frappe.model.db_query.get_list)
+		# uncompressed (refactored from stylo.model.db_query.get_list)
 		data = execute(**args)
 
 	return data
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def get_count():
 	args = get_form_params()
 
@@ -63,7 +63,7 @@ def get_count():
 		if args.limit:
 			args.fields = [fieldname]
 			partial_query = execute(**args, run=0)
-			count = frappe.db.sql(f"""select count(*) from ( {partial_query} ) p""")[0][0]
+			count = stylo.db.sql(f"""select count(*) from ( {partial_query} ) p""")[0][0]
 		else:
 			args.fields = [f"count({fieldname}) as total_count"]
 			count = execute(**args)[0].get("total_count")
@@ -77,7 +77,7 @@ def execute(doctype, *args, **kwargs):
 
 def get_form_params():
 	"""Stringify GET request parameters."""
-	data = frappe._dict(frappe.local.form_dict)
+	data = stylo._dict(stylo.local.form_dict)
 	clean_params(data)
 	validate_args(data)
 	return data
@@ -141,7 +141,7 @@ def validate_filters(data, filters):
 				fieldname = condition[1]
 				if is_standard(fieldname):
 					continue
-				meta = frappe.get_meta(condition[0])
+				meta = stylo.get_meta(condition[0])
 				if not meta.get_field(fieldname):
 					raise_invalid_field(fieldname)
 
@@ -158,9 +158,9 @@ def setup_group_by(data):
 	"""Add columns for aggregated values e.g. count(name)"""
 	if data.group_by and data.aggregate_function:
 		if data.aggregate_function.lower() not in ("count", "sum", "avg"):
-			frappe.throw(_("Invalid aggregate function"))
+			stylo.throw(_("Invalid aggregate function"))
 
-		if frappe.db.has_column(data.aggregate_on_doctype, data.aggregate_on_field):
+		if stylo.db.has_column(data.aggregate_on_doctype, data.aggregate_on_field):
 			data.fields.append(
 				f"{data.aggregate_function}(`tab{data.aggregate_on_doctype}`.`{data.aggregate_on_field}`) AS _aggregate_column"
 			)
@@ -173,7 +173,7 @@ def setup_group_by(data):
 
 
 def raise_invalid_field(fieldname):
-	frappe.throw(_("Field not permitted in query") + f": {fieldname}", frappe.DataError)
+	stylo.throw(_("Field not permitted in query") + f": {fieldname}", stylo.DataError)
 
 
 def is_standard(fieldname):
@@ -203,7 +203,7 @@ def extract_fieldname(field):
 
 def get_meta_and_docfield(fieldname, data):
 	parenttype, fieldname = get_parenttype_and_fieldname(fieldname, data)
-	meta = frappe.get_meta(parenttype)
+	meta = stylo.get_meta(parenttype)
 	df = meta.get_field(fieldname)
 	return meta, df
 
@@ -212,11 +212,11 @@ def update_wildcard_field_param(data):
 	if (isinstance(data.fields, str) and data.fields == "*") or (
 		isinstance(data.fields, list | tuple) and len(data.fields) == 1 and data.fields[0] == "*"
 	):
-		if frappe.get_system_settings("apply_perm_level_on_api_calls"):
+		if stylo.get_system_settings("apply_perm_level_on_api_calls"):
 			parent_type = data.parenttype or data.parent_doctype
 			data.fields = get_permitted_fields(data.doctype, parenttype=parent_type, ignore_virtual=True)
 		else:
-			data.fields = frappe.db.get_table_columns(data.doctype)
+			data.fields = stylo.db.get_table_columns(data.doctype)
 		return True
 
 	return False
@@ -253,7 +253,7 @@ def get_parenttype_and_fieldname(field, data):
 			fieldname = fieldname.strip("`")
 		else:
 			# tablefield.fieldname
-			parenttype = frappe.get_meta(data.doctype).get_field(parenttype).options
+			parenttype = stylo.get_meta(data.doctype).get_field(parenttype).options
 	else:
 		parenttype = data.doctype
 		fieldname = field.strip("`")
@@ -263,7 +263,7 @@ def get_parenttype_and_fieldname(field, data):
 
 def compress(data, args=None):
 	"""separate keys and values"""
-	from frappe.desk.query_report import add_total_row
+	from stylo.desk.query_report import add_total_row
 
 	user_info = {}
 
@@ -285,69 +285,69 @@ def compress(data, args=None):
 				add_user_info(user, user_info)
 
 	if args.get("add_total_row"):
-		meta = frappe.get_meta(args.doctype)
+		meta = stylo.get_meta(args.doctype)
 		values = add_total_row(values, keys, meta)
 
 	return {"keys": keys, "values": values, "user_info": user_info}
 
 
-@frappe.whitelist(methods=["POST", "PUT"])
+@stylo.whitelist(methods=["POST", "PUT"])
 def save_report(name, doctype, report_settings):
 	"""Save reports of type Report Builder from Report View"""
 
-	if frappe.db.exists("Report", name):
-		report = frappe.get_doc("Report", name)
+	if stylo.db.exists("Report", name):
+		report = stylo.get_doc("Report", name)
 		if report.is_standard == "Yes":
-			frappe.throw(_("Standard Reports cannot be edited"))
+			stylo.throw(_("Standard Reports cannot be edited"))
 
 		if report.report_type != "Report Builder":
-			frappe.throw(_("Only reports of type Report Builder can be edited"))
+			stylo.throw(_("Only reports of type Report Builder can be edited"))
 
-		if report.owner != frappe.session.user and not report.has_permission("write"):
-			frappe.throw(_("Insufficient Permissions for editing Report"), frappe.PermissionError)
+		if report.owner != stylo.session.user and not report.has_permission("write"):
+			stylo.throw(_("Insufficient Permissions for editing Report"), stylo.PermissionError)
 	else:
-		report = frappe.new_doc("Report")
+		report = stylo.new_doc("Report")
 		report.report_name = name
 		report.ref_doctype = doctype
 
 	report.report_type = "Report Builder"
 	report.json = report_settings
 	report.save(ignore_permissions=True)
-	frappe.msgprint(
-		_("Report {0} saved").format(frappe.bold(report.name)),
+	stylo.msgprint(
+		_("Report {0} saved").format(stylo.bold(report.name)),
 		indicator="green",
 		alert=True,
 	)
 	return report.name
 
 
-@frappe.whitelist(methods=["POST", "DELETE"])
+@stylo.whitelist(methods=["POST", "DELETE"])
 def delete_report(name):
 	"""Delete reports of type Report Builder from Report View"""
 
-	report = frappe.get_doc("Report", name)
+	report = stylo.get_doc("Report", name)
 	if report.is_standard == "Yes":
-		frappe.throw(_("Standard Reports cannot be deleted"))
+		stylo.throw(_("Standard Reports cannot be deleted"))
 
 	if report.report_type != "Report Builder":
-		frappe.throw(_("Only reports of type Report Builder can be deleted"))
+		stylo.throw(_("Only reports of type Report Builder can be deleted"))
 
-	if report.owner != frappe.session.user and not report.has_permission("delete"):
-		frappe.throw(_("Insufficient Permissions for deleting Report"), frappe.PermissionError)
+	if report.owner != stylo.session.user and not report.has_permission("delete"):
+		stylo.throw(_("Insufficient Permissions for deleting Report"), stylo.PermissionError)
 
 	report.delete(ignore_permissions=True)
-	frappe.msgprint(
-		_("Report {0} deleted").format(frappe.bold(report.name)),
+	stylo.msgprint(
+		_("Report {0} deleted").format(stylo.bold(report.name)),
 		indicator="green",
 		alert=True,
 	)
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def export_query():
 	"""export from report builder"""
-	from frappe.desk.utils import pop_csv_params
+	from stylo.desk.utils import pop_csv_params
 
 	form_params = get_form_params()
 	form_params["limit_page_length"] = None
@@ -356,18 +356,18 @@ def export_query():
 	export_in_background = int(form_params.pop("export_in_background", 0))
 
 	if export_in_background:
-		user = frappe.session.user
-		user_email = frappe.get_cached_value("User", user, "email")
-		frappe.enqueue(
-			"frappe.desk.reportview.run_report_view_export_job",
+		user = stylo.session.user
+		user_email = stylo.get_cached_value("User", user, "email")
+		stylo.enqueue(
+			"stylo.desk.reportview.run_report_view_export_job",
 			user_email=user_email,
 			form_params=form_params,
 			csv_params=csv_params,
 			queue="long",
-			now=frappe.flags.in_test,
+			now=stylo.flags.in_test,
 		)
 
-		frappe.msgprint(
+		stylo.msgprint(
 			_(
 				"Your report is being generated in the background. You will receive an email on {0} with a download link once it is ready."
 			).format(user_email)
@@ -378,15 +378,15 @@ def export_query():
 
 
 def run_report_view_export_job(user_email, form_params, csv_params):
-	from frappe.desk.utils import send_report_email
+	from stylo.desk.utils import send_report_email
 
 	report_name, file_extension, content = _export_query(form_params, csv_params, populate_response=False)
 	send_report_email(user_email, report_name, file_extension, content, attached_to_name=report_name)
 
 
 def _export_query(form_params, csv_params, populate_response=True):
-	from frappe.desk.utils import get_csv_bytes, provide_binary_file
-	from frappe.utils.xlsxutils import handle_html, make_xlsx
+	from stylo.desk.utils import get_csv_bytes, provide_binary_file
+	from stylo.utils.xlsxutils import handle_html, make_xlsx
 
 	doctype = form_params.pop("doctype")
 	if isinstance(form_params["fields"], list):
@@ -410,15 +410,15 @@ def _export_query(form_params, csv_params, populate_response=True):
 	db_query = DatabaseQuery(doctype)
 	ret = db_query.execute(**form_params)
 
-	if not frappe.permissions.can_export(doctype):
-		if frappe.permissions.can_export(doctype, is_owner=True):
+	if not stylo.permissions.can_export(doctype):
+		if stylo.permissions.can_export(doctype, is_owner=True):
 			for row in ret:
-				if row[-1] != frappe.session.user:
-					raise frappe.PermissionError(
+				if row[-1] != stylo.session.user:
+					raise stylo.PermissionError(
 						_("You are not allowed to export {} doctype").format(doctype)
 					)
 		else:
-			raise frappe.PermissionError(_("You are not allowed to export {} doctype").format(doctype))
+			raise stylo.PermissionError(_("You are not allowed to export {} doctype").format(doctype))
 
 	if add_totals_row:
 		ret = append_totals_row(ret)
@@ -430,7 +430,7 @@ def _export_query(form_params, csv_params, populate_response=True):
 	if file_format_type == "CSV":
 		file_extension = "csv"
 		content = get_csv_bytes(
-			[[handle_html(frappe.as_unicode(v)) if isinstance(v, str) else v for v in r] for r in data],
+			[[handle_html(stylo.as_unicode(v)) if isinstance(v, str) else v for v in r] for r in data],
 			csv_params,
 		)
 	elif file_format_type == "Excel":
@@ -477,7 +477,7 @@ def get_labels(fields, doctype):
 		if parenttype == doctype and fieldname == "name":
 			label = _("ID", context="Label of name column in report")
 		else:
-			df = frappe.get_meta(parenttype).get_field(fieldname)
+			df = stylo.get_meta(parenttype).get_field(fieldname)
 			label = _(df.label if df else fieldname.title())
 			if parenttype != doctype:
 				# If the column is from a child table, append the child doctype.
@@ -497,7 +497,7 @@ def handle_duration_fieldtype_values(doctype, data, fields):
 			continue
 
 		parenttype = parenttype or doctype
-		df = frappe.get_meta(parenttype).get_field(fieldname)
+		df = stylo.get_meta(parenttype).get_field(fieldname)
 
 		if df and df.fieldtype == "Duration":
 			index = fields.index(field) + 1
@@ -522,16 +522,16 @@ def parse_field(field: str) -> tuple[str | None, str]:
 	return None, key.strip("`")
 
 
-@frappe.whitelist(methods=["POST", "DELETE"])
+@stylo.whitelist(methods=["POST", "DELETE"])
 def delete_items():
 	"""delete selected items"""
 	import json
 
-	items = sorted(json.loads(frappe.form_dict.get("items")), reverse=True)
-	doctype = frappe.form_dict.get("doctype")
+	items = sorted(json.loads(stylo.form_dict.get("items")), reverse=True)
+	doctype = stylo.form_dict.get("doctype")
 
 	if len(items) > 10:
-		frappe.enqueue("frappe.desk.reportview.delete_bulk", doctype=doctype, items=items)
+		stylo.enqueue("stylo.desk.reportview.delete_bulk", doctype=doctype, items=items)
 	else:
 		delete_bulk(doctype, items)
 
@@ -539,25 +539,25 @@ def delete_items():
 def delete_bulk(doctype, items):
 	for i, d in enumerate(items):
 		try:
-			frappe.delete_doc(doctype, d)
+			stylo.delete_doc(doctype, d)
 			if len(items) >= 5:
-				frappe.publish_realtime(
+				stylo.publish_realtime(
 					"progress",
 					dict(
 						progress=[i + 1, len(items)], title=_("Deleting {0}").format(doctype), description=d
 					),
-					user=frappe.session.user,
+					user=stylo.session.user,
 				)
 			# Commit after successful deletion
-			frappe.db.commit()
+			stylo.db.commit()
 		except Exception:
 			# rollback if any record failed to delete
 			# if not rollbacked, queries get committed on after_request method in app.py
-			frappe.db.rollback()
+			stylo.db.rollback()
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def get_sidebar_stats(stats, doctype, filters=None):
 	if filters is None:
 		filters = []
@@ -572,8 +572,8 @@ def get_sidebar_stats(stats, doctype, filters=None):
 	return {"stats": data}
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def get_stats(stats, doctype, filters=None):
 	"""get tag info"""
 	import json
@@ -586,8 +586,8 @@ def get_stats(stats, doctype, filters=None):
 	results = {}
 
 	try:
-		db_columns = frappe.db.get_table_columns(doctype)
-	except (frappe.db.InternalError, frappe.db.ProgrammingError):
+		db_columns = stylo.db.get_table_columns(doctype)
+	except (stylo.db.InternalError, stylo.db.ProgrammingError):
 		# raised when _user_tags column is added on the fly
 		# raised if its a virtual doctype
 		db_columns = []
@@ -596,7 +596,7 @@ def get_stats(stats, doctype, filters=None):
 		if column not in db_columns:
 			continue
 		try:
-			tag_count = frappe.get_list(
+			tag_count = stylo.get_list(
 				doctype,
 				fields=[column, "count(*)"],
 				filters=[*filters, [column, "!=", ""]],
@@ -607,7 +607,7 @@ def get_stats(stats, doctype, filters=None):
 
 			if column == "_user_tags":
 				results[column] = scrub_user_tags(tag_count)
-				no_tag_count = frappe.get_list(
+				no_tag_count = stylo.get_list(
 					doctype,
 					fields=[column, "count(*)"],
 					filters=[*filters, [column, "in", ("", ",")]],
@@ -622,16 +622,16 @@ def get_stats(stats, doctype, filters=None):
 			else:
 				results[column] = tag_count
 
-		except frappe.db.SQLError:
+		except stylo.db.SQLError:
 			pass
-		except frappe.db.InternalError:
+		except stylo.db.InternalError:
 			# raised when _user_tags column is added on the fly
 			pass
 
 	return results
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_filter_dashboard_data(stats, doctype, filters=None):
 	"""get tags info"""
 	import json
@@ -640,13 +640,13 @@ def get_filter_dashboard_data(stats, doctype, filters=None):
 	filters = json.loads(filters or [])
 	stats = {}
 
-	columns = frappe.db.get_table_columns(doctype)
+	columns = stylo.db.get_table_columns(doctype)
 	for tag in tags:
 		if tag["name"] not in columns:
 			continue
 		tagcount = []
 		if tag["type"] not in ["Date", "Datetime"]:
-			tagcount = frappe.get_list(
+			tagcount = stylo.get_list(
 				doctype,
 				fields=[tag["name"], "count(*)"],
 				filters=[*filters, "ifnull(`%s`,'')!=''" % tag["name"]],
@@ -668,7 +668,7 @@ def get_filter_dashboard_data(stats, doctype, filters=None):
 			if stats[tag["name"]]:
 				data = [
 					"No Data",
-					frappe.get_list(
+					stylo.get_list(
 						doctype,
 						fields=[tag["name"], "count(*)"],
 						filters=[*filters, "({0} = '' or {0} is null)".format(tag["name"])],

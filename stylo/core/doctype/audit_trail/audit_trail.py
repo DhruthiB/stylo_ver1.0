@@ -3,11 +3,11 @@
 
 import json
 
-import frappe
-from frappe import _
-from frappe.core.doctype.version.version import get_diff
-from frappe.model.document import Document
-from frappe.utils import compare
+import stylo
+from stylo import _
+from stylo.core.doctype.version.version import get_diff
+from stylo.model.document import Document
+from stylo.utils import compare
 
 
 class AuditTrail(Document):
@@ -22,21 +22,21 @@ class AuditTrail(Document):
 		}
 		for field in fields_dict:
 			if not fields_dict[field]:
-				frappe.throw(_("{} field cannot be empty.").format(frappe.bold(field)))
+				stylo.throw(_("{} field cannot be empty.").format(stylo.bold(field)))
 
 	def validate_document(self):
-		if not frappe.db.exists(self.doctype_name, self.document):
-			frappe.throw(
+		if not stylo.db.exists(self.doctype_name, self.document):
+			stylo.throw(
 				_("The selected document {0} is not a {1}.").format(
-					frappe.bold(self.document), frappe.bold(self.doctype_name)
+					stylo.bold(self.document), stylo.bold(self.doctype_name)
 				)
 			)
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def compare_document(self):
 		self.validate()
 		amended_document_names = self.get_amended_documents()
-		self.amended_docs = [frappe.get_doc(self.doctype_name, name) for name in amended_document_names]
+		self.amended_docs = [stylo.get_doc(self.doctype_name, name) for name in amended_document_names]
 		self.docs_to_compare = len(self.amended_docs)
 		self.changed, self.row_changed, self.added, self.removed = {}, {}, {}, {}
 
@@ -58,15 +58,15 @@ class AuditTrail(Document):
 		start_date = self.get("start_date")
 		amended_document_names = []
 		curr_doc = self.document
-		creation = frappe.db.get_value(self.doctype_name, self.document, "creation")
+		creation = stylo.db.get_value(self.doctype_name, self.document, "creation")
 		while (
 			curr_doc
 			and len(amended_document_names) < 5
 			and (start_date is None or compare(creation, ">=", start_date, "Date"))
 		):
 			amended_document_names.append(curr_doc)
-			curr_doc = frappe.db.get_value(self.doctype_name, curr_doc, "amended_from")
-			creation = frappe.db.get_value(self.doctype_name, curr_doc, "creation")
+			curr_doc = stylo.db.get_value(self.doctype_name, curr_doc, "amended_from")
+			creation = stylo.db.get_value(self.doctype_name, curr_doc, "creation")
 		amended_document_names = amended_document_names[::-1]
 
 		return amended_document_names
@@ -110,12 +110,12 @@ class AuditTrail(Document):
 
 def get_field_label(fieldname, doctype, child_field=None):
 	if child_field:
-		meta = frappe.get_meta(doctype)
+		meta = stylo.get_meta(doctype)
 		for field in meta.fields:
 			if field.fieldname == child_field:
 				doctype = field.options
 
-	meta = frappe.get_meta(doctype)
+	meta = stylo.get_meta(doctype)
 	label = meta.get_label(fieldname)
 	if label not in ["No Label", None, ""]:
 		return label
@@ -124,7 +124,7 @@ def get_field_label(fieldname, doctype, child_field=None):
 
 def filter_fields_for_gridview(row):
 	grid_row = {}
-	meta = frappe.get_meta(row.doctype)
+	meta = stylo.get_meta(row.doctype)
 	for field in meta.fields:
 		if field.in_list_view == 1:
 			fieldlabel = get_field_label(field.fieldname, row.doctype)

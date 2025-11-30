@@ -1,4 +1,4 @@
-frappe.ui.form.on("File", {
+stylo.ui.form.on("File", {
 	refresh: function (frm) {
 		if (!frm.doc.is_folder) {
 			// add download button
@@ -33,7 +33,7 @@ frappe.ui.form.on("File", {
 		let $preview = "";
 		let file_extension = frm.doc.file_type.toLowerCase();
 
-		if (frappe.utils.is_image_file(frm.doc.file_url)) {
+		if (stylo.utils.is_image_file(frm.doc.file_url)) {
 			$preview = $(`<div class="img_preview">
 				<img
 					class="img-responsive"
@@ -41,7 +41,7 @@ frappe.ui.form.on("File", {
 					onerror="${frm.toggle_display("preview", false)}"
 				/>
 			</div>`);
-		} else if (frappe.utils.is_video_file(frm.doc.file_url)) {
+		} else if (stylo.utils.is_video_file(frm.doc.file_url)) {
 			$preview = $(`<div class="img_preview">
 				<video width="480" height="320" controls>
 					<source src="${frm.doc.file_url}">
@@ -83,20 +83,20 @@ frappe.ui.form.on("File", {
 	},
 
 	optimize: function (frm) {
-		frappe.show_alert(__("Optimizing image..."));
+		stylo.show_alert(__("Optimizing image..."));
 		frm.call("optimize_file").then(() => {
-			frappe.show_alert(__("Image optimized"));
+			stylo.show_alert(__("Image optimized"));
 		});
 	},
 
 	unzip: function (frm) {
-		frappe.call({
-			method: "frappe.core.api.file.unzip_file",
+		stylo.call({
+			method: "stylo.core.api.file.unzip_file",
 			args: {
 				name: frm.doc.name,
 			},
 			callback: function () {
-				frappe.set_route("List", "File");
+				stylo.set_route("List", "File");
 			},
 		});
 	},

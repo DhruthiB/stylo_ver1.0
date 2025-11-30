@@ -1,15 +1,15 @@
 # Copyright (c) 2017, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 test_dependencies = ["Role"]
 
 
 class TestRoleProfile(StyloTestCase):
 	def test_make_new_role_profile(self):
-		frappe.delete_doc_if_exists("Role Profile", "Test 1", force=1)
-		new_role_profile = frappe.get_doc(dict(doctype="Role Profile", role_profile="Test 1")).insert()
+		stylo.delete_doc_if_exists("Role Profile", "Test 1", force=1)
+		new_role_profile = stylo.get_doc(dict(doctype="Role Profile", role_profile="Test 1")).insert()
 
 		self.assertEqual(new_role_profile.role_profile, "Test 1")
 
@@ -19,10 +19,10 @@ class TestRoleProfile(StyloTestCase):
 		self.assertEqual(new_role_profile.roles[0].role, "_Test Role 2")
 
 		# user with a role profile
-		random_user = frappe.mock("email")
-		random_user_name = frappe.mock("name")
+		random_user = stylo.mock("email")
+		random_user_name = stylo.mock("name")
 
-		random_user = frappe.get_doc(
+		random_user = stylo.get_doc(
 			{
 				"doctype": "User",
 				"email": random_user,

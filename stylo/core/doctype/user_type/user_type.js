@@ -1,9 +1,9 @@
 // Copyright (c) 2021, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("User Type", {
+stylo.ui.form.on("User Type", {
 	refresh: function (frm) {
-		if (frm.is_new() && !frappe.boot.developer_mode) frm.set_value("is_standard", 1);
+		if (frm.is_new() && !stylo.boot.developer_mode) frm.set_value("is_standard", 1);
 
 		frm.set_query("document_type", "user_doctypes", function () {
 			return {
@@ -41,7 +41,7 @@ frappe.ui.form.on("User Type", {
 
 		frm.set_query("apply_user_permission_on", function () {
 			return {
-				query: "frappe.core.doctype.user_type.user_type.get_user_linked_doctypes",
+				query: "stylo.core.doctype.user_type.user_type.get_user_linked_doctypes",
 			};
 		});
 	},
@@ -57,8 +57,8 @@ frappe.ui.form.on("User Type", {
 
 	get_user_id_fields: function (frm) {
 		if (frm.doc.apply_user_permission_on) {
-			frappe.call({
-				method: "frappe.core.doctype.user_type.user_type.get_user_id",
+			stylo.call({
+				method: "stylo.core.doctype.user_type.user_type.get_user_id",
 				args: {
 					parent: frm.doc.apply_user_permission_on,
 				},

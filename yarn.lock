@@ -41,9 +41,9 @@
     html-janitor "^2.0.4"
     nanoid "^3.1.22"
 
-"@frappe/esbuild-plugin-postcss2@^0.1.3":
+"@stylo/esbuild-plugin-postcss2@^0.1.3":
   version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@frappe/esbuild-plugin-postcss2/-/esbuild-plugin-postcss2-0.1.3.tgz#523a5cc32788f184bb78c7b946c9f132ef386508"
+  resolved "https://registry.yarnpkg.com/@stylo/esbuild-plugin-postcss2/-/esbuild-plugin-postcss2-0.1.3.tgz#523a5cc32788f184bb78c7b946c9f132ef386508"
   integrity sha512-/kPz/NJki2GFFtcgTnvdkkjgPEU1uHmaN7/OI2Ysc2tEZ7dcL7FYEEV72a5Fv8cniJbmH8UUjItZmHixFCT1Dg==
   dependencies:
     autoprefixer "^10.2.5"
@@ -163,9 +163,9 @@ acorn@^7.1.1:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.4.1.tgz#feaed255973d2e77555b83dbc08851a6c63520fa"
   integrity sha512-nQyp0o1/mNdbTO1PO6kHkwSrmgZ0MT/jCCpNiwbUjGoRN4dlBhqJtoQuCnEOKzgTVwg0ZWiCoQy6SxMebQVh8A==
 
-"air-datepicker@github:frappe/air-datepicker":
+"air-datepicker@github:stylo/air-datepicker":
   version "2.2.3"
-  resolved "https://codeload.github.com/frappe/air-datepicker/tar.gz/ed37b94d95c68d8544357e330be0c89d044a3eea"
+  resolved "https://codeload.github.com/stylo/air-datepicker/tar.gz/ed37b94d95c68d8544357e330be0c89d044a3eea"
   dependencies:
     jquery ">=2.0.0 <4.0.0"
 
@@ -1261,23 +1261,23 @@ fraction.js@^4.1.2:
   resolved "https://registry.yarnpkg.com/fraction.js/-/fraction.js-4.2.0.tgz#448e5109a313a3527f5a3ab2119ec4cf0e0e2950"
   integrity sha512-MhLuK+2gUcnZe8ZHlaaINnQLl0xRIGRfcGk2yl8xoQAfHrSsL3rYu6FCmBdkdbhc9EPlwyGHewaRsvwRMJtAlA==
 
-frappe-charts@2.0.0-rc22:
+stylo-charts@2.0.0-rc22:
   version "2.0.0-rc22"
-  resolved "https://registry.yarnpkg.com/frappe-charts/-/frappe-charts-2.0.0-rc22.tgz#9a5a747febdc381a1d4d7af96e89cf519dfba8c0"
+  resolved "https://registry.yarnpkg.com/stylo-charts/-/stylo-charts-2.0.0-rc22.tgz#9a5a747febdc381a1d4d7af96e89cf519dfba8c0"
   integrity sha512-N7f/8979wJCKjusOinaUYfMxB80YnfuVLrSkjpj4LtyqS0BGS6SuJxUnb7Jl4RWUFEIs7zEhideIKnyLeFZF4Q==
 
-frappe-datatable@1.17.16:
+stylo-datatable@1.17.16:
   version "1.17.16"
-  resolved "https://registry.yarnpkg.com/frappe-datatable/-/frappe-datatable-1.17.16.tgz#4e7bf3b50dad5bc048f95ccd7ca7da91e04844ab"
+  resolved "https://registry.yarnpkg.com/stylo-datatable/-/stylo-datatable-1.17.16.tgz#4e7bf3b50dad5bc048f95ccd7ca7da91e04844ab"
   integrity sha512-BJgWFX8msHZcS1mw2xbuaY1YdH1dBXUIuREVmqH5z1p78GusPaDV8sbWskTS5yVBUklMrMq2VfBTUsJXjvl+wg==
   dependencies:
     hyperlist "^1.0.0-beta"
     lodash "^4.17.5"
     sortablejs "^1.7.0"
 
-frappe-gantt@^0.6.0:
+stylo-gantt@^0.6.0:
   version "0.6.0"
-  resolved "https://registry.yarnpkg.com/frappe-gantt/-/frappe-gantt-0.6.0.tgz#fece2fdecc0b8d6065d3c420d9681b719b827047"
+  resolved "https://registry.yarnpkg.com/stylo-gantt/-/stylo-gantt-0.6.0.tgz#fece2fdecc0b8d6065d3c420d9681b719b827047"
   integrity sha512-/P7s9edP6EoLD09EX2HPqsy1u0v4zYcurMy4ByExArvj7t0UDJlpxp88nISFtMkQe+aofaO9dR0fd61ZwX0O6g==
 
 fs-exists-sync@^0.1.0:

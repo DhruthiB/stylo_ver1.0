@@ -3,11 +3,11 @@
 import re
 from urllib.parse import quote
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import encode, get_request_site_address
-from frappe.website.utils import get_boot_data
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import encode, get_request_site_address
+from stylo.website.utils import get_boot_data
 
 
 class WebsiteSettings(Document):
@@ -19,12 +19,12 @@ class WebsiteSettings(Document):
 		self.validate_redirects()
 
 	def validate_home_page(self):
-		if frappe.flags.in_install:
+		if stylo.flags.in_install:
 			return
-		from frappe.website.path_resolver import PathResolver
+		from stylo.website.path_resolver import PathResolver
 
 		if self.home_page and not PathResolver(self.home_page).is_valid_path():
-			frappe.msgprint(
+			stylo.msgprint(
 				_("Invalid Home Page") + " (Standard pages - home, login, products, blog, about, contact)"
 			)
 			self.home_page = ""
@@ -37,13 +37,13 @@ class WebsiteSettings(Document):
 
 				if not parent_label_item:
 					# invalid item
-					frappe.throw(
+					stylo.throw(
 						_("{0} does not exist in row {1}").format(top_bar_item.parent_label, top_bar_item.idx)
 					)
 
 				elif not parent_label_item[0] or parent_label_item[0].url:
 					# parent cannot have url
-					frappe.throw(
+					stylo.throw(
 						_("{0} in row {1} cannot have both URL and child items").format(
 							top_bar_item.parent_label, top_bar_item.idx
 						)
@@ -57,21 +57,21 @@ class WebsiteSettings(Document):
 
 				if not parent_label_item:
 					# invalid item
-					frappe.throw(
+					stylo.throw(
 						_("{0} does not exist in row {1}").format(footer_item.parent_label, footer_item.idx)
 					)
 
 				elif not parent_label_item[0] or parent_label_item[0].url:
 					# parent cannot have url
-					frappe.throw(
+					stylo.throw(
 						_("{0} in row {1} cannot have both URL and child items").format(
 							footer_item.parent_label, footer_item.idx
 						)
 					)
 
 	def validate_google_settings(self):
-		if self.enable_google_indexing and not frappe.db.get_single_value("Google Settings", "enable"):
-			frappe.throw(_("Enable Google API in Google Settings."))
+		if self.enable_google_indexing and not stylo.db.get_single_value("Google Settings", "enable"):
+			stylo.throw(_("Enable Google API in Google Settings."))
 
 	def validate_redirects(self):
 		for idx, row in enumerate(self.route_redirects):
@@ -80,8 +80,8 @@ class WebsiteSettings(Document):
 				re.compile(source)
 				re.sub(source, row.target, "")
 			except Exception as e:
-				if not frappe.flags.in_migrate:
-					frappe.throw(_("Invalid redirect regex in row #{}: {}").format(idx, str(e)))
+				if not stylo.flags.in_migrate:
+					stylo.throw(_("Invalid redirect regex in row #{}: {}").format(idx, str(e)))
 
 	def on_update(self):
 		self.clear_cache()
@@ -89,21 +89,21 @@ class WebsiteSettings(Document):
 	def clear_cache(self):
 		# make js and css
 		# clear web cache (for menus!)
-		frappe.clear_cache(user="Guest")
+		stylo.clear_cache(user="Guest")
 
-		from frappe.website.utils import clear_cache
+		from stylo.website.utils import clear_cache
 
 		clear_cache()
 
 		# clears role based home pages
-		frappe.clear_cache()
+		stylo.clear_cache()
 
 	def get_access_token(self):
-		from frappe.integrations.google_oauth import GoogleOAuth
+		from stylo.integrations.google_oauth import GoogleOAuth
 
 		if not self.indexing_refresh_token:
-			button_label = frappe.bold(_("Allow API Indexing Access"))
-			raise frappe.ValidationError(_("Click on {0} to generate Refresh Token.").format(button_label))
+			button_label = stylo.bold(_("Allow API Indexing Access"))
+			raise stylo.ValidationError(_("Click on {0} to generate Refresh Token.").format(button_label))
 
 		oauth_obj = GoogleOAuth("indexing")
 		res = oauth_obj.refresh_access_token(
@@ -114,9 +114,9 @@ class WebsiteSettings(Document):
 
 
 def get_website_settings(context=None):
-	hooks = frappe.get_hooks()
-	context = frappe._dict(context or {})
-	settings: "WebsiteSettings" = frappe.get_cached_doc("Website Settings")
+	hooks = stylo.get_hooks()
+	context = stylo._dict(context or {})
+	settings: "WebsiteSettings" = stylo.get_cached_doc("Website Settings")
 
 	context = context.update(
 		{
@@ -168,7 +168,7 @@ def get_website_settings(context=None):
 	if settings.address:
 		context["footer_address"] = settings.address
 
-	if frappe.request:
+	if stylo.request:
 		context.url = quote(str(get_request_site_address(full_address=True)), safe="/:")
 
 	context.encoded_title = quote(encode(context.title or ""), "")
@@ -186,15 +186,15 @@ def get_website_settings(context=None):
 			context[key] = context[key][-1]
 
 	if context.disable_website_theme:
-		context.theme = frappe._dict()
+		context.theme = stylo._dict()
 
 	else:
-		from frappe.website.doctype.website_theme.website_theme import get_active_theme
+		from stylo.website.doctype.website_theme.website_theme import get_active_theme
 
-		context.theme = get_active_theme() or frappe._dict()
+		context.theme = get_active_theme() or stylo._dict()
 
 	if not context.get("favicon"):
-		context["favicon"] = "/assets/frappe/images/frappe-favicon.svg"
+		context["favicon"] = "/assets/stylo/images/stylo-favicon.svg"
 
 	if settings.favicon and settings.favicon != "attach_files:":
 		context["favicon"] = settings.favicon
@@ -204,14 +204,14 @@ def get_website_settings(context=None):
 	if settings.splash_image:
 		context["splash_image"] = settings.splash_image
 
-	context.read_only_mode = frappe.flags.read_only
+	context.read_only_mode = stylo.flags.read_only
 	context.boot = get_boot_data()
 
 	return context
 
 
 def get_items(parentfield: str) -> list[dict]:
-	_items = frappe.get_all(
+	_items = stylo.get_all(
 		"Top Bar Item",
 		filters={"parent": "Website Settings", "parentfield": parentfield},
 		order_by="idx asc",
@@ -240,6 +240,6 @@ def modify_header_footer_items(items: list):
 	return top_items
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def get_auto_account_deletion():
-	return frappe.db.get_single_value("Website Settings", "auto_account_deletion")
+	return stylo.db.get_single_value("Website Settings", "auto_account_deletion")

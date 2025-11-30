@@ -1,8 +1,8 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class DynamicLink(Document):
@@ -10,7 +10,7 @@ class DynamicLink(Document):
 
 
 def on_doctype_update():
-	frappe.db.add_index("Dynamic Link", ["link_doctype", "link_name"])
+	stylo.db.add_index("Dynamic Link", ["link_doctype", "link_name"])
 
 
 def deduplicate_dynamic_links(doc):

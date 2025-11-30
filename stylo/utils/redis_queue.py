@@ -1,7 +1,7 @@
 import redis
 
-import frappe
-from frappe.utils import get_forge_id, random_string
+import stylo
+from stylo.utils import get_forge_id, random_string
 
 
 class RedisQueue:
@@ -13,26 +13,26 @@ class RedisQueue:
 		password = password or self.conn.acl_genpass()
 		user_settings = self.get_new_user_settings(username, password)
 		is_created = self.conn.acl_setuser(**user_settings)
-		return frappe._dict(user_settings) if is_created else {}
+		return stylo._dict(user_settings) if is_created else {}
 
 	@classmethod
 	def get_connection(cls, username=None, password=None):
-		if frappe.conf.redis_queue_sentinel_enabled:
-			from frappe.utils.redis_wrapper import get_sentinel_connection
+		if stylo.conf.redis_queue_sentinel_enabled:
+			from stylo.utils.redis_wrapper import get_sentinel_connection
 
-			sentinels = [tuple(node.split(":")) for node in frappe.conf.get("redis_queue_sentinels", [])]
+			sentinels = [tuple(node.split(":")) for node in stylo.conf.get("redis_queue_sentinels", [])]
 			sentinel = get_sentinel_connection(
 				sentinels=sentinels,
-				sentinel_username=frappe.conf.get("redis_queue_sentinel_username"),
-				sentinel_password=frappe.conf.get("redis_queue_sentinel_password"),
-				master_username=frappe.conf.get("redis_queue_master_username", username),
-				master_password=frappe.conf.get("redis_queue_master_password", password),
+				sentinel_username=stylo.conf.get("redis_queue_sentinel_username"),
+				sentinel_password=stylo.conf.get("redis_queue_sentinel_password"),
+				master_username=stylo.conf.get("redis_queue_master_username", username),
+				master_password=stylo.conf.get("redis_queue_master_password", password),
 			)
-			conn = sentinel.master_for(frappe.conf.get("redis_queue_master_service"))
+			conn = sentinel.master_for(stylo.conf.get("redis_queue_master_service"))
 			conn.ping()
 			return conn
 
-		rq_url = frappe.local.conf.redis_queue
+		rq_url = stylo.local.conf.redis_queue
 		domain = rq_url.split("redis://", 1)[-1]
 		url = (username and f"redis://{username}:{password or ''}@{domain}") or rq_url
 		conn = redis.from_url(url)

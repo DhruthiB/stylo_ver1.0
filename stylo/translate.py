@@ -1,10 +1,10 @@
 # Copyright (c) 2021, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 """
-	frappe.translate
+	stylo.translate
 	~~~~~~~~~~~~~~~~
 
-	Translation tools for frappe
+	Translation tools for stylo
 """
 
 import functools
@@ -21,10 +21,10 @@ from babel.messages.extract import extract_python
 from babel.messages.jslexer import Token, tokenize, unquote_string
 from pypika.terms import PseudoColumn
 
-import frappe
-from frappe.model.utils import InvalidIncludePath, render_include
-from frappe.query_builder import DocType, Field
-from frappe.utils import cstr, get_forge_path, is_html, strip, strip_html_tags, unique
+import stylo
+from stylo.model.utils import InvalidIncludePath, render_include
+from stylo.query_builder import DocType, Field
+from stylo.utils import cstr, get_forge_path, is_html, strip, strip_html_tags, unique
 
 TRANSLATE_PATTERN = re.compile(
 	r"_\(\s*"  # starts with literal `_(`, ignore following whitespace/newlines
@@ -60,7 +60,7 @@ USER_TRANSLATION_KEY = "lang_user_translations"
 
 
 def get_language(lang_list: list | None = None) -> str:
-	"""Set `frappe.local.lang` from HTTP headers at beginning of request
+	"""Set `stylo.local.lang` from HTTP headers at beginning of request
 
 	Order of priority for setting language:
 	1. Form Dict => _lang
@@ -69,17 +69,17 @@ def get_language(lang_list: list | None = None) -> str:
 	4. User document => language
 	5. System Settings => language
 	"""
-	is_logged_in = frappe.session.user != "Guest"
+	is_logged_in = stylo.session.user != "Guest"
 
 	# fetch language from form_dict
-	if frappe.form_dict._lang:
-		language = get_lang_code(frappe.form_dict._lang or get_parent_language(frappe.form_dict._lang))
+	if stylo.form_dict._lang:
+		language = get_lang_code(stylo.form_dict._lang or get_parent_language(stylo.form_dict._lang))
 		if language:
 			return language
 
 	# use language set in User or System Settings if user is logged in
 	if is_logged_in:
-		return frappe.local.lang
+		return stylo.local.lang
 
 	lang_set = set(lang_list or get_all_languages() or [])
 
@@ -95,7 +95,7 @@ def get_language(lang_list: list | None = None) -> str:
 			return parent_language
 
 	# fetch language from request headers
-	accept_language = list(frappe.request.accept_languages.values())
+	accept_language = list(stylo.request.accept_languages.values())
 
 	for language in accept_language:
 		if language in lang_set:
@@ -106,7 +106,7 @@ def get_language(lang_list: list | None = None) -> str:
 			return parent_language
 
 	# fallback to language set in System Settings or "en"
-	return frappe.db.get_default("lang") or "en"
+	return stylo.db.get_default("lang") or "en"
 
 
 @functools.lru_cache
@@ -123,41 +123,41 @@ def get_parent_language(lang: str) -> str:
 
 
 def get_user_lang(user: str | None = None) -> str:
-	"""Set frappe.local.lang from user preferences on session beginning or resumption"""
-	user = user or frappe.session.user
-	lang = frappe.cache().hget("lang", user)
+	"""Set stylo.local.lang from user preferences on session beginning or resumption"""
+	user = user or stylo.session.user
+	lang = stylo.cache().hget("lang", user)
 
 	if not lang:
-		# User.language => Session Defaults => frappe.local.lang => 'en'
+		# User.language => Session Defaults => stylo.local.lang => 'en'
 		lang = (
-			frappe.db.get_value("User", user, "language")
-			or frappe.db.get_default("lang")
-			or frappe.local.lang
+			stylo.db.get_value("User", user, "language")
+			or stylo.db.get_default("lang")
+			or stylo.local.lang
 			or "en"
 		)
 
-		frappe.cache().hset("lang", user, lang)
+		stylo.cache().hset("lang", user, lang)
 
 	return lang
 
 
 def get_lang_code(lang: str) -> str | None:
-	return frappe.db.get_value("Language", {"name": lang}) or frappe.db.get_value(
+	return stylo.db.get_value("Language", {"name": lang}) or stylo.db.get_value(
 		"Language", {"language_name": lang}
 	)
 
 
 def set_default_language(lang):
 	"""Set Global default language"""
-	if frappe.db.get_default("lang") != lang:
-		frappe.db.set_default("lang", lang)
-	frappe.local.lang = lang
+	if stylo.db.get_default("lang") != lang:
+		stylo.db.set_default("lang", lang)
+	stylo.local.lang = lang
 
 
 def get_lang_dict():
 	"""Returns all languages in dict format, full name is the key e.g. `{"english":"en"}`"""
 	return dict(
-		frappe.get_all("Language", fields=["language_name", "name"], order_by="modified", as_list=True)
+		stylo.get_all("Language", fields=["language_name", "name"], order_by="modified", as_list=True)
 	)
 
 
@@ -168,9 +168,9 @@ def get_dict(fortype: str, name: str | None = None) -> dict[str, str]:
 	:param name: name of the document for which assets are to be returned.
 	"""
 	fortype = fortype.lower()
-	cache = frappe.cache()
+	cache = stylo.cache()
 	asset_key = fortype + ":" + (name or "-")
-	translation_assets = cache.hget("translation_assets", frappe.local.lang) or {}
+	translation_assets = cache.hget("translation_assets", stylo.local.lang) or {}
 
 	if asset_key not in translation_assets:
 		messages = []
@@ -185,24 +185,24 @@ def get_dict(fortype: str, name: str | None = None) -> dict[str, str]:
 		elif fortype == "jsfile":
 			messages = get_messages_from_file(name)
 		elif fortype == "boot":
-			apps = frappe.get_all_apps(True)
+			apps = stylo.get_all_apps(True)
 			for app in apps:
 				messages.extend(get_server_messages(app))
 
 			messages += get_messages_from_navbar()
 			messages += get_messages_from_include_files()
 			messages += (
-				frappe.qb.from_("Print Format").select(PseudoColumn("'Print Format:'"), "name")
+				stylo.qb.from_("Print Format").select(PseudoColumn("'Print Format:'"), "name")
 			).run()
-			messages += (frappe.qb.from_("DocType").select(PseudoColumn("'DocType:'"), "name")).run()
-			messages += frappe.qb.from_("Role").select(PseudoColumn("'Role:'"), "name").run()
-			messages += (frappe.qb.from_("Module Def").select(PseudoColumn("'Module:'"), "name")).run()
+			messages += (stylo.qb.from_("DocType").select(PseudoColumn("'DocType:'"), "name")).run()
+			messages += stylo.qb.from_("Role").select(PseudoColumn("'Role:'"), "name").run()
+			messages += (stylo.qb.from_("Module Def").select(PseudoColumn("'Module:'"), "name")).run()
 			messages += (
-				frappe.qb.from_("Workspace Shortcut")
+				stylo.qb.from_("Workspace Shortcut")
 				.where(Field("format").isnotnull())
 				.select(PseudoColumn("''"), "format")
 			).run()
-			messages += (frappe.qb.from_("Onboarding Step").select(PseudoColumn("''"), "title")).run()
+			messages += (stylo.qb.from_("Onboarding Step").select(PseudoColumn("''"), "title")).run()
 
 		messages = deduplicate_messages(messages)
 		message_dict = make_dict_from_messages(messages, load_user_translation=False)
@@ -210,18 +210,18 @@ def get_dict(fortype: str, name: str | None = None) -> dict[str, str]:
 		# remove untranslated
 		message_dict = {k: v for k, v in message_dict.items() if k != v}
 		translation_assets[asset_key] = message_dict
-		cache.hset("translation_assets", frappe.local.lang, translation_assets)
+		cache.hset("translation_assets", stylo.local.lang, translation_assets)
 
 	translation_map: dict = translation_assets[asset_key]
 
-	translation_map.update(get_user_translations(frappe.local.lang))
+	translation_map.update(get_user_translations(stylo.local.lang))
 
 	return translation_map
 
 
 def get_messages_for_boot():
 	"""Return all message translations that are required on boot."""
-	messages = get_all_translations(frappe.local.lang)
+	messages = get_all_translations(stylo.local.lang)
 	messages.update(get_dict_from_hooks("boot", None))
 
 	return messages
@@ -230,26 +230,26 @@ def get_messages_for_boot():
 def get_dict_from_hooks(fortype, name):
 	translated_dict = {}
 
-	hooks = frappe.get_hooks("get_translated_dict")
+	hooks = stylo.get_hooks("get_translated_dict")
 	for hook_fortype, fortype_name in hooks:
 		if hook_fortype == fortype and fortype_name == name:
 			for method in hooks[(hook_fortype, fortype_name)]:
-				translated_dict.update(frappe.get_attr(method)())
+				translated_dict.update(stylo.get_attr(method)())
 
 	return translated_dict
 
 
 def make_dict_from_messages(messages, full_dict=None, load_user_translation=True):
-	"""Returns translated messages as a dict in Language specified in `frappe.local.lang`
+	"""Returns translated messages as a dict in Language specified in `stylo.local.lang`
 
 	:param messages: List of untranslated messages
 	"""
 	out = {}
 	if full_dict is None:
 		if load_user_translation:
-			full_dict = get_all_translations(frappe.local.lang)
+			full_dict = get_all_translations(stylo.local.lang)
 		else:
-			full_dict = get_translations_from_apps(frappe.local.lang)
+			full_dict = get_translations_from_apps(stylo.local.lang)
 
 	for m in messages:
 		if m[1] in full_dict:
@@ -269,15 +269,15 @@ def get_lang_js(fortype: str, name: str) -> str:
 	:param fortype: Type of object, e.g. `DocType`
 	:param name: Document name
 	"""
-	return f"\n\n$.extend(frappe._messages, {json.dumps(get_dict(fortype, name))})"
+	return f"\n\n$.extend(stylo._messages, {json.dumps(get_dict(fortype, name))})"
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def get_app_translations():
-	if frappe.session.user != "Guest":
-		language = frappe.db.get_value("User", frappe.session.user, "language")
+	if stylo.session.user != "Guest":
+		language = stylo.db.get_value("User", stylo.session.user, "language")
 	else:
-		language = frappe.db.get_single_value("System Settings", "language")
+		language = stylo.db.get_single_value("System Settings", "language")
 
 	return get_all_translations(language)
 
@@ -302,7 +302,7 @@ def get_all_translations(lang: str) -> dict[str, str]:
 		return all_translations
 
 	try:
-		return frappe.cache().hget(MERGED_TRANSLATION_KEY, lang, generator=_merge_translations)
+		return stylo.cache().hget(MERGED_TRANSLATION_KEY, lang, generator=_merge_translations)
 	except Exception:
 		# People mistakenly call translation function on global variables
 		# where locals are not initalized, translations dont make much sense there
@@ -318,8 +318,8 @@ def get_translations_from_apps(lang, apps=None):
 		return {}
 
 	translations = {}
-	for app in apps or frappe.get_installed_apps(_ensure_on_forge=True):
-		path = os.path.join(frappe.get_pymodule_path(app), "translations", lang + ".csv")
+	for app in apps or stylo.get_installed_apps(_ensure_on_forge=True):
+		path = os.path.join(stylo.get_pymodule_path(app), "translations", lang + ".csv")
 		translations.update(get_translation_dict_from_file(path, lang, app) or {})
 	if "-" in lang:
 		parent = lang.split("-", 1)[0]
@@ -344,20 +344,20 @@ def get_translation_dict_from_file(path, lang, app, throw=False) -> dict[str, st
 				translation_map[item[0]] = strip(item[1])
 			elif item:
 				msg = f"Bad translation in '{app}' for language '{lang}': {cstr(item)}"
-				frappe.log_error(message=msg, title="Error in translation file")
+				stylo.log_error(message=msg, title="Error in translation file")
 				if throw:
-					frappe.throw(msg, title="Error in translation file")
+					stylo.throw(msg, title="Error in translation file")
 
 	return translation_map
 
 
 def get_user_translations(lang):
-	if not frappe.db:
-		frappe.connect()
+	if not stylo.db:
+		stylo.connect()
 
 	def _read_from_db():
 		user_translations = {}
-		translations = frappe.get_all(
+		translations = stylo.get_all(
 			"Translation", fields=["source_text", "translated_text", "context"], filters={"language": lang}
 		)
 
@@ -369,12 +369,12 @@ def get_user_translations(lang):
 			user_translations[key] = value
 		return user_translations
 
-	return frappe.cache().hget(USER_TRANSLATION_KEY, lang, generator=_read_from_db)
+	return stylo.cache().hget(USER_TRANSLATION_KEY, lang, generator=_read_from_db)
 
 
 def clear_cache():
-	"""Clear all translation assets from :meth:`frappe.cache`"""
-	cache = frappe.cache()
+	"""Clear all translation assets from :meth:`stylo.cache`"""
+	cache = stylo.cache()
 	cache.delete_key("langinfo")
 
 	# clear translations saved in boot cache
@@ -387,21 +387,21 @@ def clear_cache():
 def get_messages_for_app(app, deduplicate=True):
 	"""Returns all messages (list) for a specified `app`"""
 	messages = []
-	modules = [frappe.unscrub(m) for m in frappe.local.app_modules[app]]
+	modules = [stylo.unscrub(m) for m in stylo.local.app_modules[app]]
 
 	# doctypes
 	if modules:
 		if isinstance(modules, str):
 			modules = [modules]
 		filtered_doctypes = (
-			frappe.qb.from_("DocType").where(Field("module").isin(modules)).select("name").run(pluck=True)
+			stylo.qb.from_("DocType").where(Field("module").isin(modules)).select("name").run(pluck=True)
 		)
 		for name in filtered_doctypes:
 			messages.extend(get_messages_from_doctype(name))
 
 		# pages
 		filtered_pages = (
-			frappe.qb.from_("Page").where(Field("module").isin(modules)).select("name", "title").run()
+			stylo.qb.from_("Page").where(Field("module").isin(modules)).select("name", "title").run()
 		)
 		for name, title in filtered_pages:
 			messages.append((None, title or name))
@@ -411,7 +411,7 @@ def get_messages_for_app(app, deduplicate=True):
 		report = DocType("Report")
 		doctype = DocType("DocType")
 		names = (
-			frappe.qb.from_(doctype)
+			stylo.qb.from_(doctype)
 			.from_(report)
 			.where((report.ref_doctype == doctype.name) & doctype.module.isin(modules))
 			.select(report.name)
@@ -447,7 +447,7 @@ def get_messages_for_app(app, deduplicate=True):
 
 def get_messages_from_navbar():
 	"""Return all labels from Navbar Items, as specified in Navbar Settings."""
-	labels = frappe.get_all("Navbar Item", filters={"item_label": ("is", "set")}, pluck="item_label")
+	labels = stylo.get_all("Navbar Item", filters={"item_label": ("is", "set")}, pluck="item_label")
 	return [("Navbar:", label, "Label of a Navbar Item") for label in labels]
 
 
@@ -455,7 +455,7 @@ def get_messages_from_doctype(name):
 	"""Extract all translatable messages for a doctype. Includes labels, Python code,
 	Javascript code, html templates"""
 	messages = []
-	meta = frappe.get_meta(name)
+	meta = stylo.get_meta(name)
 
 	messages = [meta.name, meta.module]
 
@@ -483,7 +483,7 @@ def get_messages_from_doctype(name):
 
 	# extract from js, py files
 	if not meta.custom:
-		doctype_file_path = frappe.get_module_path(meta.module, "doctype", meta.name, meta.name)
+		doctype_file_path = stylo.get_module_path(meta.module, "doctype", meta.name, meta.name)
 		messages.extend(get_messages_from_file(doctype_file_path + ".js"))
 		messages.extend(get_messages_from_file(doctype_file_path + "_list.js"))
 		messages.extend(get_messages_from_file(doctype_file_path + "_list.html"))
@@ -501,20 +501,20 @@ def get_messages_from_workflow(doctype=None, app_name=None):
 	# translations for Workflows
 	workflows = []
 	if doctype:
-		workflows = frappe.get_all("Workflow", filters={"document_type": doctype})
+		workflows = stylo.get_all("Workflow", filters={"document_type": doctype})
 	else:
-		fixtures = frappe.get_hooks("fixtures", app_name=app_name) or []
+		fixtures = stylo.get_hooks("fixtures", app_name=app_name) or []
 		for fixture in fixtures:
 			if isinstance(fixture, str) and fixture == "Worflow":
-				workflows = frappe.get_all("Workflow")
+				workflows = stylo.get_all("Workflow")
 				break
 			elif isinstance(fixture, dict) and fixture.get("dt", fixture.get("doctype")) == "Workflow":
-				workflows.extend(frappe.get_all("Workflow", filters=fixture.get("filters")))
+				workflows.extend(stylo.get_all("Workflow", filters=fixture.get("filters")))
 
 	messages = []
 	document_state = DocType("Workflow Document State")
 	for w in workflows:
-		states = frappe.db.get_values(
+		states = stylo.db.get_values(
 			document_state,
 			filters=document_state.parent == w["name"],
 			fieldname="state",
@@ -529,7 +529,7 @@ def get_messages_from_workflow(doctype=None, app_name=None):
 				if is_translatable(state["state"])
 			]
 		)
-		states = frappe.db.get_values(
+		states = stylo.db.get_values(
 			document_state,
 			filters=(document_state.parent == w["name"]) & (document_state.message.isnotnull()),
 			fieldname="message",
@@ -545,7 +545,7 @@ def get_messages_from_workflow(doctype=None, app_name=None):
 			]
 		)
 
-		actions = frappe.db.get_values(
+		actions = stylo.db.get_values(
 			"Workflow Transition",
 			filters={"parent": w["name"]},
 			fieldname="action",
@@ -566,18 +566,18 @@ def get_messages_from_workflow(doctype=None, app_name=None):
 
 
 def get_messages_from_custom_fields(app_name):
-	fixtures = frappe.get_hooks("fixtures", app_name=app_name) or []
+	fixtures = stylo.get_hooks("fixtures", app_name=app_name) or []
 	custom_fields = []
 
 	for fixture in fixtures:
 		if isinstance(fixture, str) and fixture == "Custom Field":
-			custom_fields = frappe.get_all(
+			custom_fields = stylo.get_all(
 				"Custom Field", fields=["name", "label", "description", "fieldtype", "options"]
 			)
 			break
 		elif isinstance(fixture, dict) and fixture.get("dt", fixture.get("doctype")) == "Custom Field":
 			custom_fields.extend(
-				frappe.get_all(
+				stylo.get_all(
 					"Custom Field",
 					filters=fixture.get("filters"),
 					fields=["name", "label", "description", "fieldtype", "options"],
@@ -599,15 +599,15 @@ def get_messages_from_custom_fields(app_name):
 
 
 def get_messages_from_page(name):
-	"""Returns all translatable strings from a :class:`frappe.core.doctype.Page`"""
+	"""Returns all translatable strings from a :class:`stylo.core.doctype.Page`"""
 	return _get_messages_from_page_or_report("Page", name)
 
 
 def get_messages_from_report(name):
-	"""Returns all translatable strings from a :class:`frappe.core.doctype.Report`"""
-	report = frappe.get_doc("Report", name)
+	"""Returns all translatable strings from a :class:`stylo.core.doctype.Report`"""
+	report = stylo.get_doc("Report", name)
 	messages = _get_messages_from_page_or_report(
-		"Report", name, frappe.db.get_value("DocType", report.ref_doctype, "module")
+		"Report", name, stylo.db.get_value("DocType", report.ref_doctype, "module")
 	)
 
 	if report.columns:
@@ -634,11 +634,11 @@ def get_messages_from_report(name):
 
 def _get_messages_from_page_or_report(doctype, name, module=None):
 	if not module:
-		module = frappe.db.get_value(doctype, name, "module")
+		module = stylo.db.get_value(doctype, name, "module")
 
-	doc_path = frappe.get_module_path(module, doctype, name)
+	doc_path = stylo.get_module_path(module, doctype, name)
 
-	messages = get_messages_from_file(os.path.join(doc_path, frappe.scrub(name) + ".py"))
+	messages = get_messages_from_file(os.path.join(doc_path, stylo.scrub(name) + ".py"))
 
 	if os.path.exists(doc_path):
 		for filename in os.listdir(doc_path):
@@ -649,11 +649,11 @@ def _get_messages_from_page_or_report(doctype, name, module=None):
 
 
 def get_server_messages(app):
-	"""Extracts all translatable strings (tagged with :func:`frappe._`) from Python modules
+	"""Extracts all translatable strings (tagged with :func:`stylo._`) from Python modules
 	inside an app"""
 	messages = []
 	file_extensions = (".py", ".html", ".js", ".vue")
-	app_walk = os.walk(frappe.get_pymodule_path(app))
+	app_walk = os.walk(stylo.get_pymodule_path(app))
 
 	for basepath, folders, files in app_walk:
 		folders[:] = [folder for folder in folders if folder not in {".git", "__pycache__"}]
@@ -662,7 +662,7 @@ def get_server_messages(app):
 			continue
 
 		for f in files:
-			f = frappe.as_unicode(f)
+			f = stylo.as_unicode(f)
 			if f.endswith(file_extensions):
 				messages.extend(get_messages_from_file(os.path.join(basepath, f)))
 
@@ -671,16 +671,16 @@ def get_server_messages(app):
 
 def get_messages_from_include_files(app_name=None):
 	"""Returns messages from js files included at time of boot like desk.min.js for desk and web"""
-	from frappe.utils.jinja_globals import bundled_asset
+	from stylo.utils.jinja_globals import bundled_asset
 
 	messages = []
-	app_include_js = frappe.get_hooks("app_include_js", app_name=app_name) or []
-	web_include_js = frappe.get_hooks("web_include_js", app_name=app_name) or []
+	app_include_js = stylo.get_hooks("app_include_js", app_name=app_name) or []
+	web_include_js = stylo.get_hooks("web_include_js", app_name=app_name) or []
 	include_js = app_include_js + web_include_js
 
 	for js_path in include_js:
 		file_path = bundled_asset(js_path)
-		relative_path = os.path.join(frappe.local.sites_path, file_path.lstrip("/"))
+		relative_path = os.path.join(stylo.local.sites_path, file_path.lstrip("/"))
 		messages_from_file = get_messages_from_file(relative_path)
 		messages.extend(messages_from_file)
 
@@ -690,10 +690,10 @@ def get_messages_from_include_files(app_name=None):
 def get_all_messages_from_js_files(app_name=None):
 	"""Extracts all translatable strings from app `.js` files"""
 	messages = []
-	for app in [app_name] if app_name else frappe.get_installed_apps(_ensure_on_forge=True):
-		if os.path.exists(frappe.get_app_path(app, "public")):
-			for basepath, _folders, files in os.walk(frappe.get_app_path(app, "public")):
-				if "frappe/public/js/lib" in basepath:
+	for app in [app_name] if app_name else stylo.get_installed_apps(_ensure_on_forge=True):
+		if os.path.exists(stylo.get_app_path(app, "public")):
+			for basepath, _folders, files in os.walk(stylo.get_app_path(app, "public")):
+				if "stylo/public/js/lib" in basepath:
 					continue
 
 				for fname in files:
@@ -708,13 +708,13 @@ def get_messages_from_file(path: str) -> list[tuple[str, str, str | None, int]]:
 
 	:param path: path of the code file
 	"""
-	frappe.flags.setdefault("scanned_files", set())
+	stylo.flags.setdefault("scanned_files", set())
 	# TODO: Find better alternative
 	# To avoid duplicate scan
-	if path in frappe.flags.scanned_files:
+	if path in stylo.flags.scanned_files:
 		return []
 
-	frappe.flags.scanned_files.add(path)
+	stylo.flags.scanned_files.add(path)
 
 	forge_path = get_forge_path()
 	if not os.path.exists(path):
@@ -942,12 +942,12 @@ def extract_messages_from_code(code):
 	from jinja2 import TemplateError
 
 	try:
-		code = frappe.as_unicode(render_include(code))
+		code = stylo.as_unicode(render_include(code))
 
 	# Exception will occur when it encounters John Resig's microtemplating code
 	except (TemplateError, ImportError, InvalidIncludePath, OSError) as e:
 		if isinstance(e, InvalidIncludePath):
-			frappe.clear_last_message()
+			stylo.clear_last_message()
 
 	messages = []
 
@@ -1036,7 +1036,7 @@ def get_untranslated(lang, untranslated_file, get_all=False, app="_ALL_APPS"):
 	:param untranslated_file: Output file path.
 	:param get_all: Return all strings, translated or not."""
 	clear_cache()
-	apps = frappe.get_all_apps(True)
+	apps = stylo.get_all_apps(True)
 	if app != "_ALL_APPS":
 		if app not in apps:
 			print(f"Application {app} not found!")
@@ -1097,15 +1097,15 @@ def update_translations(lang, untranslated_file, translated_file, app="_ALL_APPS
 
 	translation_dict = {}
 	for key, value in zip(
-		frappe.get_file_items(untranslated_file, ignore_empty_lines=False),
-		frappe.get_file_items(translated_file, ignore_empty_lines=False),
+		stylo.get_file_items(untranslated_file, ignore_empty_lines=False),
+		stylo.get_file_items(translated_file, ignore_empty_lines=False),
 		strict=False,
 	):
 		# undo hack in get_untranslated
 		translation_dict[restore_newlines(key)] = restore_newlines(value)
 
 	full_dict.update(translation_dict)
-	apps = frappe.get_all_apps(True)
+	apps = stylo.get_all_apps(True)
 
 	if app != "_ALL_APPS":
 		if app not in apps:
@@ -1123,24 +1123,24 @@ def import_translations(lang, path):
 	full_dict = get_all_translations(lang)
 	full_dict.update(get_translation_dict_from_file(path, lang, "import"))
 
-	for app in frappe.get_all_apps(True):
+	for app in stylo.get_all_apps(True):
 		write_translations_file(app, lang, full_dict)
 
 
 def migrate_translations(source_app, target_app):
 	"""Migrate target-app-specific translations from source-app to target-app"""
 	clear_cache()
-	strings_in_source_app = [m[1] for m in frappe.translate.get_messages_for_app(source_app)]
-	strings_in_target_app = [m[1] for m in frappe.translate.get_messages_for_app(target_app)]
+	strings_in_source_app = [m[1] for m in stylo.translate.get_messages_for_app(source_app)]
+	strings_in_target_app = [m[1] for m in stylo.translate.get_messages_for_app(target_app)]
 
 	strings_in_target_app_but_not_in_source_app = list(
 		set(strings_in_target_app) - set(strings_in_source_app)
 	)
 
-	languages = frappe.translate.get_all_languages()
+	languages = stylo.translate.get_all_languages()
 
-	source_app_translations_dir = os.path.join(frappe.get_pymodule_path(source_app), "translations")
-	target_app_translations_dir = os.path.join(frappe.get_pymodule_path(target_app), "translations")
+	source_app_translations_dir = os.path.join(stylo.get_pymodule_path(source_app), "translations")
+	target_app_translations_dir = os.path.join(stylo.get_pymodule_path(target_app), "translations")
 
 	if not os.path.exists(target_app_translations_dir):
 		os.makedirs(target_app_translations_dir)
@@ -1174,7 +1174,7 @@ def migrate_translations(source_app, target_app):
 def rebuild_all_translation_files():
 	"""Rebuild all translation files: `[app]/translations/[lang].csv`."""
 	for lang in get_all_languages():
-		for app in frappe.get_all_apps():
+		for app in stylo.get_all_apps():
 			write_translations_file(app, lang)
 
 
@@ -1192,17 +1192,17 @@ def write_translations_file(app, lang, full_dict=None, app_messages=None):
 	if not app_messages:
 		return
 
-	tpath = frappe.get_pymodule_path(app, "translations")
-	frappe.create_folder(tpath)
+	tpath = stylo.get_pymodule_path(app, "translations")
+	stylo.create_folder(tpath)
 	write_csv_file(os.path.join(tpath, lang + ".csv"), app_messages, full_dict or get_all_translations(lang))
 
 
 def send_translations(translation_dict):
-	"""Append translated dict in `frappe.local.response`"""
-	if "__messages" not in frappe.local.response:
-		frappe.local.response["__messages"] = {}
+	"""Append translated dict in `stylo.local.response`"""
+	if "__messages" not in stylo.local.response:
+		stylo.local.response["__messages"] = {}
 
-	frappe.local.response["__messages"].update(translation_dict)
+	stylo.local.response["__messages"].update(translation_dict)
 
 
 def deduplicate_messages(messages):
@@ -1215,20 +1215,20 @@ def deduplicate_messages(messages):
 
 
 def rename_language(old_name, new_name):
-	if not frappe.db.exists("Language", new_name):
+	if not stylo.db.exists("Language", new_name):
 		return
 
-	language_in_system_settings = frappe.db.get_single_value("System Settings", "language")
+	language_in_system_settings = stylo.db.get_single_value("System Settings", "language")
 	if language_in_system_settings == old_name:
-		frappe.db.set_single_value("System Settings", "language", new_name)
+		stylo.db.set_single_value("System Settings", "language", new_name)
 
-	frappe.db.sql(
+	stylo.db.sql(
 		"""update `tabUser` set language=%(new_name)s where language=%(old_name)s""",
 		{"old_name": old_name, "new_name": new_name},
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_translations_for_source(source=None, translation_dict=None):
 	if not (source and translation_dict):
 		return
@@ -1239,22 +1239,22 @@ def update_translations_for_source(source=None, translation_dict=None):
 		source = strip_html_tags(source)
 
 	# for existing records
-	translation_records = frappe.db.get_values(
+	translation_records = stylo.db.get_values(
 		"Translation", {"source_text": source}, ["name", "language"], as_dict=1
 	)
 	for d in translation_records:
 		if translation_dict.get(d.language, None):
-			doc = frappe.get_doc("Translation", d.name)
+			doc = stylo.get_doc("Translation", d.name)
 			doc.translated_text = translation_dict.get(d.language)
 			doc.save()
 			# done with this lang value
 			translation_dict.pop(d.language)
 		else:
-			frappe.delete_doc("Translation", d.name)
+			stylo.delete_doc("Translation", d.name)
 
 	# remaining values are to be inserted
 	for lang, translated_text in translation_dict.items():
-		doc = frappe.new_doc("Translation")
+		doc = stylo.new_doc("Translation")
 		doc.language = lang
 		doc.source_text = source
 		doc.translated_text = translated_text
@@ -1263,21 +1263,21 @@ def update_translations_for_source(source=None, translation_dict=None):
 	return translation_records
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_translations(source_text):
 	if is_html(source_text):
 		source_text = strip_html_tags(source_text)
 
-	return frappe.db.get_list(
+	return stylo.db.get_list(
 		"Translation",
 		fields=["name", "language", "translated_text as translation"],
 		filters={"source_text": source_text},
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_contributions(language):
-	return frappe.get_all(
+	return stylo.get_all(
 		"Translation",
 		fields=["*"],
 		filters={
@@ -1286,32 +1286,32 @@ def get_contributions(language):
 	)
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def get_all_languages(with_language_name=False):
 	"""Returns all enabled language codes ar, ch etc"""
 
 	def get_language_codes():
-		return frappe.get_all("Language", filters={"enabled": 1}, pluck="name")
+		return stylo.get_all("Language", filters={"enabled": 1}, pluck="name")
 
 	def get_all_language_with_name():
-		return frappe.get_all("Language", ["language_code", "language_name"], {"enabled": 1})
+		return stylo.get_all("Language", ["language_code", "language_name"], {"enabled": 1})
 
-	if not frappe.db:
-		frappe.connect()
+	if not stylo.db:
+		stylo.connect()
 
 	if with_language_name:
-		return frappe.cache().get_value("languages_with_name", get_all_language_with_name)
+		return stylo.cache().get_value("languages_with_name", get_all_language_with_name)
 	else:
-		return frappe.cache().get_value("languages", get_language_codes)
+		return stylo.cache().get_value("languages", get_language_codes)
 
 
 def get_preferred_language_cookie():
-	return frappe.request.cookies.get("preferred_language")
+	return stylo.request.cookies.get("preferred_language")
 
 
 def get_translated_doctypes():
-	dts = frappe.get_all("DocType", {"translated_doctype": 1}, pluck="name")
-	custom_dts = frappe.get_all(
+	dts = stylo.get_all("DocType", {"translated_doctype": 1}, pluck="name")
+	custom_dts = stylo.get_all(
 		"Property Setter", {"property": "translated_doctype", "value": "1"}, pluck="doc_type"
 	)
 	return unique(dts + custom_dts)
@@ -1325,27 +1325,27 @@ def print_language(language: str):
 
 	```
 	with print_language("de"):
-	    html = frappe.get_print(...)
+	    html = stylo.get_print(...)
 	```
 	"""
-	if not language or language == frappe.local.lang:
+	if not language or language == stylo.local.lang:
 		# do nothing
 		yield
 		return
 
 	# remember original values
-	_lang = frappe.local.lang
-	_jenv = frappe.local.jenv
+	_lang = stylo.local.lang
+	_jenv = stylo.local.jenv
 
 	# set language, empty any existing lang_full_dict and jenv
-	frappe.local.lang = language
-	frappe.local.jenv = None
+	stylo.local.lang = language
+	stylo.local.jenv = None
 
 	yield
 
 	# restore original values
-	frappe.local.lang = _lang
-	frappe.local.jenv = _jenv
+	stylo.local.lang = _lang
+	stylo.local.jenv = _jenv
 
 
 # Backward compatibility

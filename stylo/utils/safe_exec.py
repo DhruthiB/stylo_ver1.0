@@ -11,32 +11,32 @@ import RestrictedPython.Guards
 from RestrictedPython import compile_restricted, safe_globals
 from RestrictedPython.transformer import RestrictingNodeTransformer
 
-import frappe
-import frappe.exceptions
-import frappe.integrations.utils
-import frappe.utils
-import frappe.utils.data
-from frappe import _
-from frappe.core.utils import html2text
-from frappe.frappeclient import StyloClient
-from frappe.handler import execute_cmd
-from frappe.model.delete_doc import delete_doc
-from frappe.model.mapper import get_mapped_doc
-from frappe.model.rename_doc import rename_doc
-from frappe.modules import scrub
-from frappe.utils.background_jobs import enqueue, get_jobs
-from frappe.website.utils import get_next_link, get_shade, get_toc
-from frappe.www.printview import get_visible_columns
+import stylo
+import stylo.exceptions
+import stylo.integrations.utils
+import stylo.utils
+import stylo.utils.data
+from stylo import _
+from stylo.core.utils import html2text
+from stylo.styloclient import StyloClient
+from stylo.handler import execute_cmd
+from stylo.model.delete_doc import delete_doc
+from stylo.model.mapper import get_mapped_doc
+from stylo.model.rename_doc import rename_doc
+from stylo.modules import scrub
+from stylo.utils.background_jobs import enqueue, get_jobs
+from stylo.website.utils import get_next_link, get_shade, get_toc
+from stylo.www.printview import get_visible_columns
 
 
-class ServerScriptNotEnabled(frappe.PermissionError):
+class ServerScriptNotEnabled(stylo.PermissionError):
 	pass
 
 
 ARGUMENT_NOT_SET = object()
 
 
-class NamespaceDict(frappe._dict):
+class NamespaceDict(stylo._dict):
 	"""Raise AttributeError if function not found in namespace"""
 
 	def __getattr__(self, key):
@@ -61,13 +61,13 @@ class StyloTransformer(RestrictingNodeTransformer):
 def safe_exec(script, _globals=None, _locals=None, restrict_commit_rollback=False):
 	# server scripts can be disabled via site_config.json
 	# they are enabled by default
-	if "server_script_enabled" in frappe.conf:
-		enabled = frappe.conf.server_script_enabled
+	if "server_script_enabled" in stylo.conf:
+		enabled = stylo.conf.server_script_enabled
 	else:
 		enabled = True
 
 	if not enabled:
-		frappe.throw(_("Please Enable Server Scripts"), ServerScriptNotEnabled)
+		stylo.throw(_("Please Enable Server Scripts"), ServerScriptNotEnabled)
 
 	# build globals
 	exec_globals = get_safe_globals()
@@ -76,9 +76,9 @@ def safe_exec(script, _globals=None, _locals=None, restrict_commit_rollback=Fals
 
 	if restrict_commit_rollback:
 		# prevent user from using these in docevents
-		exec_globals.frappe.db.pop("commit", None)
-		exec_globals.frappe.db.pop("rollback", None)
-		exec_globals.frappe.db.pop("add_index", None)
+		exec_globals.stylo.db.pop("commit", None)
+		exec_globals.stylo.db.pop("rollback", None)
+		exec_globals.stylo.db.pop("add_index", None)
 
 	with safe_exec_flags(), patched_qb():
 		# execute script compiled by RestrictedPython
@@ -122,139 +122,139 @@ def _validate_safe_eval_syntax(code):
 
 @contextmanager
 def safe_exec_flags():
-	if not frappe.flags.in_safe_exec:
-		frappe.flags.in_safe_exec = 0
+	if not stylo.flags.in_safe_exec:
+		stylo.flags.in_safe_exec = 0
 
-	frappe.flags.in_safe_exec += 1
+	stylo.flags.in_safe_exec += 1
 
 	try:
 		yield
 	finally:
 		# Always ensure that the flag is decremented
-		frappe.flags.in_safe_exec -= 1
+		stylo.flags.in_safe_exec -= 1
 
 
 def get_safe_globals():
-	datautils = frappe._dict()
+	datautils = stylo._dict()
 
-	if frappe.db:
-		date_format = frappe.db.get_default("date_format") or "yyyy-mm-dd"
-		time_format = frappe.db.get_default("time_format") or "HH:mm:ss"
+	if stylo.db:
+		date_format = stylo.db.get_default("date_format") or "yyyy-mm-dd"
+		time_format = stylo.db.get_default("time_format") or "HH:mm:ss"
 	else:
 		date_format = "yyyy-mm-dd"
 		time_format = "HH:mm:ss"
 
 	add_data_utils(datautils)
 
-	form_dict = getattr(frappe.local, "form_dict", frappe._dict())
+	form_dict = getattr(stylo.local, "form_dict", stylo._dict())
 
 	if "_" in form_dict:
-		del frappe.local.form_dict["_"]
+		del stylo.local.form_dict["_"]
 
-	user = getattr(frappe.local, "session", None) and frappe.local.session.user or "Guest"
+	user = getattr(stylo.local, "session", None) and stylo.local.session.user or "Guest"
 
 	out = NamespaceDict(
-		# make available limited methods of frappe
+		# make available limited methods of stylo
 		json=NamespaceDict(loads=json.loads, dumps=json.dumps),
-		as_json=frappe.as_json,
+		as_json=stylo.as_json,
 		dict=dict,
-		log=frappe.log,
-		_dict=frappe._dict,
+		log=stylo.log,
+		_dict=stylo._dict,
 		args=form_dict,
-		frappe=NamespaceDict(
+		stylo=NamespaceDict(
 			call=call_whitelisted_function,
-			flags=frappe._dict(),
-			format=frappe.format_value,
-			format_value=frappe.format_value,
+			flags=stylo._dict(),
+			format=stylo.format_value,
+			format_value=stylo.format_value,
 			date_format=date_format,
 			time_format=time_format,
-			format_date=frappe.utils.data.global_date_format,
+			format_date=stylo.utils.data.global_date_format,
 			form_dict=form_dict,
-			bold=frappe.bold,
-			copy_doc=frappe.copy_doc,
-			errprint=frappe.errprint,
-			qb=frappe.qb,
-			get_meta=frappe.get_meta,
-			new_doc=frappe.new_doc,
-			get_doc=frappe.get_doc,
+			bold=stylo.bold,
+			copy_doc=stylo.copy_doc,
+			errprint=stylo.errprint,
+			qb=stylo.qb,
+			get_meta=stylo.get_meta,
+			new_doc=stylo.new_doc,
+			get_doc=stylo.get_doc,
 			get_mapped_doc=get_mapped_doc,
-			get_last_doc=frappe.get_last_doc,
-			get_cached_doc=frappe.get_cached_doc,
-			get_list=frappe.get_list,
-			get_all=frappe.get_all,
-			get_system_settings=frappe.get_system_settings,
+			get_last_doc=stylo.get_last_doc,
+			get_cached_doc=stylo.get_cached_doc,
+			get_list=stylo.get_list,
+			get_all=stylo.get_all,
+			get_system_settings=stylo.get_system_settings,
 			rename_doc=rename_doc,
 			delete_doc=delete_doc,
 			utils=datautils,
-			get_url=frappe.utils.get_url,
-			render_template=frappe.render_template,
-			msgprint=frappe.msgprint,
-			throw=frappe.throw,
-			sendmail=frappe.sendmail,
-			get_print=frappe.get_print,
-			attach_print=frappe.attach_print,
+			get_url=stylo.utils.get_url,
+			render_template=stylo.render_template,
+			msgprint=stylo.msgprint,
+			throw=stylo.throw,
+			sendmail=stylo.sendmail,
+			get_print=stylo.get_print,
+			attach_print=stylo.attach_print,
 			user=user,
-			get_fullname=frappe.utils.get_fullname,
-			get_gravatar=frappe.utils.get_gravatar_url,
-			full_name=frappe.local.session.data.full_name
-			if getattr(frappe.local, "session", None) and getattr(frappe.local.session, "data", None)
+			get_fullname=stylo.utils.get_fullname,
+			get_gravatar=stylo.utils.get_gravatar_url,
+			full_name=stylo.local.session.data.full_name
+			if getattr(stylo.local, "session", None) and getattr(stylo.local.session, "data", None)
 			else "Guest",
-			request=getattr(frappe.local, "request", {}),
-			session=frappe._dict(
+			request=getattr(stylo.local, "request", {}),
+			session=stylo._dict(
 				user=user,
-				csrf_token=frappe.local.session.data.csrf_token
-				if getattr(frappe.local, "session", None) and getattr(frappe.local.session, "data", None)
+				csrf_token=stylo.local.session.data.csrf_token
+				if getattr(stylo.local, "session", None) and getattr(stylo.local.session, "data", None)
 				else "",
 			),
-			make_get_request=frappe.integrations.utils.make_get_request,
-			make_post_request=frappe.integrations.utils.make_post_request,
-			make_put_request=frappe.integrations.utils.make_put_request,
-			make_patch_request=frappe.integrations.utils.make_patch_request,
-			make_delete_request=frappe.integrations.utils.make_delete_request,
-			socketio_port=frappe.conf.socketio_port,
+			make_get_request=stylo.integrations.utils.make_get_request,
+			make_post_request=stylo.integrations.utils.make_post_request,
+			make_put_request=stylo.integrations.utils.make_put_request,
+			make_patch_request=stylo.integrations.utils.make_patch_request,
+			make_delete_request=stylo.integrations.utils.make_delete_request,
+			socketio_port=stylo.conf.socketio_port,
 			get_hooks=get_hooks,
 			enqueue=safe_enqueue,
-			sanitize_html=frappe.utils.sanitize_html,
-			log_error=frappe.log_error,
-			log=frappe.log,
+			sanitize_html=stylo.utils.sanitize_html,
+			log_error=stylo.log_error,
+			log=stylo.log,
 			db=NamespaceDict(
-				get_list=frappe.get_list,
-				get_all=frappe.get_all,
-				get_value=frappe.db.get_value,
-				set_value=frappe.db.set_value,
-				get_single_value=frappe.db.get_single_value,
-				get_default=frappe.db.get_default,
-				exists=frappe.db.exists,
-				count=frappe.db.count,
-				escape=frappe.db.escape,
+				get_list=stylo.get_list,
+				get_all=stylo.get_all,
+				get_value=stylo.db.get_value,
+				set_value=stylo.db.set_value,
+				get_single_value=stylo.db.get_single_value,
+				get_default=stylo.db.get_default,
+				exists=stylo.db.exists,
+				count=stylo.db.count,
+				escape=stylo.db.escape,
 				sql=read_sql,
-				commit=frappe.db.commit,
-				rollback=frappe.db.rollback,
-				add_index=frappe.db.add_index,
+				commit=stylo.db.commit,
+				rollback=stylo.db.rollback,
+				add_index=stylo.db.add_index,
 			),
-			lang=getattr(frappe.local, "lang", "en"),
+			lang=getattr(stylo.local, "lang", "en"),
 		),
 		StyloClient=StyloClient,
-		style=frappe._dict(border_color="#d1d8dd"),
+		style=stylo._dict(border_color="#d1d8dd"),
 		get_toc=get_toc,
 		get_next_link=get_next_link,
-		_=frappe._,
+		_=stylo._,
 		get_shade=get_shade,
 		scrub=scrub,
 		guess_mimetype=mimetypes.guess_type,
 		html2text=html2text,
-		dev_server=frappe.local.dev_server,
+		dev_server=stylo.local.dev_server,
 		run_script=run_script,
 		is_job_queued=is_job_queued,
 		get_visible_columns=get_visible_columns,
 	)
 
 	add_module_properties(
-		frappe.exceptions, out.frappe, lambda obj: inspect.isclass(obj) and issubclass(obj, Exception)
+		stylo.exceptions, out.stylo, lambda obj: inspect.isclass(obj) and issubclass(obj, Exception)
 	)
 
-	if frappe.response:
-		out.frappe.response = frappe.response
+	if stylo.response:
+		out.stylo.response = stylo.response
 
 	out.update(safe_globals)
 
@@ -279,7 +279,7 @@ def is_job_queued(job_name, queue="default"):
 	:param queue: should be either long, default or short
 	"""
 
-	site = frappe.local.site
+	site = stylo.local.site
 	queued_jobs = get_jobs(site=site, queue=queue, key="job_name").get(site)
 	return queued_jobs and job_name in queued_jobs
 
@@ -287,13 +287,13 @@ def is_job_queued(job_name, queue="default"):
 def safe_enqueue(function, **kwargs):
 	"""
 	Enqueue function to be executed using a background worker
-	Accepts frappe.enqueue params like job_name, queue, timeout, etc.
+	Accepts stylo.enqueue params like job_name, queue, timeout, etc.
 	in addition to params to be passed to function
 
 	:param function: whitelisted function or API Method set in Server Script
 	"""
 
-	return enqueue("frappe.utils.safe_exec.call_whitelisted_function", function=function, **kwargs)
+	return enqueue("stylo.utils.safe_exec.call_whitelisted_function", function=function, **kwargs)
 
 
 def call_whitelisted_function(function, **kwargs):
@@ -305,32 +305,32 @@ def call_whitelisted_function(function, **kwargs):
 def run_script(script, **kwargs):
 	"""run another server script"""
 
-	return call_with_form_dict(lambda: frappe.get_doc("Server Script", script).execute_method(), kwargs)
+	return call_with_form_dict(lambda: stylo.get_doc("Server Script", script).execute_method(), kwargs)
 
 
 def call_with_form_dict(function, kwargs):
 	# temporarily update form_dict, to use inside below call
-	form_dict = getattr(frappe.local, "form_dict", frappe._dict())
+	form_dict = getattr(stylo.local, "form_dict", stylo._dict())
 	if kwargs:
-		frappe.local.form_dict = form_dict.copy().update(kwargs)
+		stylo.local.form_dict = form_dict.copy().update(kwargs)
 
 	try:
 		return function()
 	finally:
-		frappe.local.form_dict = form_dict
+		stylo.local.form_dict = form_dict
 
 
 @contextmanager
 def patched_qb():
-	require_patching = isinstance(frappe.qb.terms, types.ModuleType)
+	require_patching = isinstance(stylo.qb.terms, types.ModuleType)
 	try:
 		if require_patching:
-			_terms = frappe.qb.terms
-			frappe.qb.terms = _flatten(frappe.qb.terms)
+			_terms = stylo.qb.terms
+			stylo.qb.terms = _flatten(stylo.qb.terms)
 		yield
 	finally:
 		if require_patching:
-			frappe.qb.terms = _terms
+			stylo.qb.terms = _terms
 
 
 @lru_cache
@@ -364,15 +364,15 @@ def get_python_builtins():
 
 
 def get_hooks(hook=None, default=None, app_name=None):
-	hooks = frappe.get_hooks(hook=hook, default=default, app_name=app_name)
+	hooks = stylo.get_hooks(hook=hook, default=default, app_name=app_name)
 	return copy.deepcopy(hooks)
 
 
 def read_sql(query, *args, **kwargs):
-	"""a wrapper for frappe.db.sql to allow reads"""
+	"""a wrapper for stylo.db.sql to allow reads"""
 	query = str(query)
 	check_safe_sql_query(query)
-	return frappe.db.sql(query, *args, **kwargs)
+	return stylo.db.sql(query, *args, **kwargs)
 
 
 def check_safe_sql_query(query: str, throw: bool = True) -> bool:
@@ -387,15 +387,15 @@ def check_safe_sql_query(query: str, throw: bool = True) -> bool:
 	whitelisted_statements = ("select", "explain")
 
 	if query.startswith(whitelisted_statements) or (
-		query.startswith("with") and frappe.db.db_type == "mariadb"
+		query.startswith("with") and stylo.db.db_type == "mariadb"
 	):
 		return True
 
 	if throw:
-		frappe.throw(
+		stylo.throw(
 			_("Query must be of SELECT or read-only WITH type."),
 			title=_("Unsafe SQL query"),
-			exc=frappe.PermissionError,
+			exc=stylo.PermissionError,
 		)
 
 	return False
@@ -485,7 +485,7 @@ def _write(obj):
 
 
 def add_data_utils(data):
-	for key, obj in frappe.utils.data.__dict__.items():
+	for key, obj in stylo.utils.data.__dict__.items():
 		if key in VALID_UTILS:
 			data[key] = obj
 

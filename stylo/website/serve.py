@@ -1,15 +1,15 @@
-import frappe
-from frappe.permissions import handle_does_not_exist_error
-from frappe.website.page_renderers.error_page import ErrorPage
-from frappe.website.page_renderers.not_found_page import NotFoundPage
-from frappe.website.page_renderers.not_permitted_page import NotPermittedPage
-from frappe.website.page_renderers.redirect_page import RedirectPage
-from frappe.website.path_resolver import PathResolver
+import stylo
+from stylo.permissions import handle_does_not_exist_error
+from stylo.website.page_renderers.error_page import ErrorPage
+from stylo.website.page_renderers.not_found_page import NotFoundPage
+from stylo.website.page_renderers.not_permitted_page import NotPermittedPage
+from stylo.website.page_renderers.redirect_page import RedirectPage
+from stylo.website.path_resolver import PathResolver
 
 
 def get_response(path=None, http_status_code=200):
 	"""Resolves path and renders page"""
-	path = path or frappe.local.request.path
+	path = path or stylo.local.request.path
 	endpoint = path
 
 	try:
@@ -23,13 +23,13 @@ def get_response(path=None, http_status_code=200):
 
 @handle_does_not_exist_error
 def handle_exception(e, endpoint, path, http_status_code):
-	if isinstance(e, frappe.Redirect):
+	if isinstance(e, stylo.Redirect):
 		return RedirectPage(endpoint or path, http_status_code).render()
 
-	if isinstance(e, frappe.PermissionError):
+	if isinstance(e, stylo.PermissionError):
 		return NotPermittedPage(endpoint, http_status_code, exception=e).render()
 
-	if isinstance(e, frappe.PageDoesNotExistError):
+	if isinstance(e, stylo.PageDoesNotExistError):
 		return NotFoundPage(endpoint, http_status_code).render()
 
 	return ErrorPage(exception=e).render()

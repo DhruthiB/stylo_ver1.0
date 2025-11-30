@@ -1,23 +1,23 @@
 from . import __version__ as app_version
 
-app_name = "frappe"
+app_name = "stylo"
 app_title = "Stylo Framework"
 app_publisher = "Stylo Technologies"
 app_description = "Full stack web framework with Python, Javascript, MariaDB, Redis, Node"
-source_link = "https://github.com/frappe/frappe"
+source_link = "https://github.com/stylo/stylo"
 app_license = "MIT"
-app_logo_url = "/assets/frappe/images/frappe-framework-logo.svg"
+app_logo_url = "/assets/stylo/images/stylo-framework-logo.svg"
 
 develop_version = "14.x.x-develop"
 
-app_email = "developers@frappe.io"
+app_email = "developers@stylo.io"
 
-docs_app = "frappe_docs"
+docs_app = "stylo_docs"
 
-before_install = "frappe.utils.install.before_install"
-after_install = "frappe.utils.install.after_install"
+before_install = "stylo.utils.install.before_install"
+after_install = "stylo.utils.install.after_install"
 
-page_js = {"setup-wizard": "public/js/frappe/setup_wizard.js"}
+page_js = {"setup-wizard": "public/js/stylo/setup_wizard.js"}
 
 # website
 app_include_js = [
@@ -35,8 +35,8 @@ app_include_css = [
 ]
 
 doctype_js = {
-	"Web Page": "public/js/frappe/utils/web_template.js",
-	"Website Settings": "public/js/frappe/utils/web_template.js",
+	"Web Page": "public/js/stylo/utils/web_template.js",
+	"Website Settings": "public/js/stylo/utils/web_template.js",
 }
 
 web_include_js = ["website_script.js"]
@@ -61,139 +61,139 @@ base_template = "templates/base.html"
 
 write_file_keys = ["file_url", "file_name"]
 
-notification_config = "frappe.core.notifications.get_notification_config"
+notification_config = "stylo.core.notifications.get_notification_config"
 
-before_tests = "frappe.utils.install.before_tests"
+before_tests = "stylo.utils.install.before_tests"
 
 email_append_to = ["Event", "ToDo", "Communication"]
 
 calendars = ["Event"]
 
-leaderboards = "frappe.desk.leaderboard.get_leaderboards"
+leaderboards = "stylo.desk.leaderboard.get_leaderboards"
 
 # login
 
 on_session_creation = [
-	"frappe.core.doctype.activity_log.feed.login_feed",
-	"frappe.core.doctype.user.user.notify_admin_access_to_system_manager",
+	"stylo.core.doctype.activity_log.feed.login_feed",
+	"stylo.core.doctype.user.user.notify_admin_access_to_system_manager",
 ]
 
-on_logout = "frappe.core.doctype.session_default_settings.session_default_settings.clear_session_defaults"
+on_logout = "stylo.core.doctype.session_default_settings.session_default_settings.clear_session_defaults"
 
 # permissions
 
 permission_query_conditions = {
-	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-	"ToDo": "frappe.desk.doctype.todo.todo.get_permission_query_conditions",
-	"User": "frappe.core.doctype.user.user.get_permission_query_conditions",
-	"Dashboard Settings": "frappe.desk.doctype.dashboard_settings.dashboard_settings.get_permission_query_conditions",
-	"Notification Log": "frappe.desk.doctype.notification_log.notification_log.get_permission_query_conditions",
-	"Dashboard": "frappe.desk.doctype.dashboard.dashboard.get_permission_query_conditions",
-	"Dashboard Chart": "frappe.desk.doctype.dashboard_chart.dashboard_chart.get_permission_query_conditions",
-	"Number Card": "frappe.desk.doctype.number_card.number_card.get_permission_query_conditions",
-	"Notification Settings": "frappe.desk.doctype.notification_settings.notification_settings.get_permission_query_conditions",
-	"Note": "frappe.desk.doctype.note.note.get_permission_query_conditions",
-	"Kanban Board": "frappe.desk.doctype.kanban_board.kanban_board.get_permission_query_conditions",
-	"Contact": "frappe.contacts.address_and_contact.get_permission_query_conditions_for_contact",
-	"Address": "frappe.contacts.address_and_contact.get_permission_query_conditions_for_address",
-	"Communication": "frappe.core.doctype.communication.communication.get_permission_query_conditions_for_communication",
-	"Workflow Action": "frappe.workflow.doctype.workflow_action.workflow_action.get_permission_query_conditions",
-	"Prepared Report": "frappe.core.doctype.prepared_report.prepared_report.get_permission_query_condition",
-	"File": "frappe.core.doctype.file.file.get_permission_query_conditions",
+	"Event": "stylo.desk.doctype.event.event.get_permission_query_conditions",
+	"ToDo": "stylo.desk.doctype.todo.todo.get_permission_query_conditions",
+	"User": "stylo.core.doctype.user.user.get_permission_query_conditions",
+	"Dashboard Settings": "stylo.desk.doctype.dashboard_settings.dashboard_settings.get_permission_query_conditions",
+	"Notification Log": "stylo.desk.doctype.notification_log.notification_log.get_permission_query_conditions",
+	"Dashboard": "stylo.desk.doctype.dashboard.dashboard.get_permission_query_conditions",
+	"Dashboard Chart": "stylo.desk.doctype.dashboard_chart.dashboard_chart.get_permission_query_conditions",
+	"Number Card": "stylo.desk.doctype.number_card.number_card.get_permission_query_conditions",
+	"Notification Settings": "stylo.desk.doctype.notification_settings.notification_settings.get_permission_query_conditions",
+	"Note": "stylo.desk.doctype.note.note.get_permission_query_conditions",
+	"Kanban Board": "stylo.desk.doctype.kanban_board.kanban_board.get_permission_query_conditions",
+	"Contact": "stylo.contacts.address_and_contact.get_permission_query_conditions_for_contact",
+	"Address": "stylo.contacts.address_and_contact.get_permission_query_conditions_for_address",
+	"Communication": "stylo.core.doctype.communication.communication.get_permission_query_conditions_for_communication",
+	"Workflow Action": "stylo.workflow.doctype.workflow_action.workflow_action.get_permission_query_conditions",
+	"Prepared Report": "stylo.core.doctype.prepared_report.prepared_report.get_permission_query_condition",
+	"File": "stylo.core.doctype.file.file.get_permission_query_conditions",
 }
 
 has_permission = {
-	"Event": "frappe.desk.doctype.event.event.has_permission",
-	"ToDo": "frappe.desk.doctype.todo.todo.has_permission",
-	"User": "frappe.core.doctype.user.user.has_permission",
-	"Note": "frappe.desk.doctype.note.note.has_permission",
-	"Dashboard Chart": "frappe.desk.doctype.dashboard_chart.dashboard_chart.has_permission",
-	"Number Card": "frappe.desk.doctype.number_card.number_card.has_permission",
-	"Kanban Board": "frappe.desk.doctype.kanban_board.kanban_board.has_permission",
-	"Contact": "frappe.contacts.address_and_contact.has_permission",
-	"Address": "frappe.contacts.address_and_contact.has_permission",
-	"Communication": "frappe.core.doctype.communication.communication.has_permission",
-	"Workflow Action": "frappe.workflow.doctype.workflow_action.workflow_action.has_permission",
-	"File": "frappe.core.doctype.file.file.has_permission",
-	"Prepared Report": "frappe.core.doctype.prepared_report.prepared_report.has_permission",
+	"Event": "stylo.desk.doctype.event.event.has_permission",
+	"ToDo": "stylo.desk.doctype.todo.todo.has_permission",
+	"User": "stylo.core.doctype.user.user.has_permission",
+	"Note": "stylo.desk.doctype.note.note.has_permission",
+	"Dashboard Chart": "stylo.desk.doctype.dashboard_chart.dashboard_chart.has_permission",
+	"Number Card": "stylo.desk.doctype.number_card.number_card.has_permission",
+	"Kanban Board": "stylo.desk.doctype.kanban_board.kanban_board.has_permission",
+	"Contact": "stylo.contacts.address_and_contact.has_permission",
+	"Address": "stylo.contacts.address_and_contact.has_permission",
+	"Communication": "stylo.core.doctype.communication.communication.has_permission",
+	"Workflow Action": "stylo.workflow.doctype.workflow_action.workflow_action.has_permission",
+	"File": "stylo.core.doctype.file.file.has_permission",
+	"Prepared Report": "stylo.core.doctype.prepared_report.prepared_report.has_permission",
 }
 
-has_website_permission = {"Address": "frappe.contacts.doctype.address.address.has_website_permission"}
+has_website_permission = {"Address": "stylo.contacts.doctype.address.address.has_website_permission"}
 
 jinja = {
-	"methods": "frappe.utils.jinja_globals",
+	"methods": "stylo.utils.jinja_globals",
 	"filters": [
-		"frappe.utils.data.global_date_format",
-		"frappe.utils.markdown",
-		"frappe.website.utils.get_shade",
-		"frappe.website.utils.abs_url",
+		"stylo.utils.data.global_date_format",
+		"stylo.utils.markdown",
+		"stylo.website.utils.get_shade",
+		"stylo.website.utils.abs_url",
 	],
 }
 
-standard_queries = {"User": "frappe.core.doctype.user.user.user_query"}
+standard_queries = {"User": "stylo.core.doctype.user.user.user_query"}
 
 doc_events = {
 	"*": {
-		"after_insert": ["frappe.event_streaming.doctype.event_update_log.event_update_log.notify_consumers"],
+		"after_insert": ["stylo.event_streaming.doctype.event_update_log.event_update_log.notify_consumers"],
 		"on_update": [
-			"frappe.desk.notifications.clear_doctype_notifications",
-			"frappe.core.doctype.activity_log.feed.update_feed",
-			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
-			"frappe.core.doctype.file.utils.attach_files_to_document",
-			"frappe.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
-			"frappe.automation.doctype.assignment_rule.assignment_rule.apply",
-			"frappe.automation.doctype.assignment_rule.assignment_rule.update_due_date",
-			"frappe.core.doctype.user_type.user_type.apply_permissions_for_non_standard_user_type",
+			"stylo.desk.notifications.clear_doctype_notifications",
+			"stylo.core.doctype.activity_log.feed.update_feed",
+			"stylo.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
+			"stylo.core.doctype.file.utils.attach_files_to_document",
+			"stylo.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
+			"stylo.automation.doctype.assignment_rule.assignment_rule.apply",
+			"stylo.automation.doctype.assignment_rule.assignment_rule.update_due_date",
+			"stylo.core.doctype.user_type.user_type.apply_permissions_for_non_standard_user_type",
 		],
-		"after_rename": "frappe.desk.notifications.clear_doctype_notifications",
+		"after_rename": "stylo.desk.notifications.clear_doctype_notifications",
 		"on_cancel": [
-			"frappe.desk.notifications.clear_doctype_notifications",
-			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
-			"frappe.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
-			"frappe.automation.doctype.assignment_rule.assignment_rule.apply",
+			"stylo.desk.notifications.clear_doctype_notifications",
+			"stylo.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
+			"stylo.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
+			"stylo.automation.doctype.assignment_rule.assignment_rule.apply",
 		],
 		"on_trash": [
-			"frappe.desk.notifications.clear_doctype_notifications",
-			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
-			"frappe.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
+			"stylo.desk.notifications.clear_doctype_notifications",
+			"stylo.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
+			"stylo.event_streaming.doctype.event_update_log.event_update_log.notify_consumers",
 		],
 		"on_update_after_submit": [
-			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
-			"frappe.automation.doctype.assignment_rule.assignment_rule.apply",
-			"frappe.automation.doctype.assignment_rule.assignment_rule.update_due_date",
-			"frappe.core.doctype.file.utils.attach_files_to_document",
+			"stylo.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
+			"stylo.automation.doctype.assignment_rule.assignment_rule.apply",
+			"stylo.automation.doctype.assignment_rule.assignment_rule.update_due_date",
+			"stylo.core.doctype.file.utils.attach_files_to_document",
 		],
 		"on_change": [
-			"frappe.social.doctype.energy_point_rule.energy_point_rule.process_energy_points",
-			"frappe.automation.doctype.milestone_tracker.milestone_tracker.evaluate_milestone",
+			"stylo.social.doctype.energy_point_rule.energy_point_rule.process_energy_points",
+			"stylo.automation.doctype.milestone_tracker.milestone_tracker.evaluate_milestone",
 		],
 	},
 	"Event": {
-		"after_insert": "frappe.integrations.doctype.google_calendar.google_calendar.insert_event_in_google_calendar",
-		"on_update": "frappe.integrations.doctype.google_calendar.google_calendar.update_event_in_google_calendar",
-		"on_trash": "frappe.integrations.doctype.google_calendar.google_calendar.delete_event_from_google_calendar",
+		"after_insert": "stylo.integrations.doctype.google_calendar.google_calendar.insert_event_in_google_calendar",
+		"on_update": "stylo.integrations.doctype.google_calendar.google_calendar.update_event_in_google_calendar",
+		"on_trash": "stylo.integrations.doctype.google_calendar.google_calendar.delete_event_from_google_calendar",
 	},
 	"Contact": {
-		"after_insert": "frappe.integrations.doctype.google_contacts.google_contacts.insert_contacts_to_google_contacts",
-		"on_update": "frappe.integrations.doctype.google_contacts.google_contacts.update_contacts_to_google_contacts",
+		"after_insert": "stylo.integrations.doctype.google_contacts.google_contacts.insert_contacts_to_google_contacts",
+		"on_update": "stylo.integrations.doctype.google_contacts.google_contacts.update_contacts_to_google_contacts",
 	},
 	"DocType": {
-		"on_update": "frappe.cache_manager.build_domain_restriced_doctype_cache",
+		"on_update": "stylo.cache_manager.build_domain_restriced_doctype_cache",
 	},
 	"Page": {
-		"on_update": "frappe.cache_manager.build_domain_restriced_page_cache",
+		"on_update": "stylo.cache_manager.build_domain_restriced_page_cache",
 	},
 }
 
 scheduler_events = {
 	"cron": {
 		"0/15 * * * *": [
-			"frappe.oauth.delete_oauth2_data",
-			"frappe.website.doctype.web_page.web_page.check_publish_status",
-			"frappe.twofactor.delete_all_barcodes_for_users",
+			"stylo.oauth.delete_oauth2_data",
+			"stylo.website.doctype.web_page.web_page.check_publish_status",
+			"stylo.twofactor.delete_all_barcodes_for_users",
 		],
 		"0/10 * * * *": [
-			"frappe.email.doctype.email_account.email_account.pull",
+			"stylo.email.doctype.email_account.email_account.pull",
 		],
 		# Hourly but offset by 30 minutes
 		# "30 * * * *": [
@@ -201,89 +201,89 @@ scheduler_events = {
 		# ],
 		# Daily but offset by 45 minutes
 		"45 0 * * *": [
-			"frappe.core.doctype.log_settings.log_settings.run_log_clean_up",
+			"stylo.core.doctype.log_settings.log_settings.run_log_clean_up",
 		],
 	},
 	"all": [
-		"frappe.email.queue.flush",
-		"frappe.email.doctype.email_account.email_account.notify_unreplied",
-		"frappe.utils.global_search.sync_global_search",
-		"frappe.email.queue.retry_sending_emails",
-		"frappe.monitor.flush",
+		"stylo.email.queue.flush",
+		"stylo.email.doctype.email_account.email_account.notify_unreplied",
+		"stylo.utils.global_search.sync_global_search",
+		"stylo.email.queue.retry_sending_emails",
+		"stylo.monitor.flush",
 	],
 	"hourly": [
-		"frappe.model.utils.link_count.update_link_count",
-		"frappe.model.utils.user_settings.sync_user_settings",
-		"frappe.utils.error.collect_error_snapshots",
-		"frappe.desk.page.backups.backups.delete_downloadable_backups",
-		"frappe.deferred_insert.save_to_db",
-		"frappe.desk.form.document_follow.send_hourly_updates",
-		"frappe.integrations.doctype.google_calendar.google_calendar.sync",
-		"frappe.email.doctype.newsletter.newsletter.send_scheduled_email",
-		"frappe.website.doctype.personal_data_deletion_request.personal_data_deletion_request.process_data_deletion_request",
-		"frappe.desk.utils.delete_old_exported_report_files",
+		"stylo.model.utils.link_count.update_link_count",
+		"stylo.model.utils.user_settings.sync_user_settings",
+		"stylo.utils.error.collect_error_snapshots",
+		"stylo.desk.page.backups.backups.delete_downloadable_backups",
+		"stylo.deferred_insert.save_to_db",
+		"stylo.desk.form.document_follow.send_hourly_updates",
+		"stylo.integrations.doctype.google_calendar.google_calendar.sync",
+		"stylo.email.doctype.newsletter.newsletter.send_scheduled_email",
+		"stylo.website.doctype.personal_data_deletion_request.personal_data_deletion_request.process_data_deletion_request",
+		"stylo.desk.utils.delete_old_exported_report_files",
 	],
 	"daily": [
-		"frappe.email.queue.set_expiry_for_email_queue",
-		"frappe.desk.notifications.clear_notifications",
-		"frappe.desk.doctype.event.event.send_event_digest",
-		"frappe.sessions.clear_expired_sessions",
-		"frappe.email.doctype.notification.notification.trigger_daily_alerts",
-		"frappe.website.doctype.personal_data_deletion_request.personal_data_deletion_request.remove_unverified_record",
-		"frappe.desk.form.document_follow.send_daily_updates",
-		"frappe.social.doctype.energy_point_settings.energy_point_settings.allocate_review_points",
-		"frappe.integrations.doctype.google_contacts.google_contacts.sync",
-		"frappe.automation.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry",
-		"frappe.automation.doctype.auto_repeat.auto_repeat.set_auto_repeat_as_completed",
-		"frappe.email.doctype.unhandled_email.unhandled_email.remove_old_unhandled_emails",
+		"stylo.email.queue.set_expiry_for_email_queue",
+		"stylo.desk.notifications.clear_notifications",
+		"stylo.desk.doctype.event.event.send_event_digest",
+		"stylo.sessions.clear_expired_sessions",
+		"stylo.email.doctype.notification.notification.trigger_daily_alerts",
+		"stylo.website.doctype.personal_data_deletion_request.personal_data_deletion_request.remove_unverified_record",
+		"stylo.desk.form.document_follow.send_daily_updates",
+		"stylo.social.doctype.energy_point_settings.energy_point_settings.allocate_review_points",
+		"stylo.integrations.doctype.google_contacts.google_contacts.sync",
+		"stylo.automation.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry",
+		"stylo.automation.doctype.auto_repeat.auto_repeat.set_auto_repeat_as_completed",
+		"stylo.email.doctype.unhandled_email.unhandled_email.remove_old_unhandled_emails",
 	],
 	"daily_long": [
-		"frappe.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_daily",
-		"frappe.utils.change_log.check_for_update",
-		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_daily",
-		"frappe.email.doctype.auto_email_report.auto_email_report.send_daily",
-		"frappe.integrations.doctype.google_drive.google_drive.daily_backup",
+		"stylo.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_daily",
+		"stylo.utils.change_log.check_for_update",
+		"stylo.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_daily",
+		"stylo.email.doctype.auto_email_report.auto_email_report.send_daily",
+		"stylo.integrations.doctype.google_drive.google_drive.daily_backup",
 	],
 	"weekly_long": [
-		"frappe.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_weekly",
-		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_weekly",
-		"frappe.desk.form.document_follow.send_weekly_updates",
-		"frappe.social.doctype.energy_point_log.energy_point_log.send_weekly_summary",
-		"frappe.integrations.doctype.google_drive.google_drive.weekly_backup",
-		"frappe.desk.doctype.changelog_feed.changelog_feed.fetch_changelog_feed",
+		"stylo.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_weekly",
+		"stylo.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_weekly",
+		"stylo.desk.form.document_follow.send_weekly_updates",
+		"stylo.social.doctype.energy_point_log.energy_point_log.send_weekly_summary",
+		"stylo.integrations.doctype.google_drive.google_drive.weekly_backup",
+		"stylo.desk.doctype.changelog_feed.changelog_feed.fetch_changelog_feed",
 	],
 	"monthly": [
-		"frappe.email.doctype.auto_email_report.auto_email_report.send_monthly",
-		"frappe.social.doctype.energy_point_log.energy_point_log.send_monthly_summary",
+		"stylo.email.doctype.auto_email_report.auto_email_report.send_monthly",
+		"stylo.social.doctype.energy_point_log.energy_point_log.send_monthly_summary",
 	],
 	"monthly_long": [
-		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_monthly"
+		"stylo.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_monthly"
 	],
 }
 
 get_translated_dict = {
-	("doctype", "System Settings"): "frappe.geo.country_info.get_translated_dict",
-	("page", "setup-wizard"): "frappe.geo.country_info.get_translated_dict",
+	("doctype", "System Settings"): "stylo.geo.country_info.get_translated_dict",
+	("page", "setup-wizard"): "stylo.geo.country_info.get_translated_dict",
 }
 
 sounds = [
-	{"name": "email", "src": "/assets/frappe/sounds/email.mp3", "volume": 0.1},
-	{"name": "submit", "src": "/assets/frappe/sounds/submit.mp3", "volume": 0.1},
-	{"name": "cancel", "src": "/assets/frappe/sounds/cancel.mp3", "volume": 0.1},
-	{"name": "delete", "src": "/assets/frappe/sounds/delete.mp3", "volume": 0.05},
-	{"name": "click", "src": "/assets/frappe/sounds/click.mp3", "volume": 0.05},
-	{"name": "error", "src": "/assets/frappe/sounds/error.mp3", "volume": 0.1},
-	{"name": "alert", "src": "/assets/frappe/sounds/alert.mp3", "volume": 0.2},
-	# {"name": "chime", "src": "/assets/frappe/sounds/chime.mp3"},
+	{"name": "email", "src": "/assets/stylo/sounds/email.mp3", "volume": 0.1},
+	{"name": "submit", "src": "/assets/stylo/sounds/submit.mp3", "volume": 0.1},
+	{"name": "cancel", "src": "/assets/stylo/sounds/cancel.mp3", "volume": 0.1},
+	{"name": "delete", "src": "/assets/stylo/sounds/delete.mp3", "volume": 0.05},
+	{"name": "click", "src": "/assets/stylo/sounds/click.mp3", "volume": 0.05},
+	{"name": "error", "src": "/assets/stylo/sounds/error.mp3", "volume": 0.1},
+	{"name": "alert", "src": "/assets/stylo/sounds/alert.mp3", "volume": 0.2},
+	# {"name": "chime", "src": "/assets/stylo/sounds/chime.mp3"},
 ]
 
 setup_wizard_exception = [
-	"frappe.desk.page.setup_wizard.setup_wizard.email_setup_wizard_exception",
-	"frappe.desk.page.setup_wizard.setup_wizard.log_setup_wizard_exception",
+	"stylo.desk.page.setup_wizard.setup_wizard.email_setup_wizard_exception",
+	"stylo.desk.page.setup_wizard.setup_wizard.log_setup_wizard_exception",
 ]
 
-before_migrate = ["frappe.core.doctype.patch_log.patch_log.before_migrate"]
-after_migrate = ["frappe.website.doctype.website_theme.website_theme.after_migrate"]
+before_migrate = ["stylo.core.doctype.patch_log.patch_log.before_migrate"]
+after_migrate = ["stylo.website.doctype.website_theme.website_theme.after_migrate"]
 
 otp_methods = ["OTP App", "Email", "SMS"]
 
@@ -373,23 +373,23 @@ global_search_doctypes = {
 
 override_whitelisted_methods = {
 	# Legacy File APIs
-	"frappe.core.doctype.file.file.download_file": "download_file",
-	"frappe.core.doctype.file.file.unzip_file": "frappe.core.api.file.unzip_file",
-	"frappe.core.doctype.file.file.get_attached_images": "frappe.core.api.file.get_attached_images",
-	"frappe.core.doctype.file.file.get_files_in_folder": "frappe.core.api.file.get_files_in_folder",
-	"frappe.core.doctype.file.file.get_files_by_search_text": "frappe.core.api.file.get_files_by_search_text",
-	"frappe.core.doctype.file.file.get_max_file_size": "frappe.core.api.file.get_max_file_size",
-	"frappe.core.doctype.file.file.create_new_folder": "frappe.core.api.file.create_new_folder",
-	"frappe.core.doctype.file.file.move_file": "frappe.core.api.file.move_file",
-	"frappe.core.doctype.file.file.zip_files": "frappe.core.api.file.zip_files",
+	"stylo.core.doctype.file.file.download_file": "download_file",
+	"stylo.core.doctype.file.file.unzip_file": "stylo.core.api.file.unzip_file",
+	"stylo.core.doctype.file.file.get_attached_images": "stylo.core.api.file.get_attached_images",
+	"stylo.core.doctype.file.file.get_files_in_folder": "stylo.core.api.file.get_files_in_folder",
+	"stylo.core.doctype.file.file.get_files_by_search_text": "stylo.core.api.file.get_files_by_search_text",
+	"stylo.core.doctype.file.file.get_max_file_size": "stylo.core.api.file.get_max_file_size",
+	"stylo.core.doctype.file.file.create_new_folder": "stylo.core.api.file.create_new_folder",
+	"stylo.core.doctype.file.file.move_file": "stylo.core.api.file.move_file",
+	"stylo.core.doctype.file.file.zip_files": "stylo.core.api.file.zip_files",
 	# Legacy (& Consistency) OAuth2 APIs
-	"frappe.www.login.login_via_google": "frappe.integrations.oauth2_logins.login_via_google",
-	"frappe.www.login.login_via_github": "frappe.integrations.oauth2_logins.login_via_github",
-	"frappe.www.login.login_via_facebook": "frappe.integrations.oauth2_logins.login_via_facebook",
-	"frappe.www.login.login_via_frappe": "frappe.integrations.oauth2_logins.login_via_frappe",
-	"frappe.www.login.login_via_office365": "frappe.integrations.oauth2_logins.login_via_office365",
-	"frappe.www.login.login_via_salesforce": "frappe.integrations.oauth2_logins.login_via_salesforce",
-	"frappe.www.login.login_via_fairlogin": "frappe.integrations.oauth2_logins.login_via_fairlogin",
+	"stylo.www.login.login_via_google": "stylo.integrations.oauth2_logins.login_via_google",
+	"stylo.www.login.login_via_github": "stylo.integrations.oauth2_logins.login_via_github",
+	"stylo.www.login.login_via_facebook": "stylo.integrations.oauth2_logins.login_via_facebook",
+	"stylo.www.login.login_via_stylo": "stylo.integrations.oauth2_logins.login_via_stylo",
+	"stylo.www.login.login_via_office365": "stylo.integrations.oauth2_logins.login_via_office365",
+	"stylo.www.login.login_via_salesforce": "stylo.integrations.oauth2_logins.login_via_salesforce",
+	"stylo.www.login.login_via_fairlogin": "stylo.integrations.oauth2_logins.login_via_fairlogin",
 }
 
 ignore_links_on_delete = [
@@ -417,24 +417,24 @@ ignore_links_on_delete = [
 
 # Request Hooks
 before_request = [
-	"frappe.recorder.record",
-	"frappe.monitor.start",
-	"frappe.rate_limiter.apply",
+	"stylo.recorder.record",
+	"stylo.monitor.start",
+	"stylo.rate_limiter.apply",
 ]
-after_request = ["frappe.rate_limiter.update", "frappe.monitor.stop", "frappe.recorder.dump"]
+after_request = ["stylo.rate_limiter.update", "stylo.monitor.stop", "stylo.recorder.dump"]
 
 # Background Job Hooks
 before_job = [
-	"frappe.monitor.start",
+	"stylo.monitor.start",
 ]
 after_job = [
-	"frappe.monitor.stop",
-	"frappe.utils.file_lock.release_document_locks",
+	"stylo.monitor.stop",
+	"stylo.utils.file_lock.release_document_locks",
 ]
 
 extend_bootinfo = [
-	"frappe.utils.telemetry.add_bootinfo",
-	"frappe.core.doctype.user_permission.user_permission.send_user_permissions",
+	"stylo.utils.telemetry.add_bootinfo",
+	"stylo.core.doctype.user_permission.user_permission.send_user_permissions",
 ]
 
-get_changelog_feed = "frappe.desk.doctype.changelog_feed.changelog_feed.get_feed"
+get_changelog_feed = "stylo.desk.doctype.changelog_feed.changelog_feed.get_feed"

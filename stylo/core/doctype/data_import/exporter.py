@@ -1,13 +1,13 @@
 # Copyright (c) 2019, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model import display_fieldtypes, no_value_fields
-from frappe.model import table_fields as table_fieldtypes
-from frappe.utils import flt, format_duration, groupby_metric
-from frappe.utils.csvutils import build_csv_response
-from frappe.utils.xlsxutils import build_xlsx_response
+import stylo
+from stylo import _
+from stylo.model import display_fieldtypes, no_value_fields
+from stylo.model import table_fields as table_fieldtypes
+from stylo.utils import flt, format_duration, groupby_metric
+from stylo.utils.csvutils import build_csv_response
+from stylo.utils.xlsxutils import build_xlsx_response
 
 
 class Exporter:
@@ -29,7 +29,7 @@ class Exporter:
 		        :param file_type: One of 'Excel' or 'CSV'
 		"""
 		self.doctype = doctype
-		self.meta = frappe.get_meta(doctype)
+		self.meta = stylo.get_meta(doctype)
 		self.export_fields = export_fields
 		self.export_filters = export_filters
 		self.export_page_length = export_page_length
@@ -52,8 +52,8 @@ class Exporter:
 	def get_all_exportable_fields(self):
 		child_table_fields = [df.fieldname for df in self.meta.fields if df.fieldtype in table_fieldtypes]
 
-		meta = frappe.get_meta(self.doctype)
-		exportable_fields = frappe._dict({})
+		meta = stylo.get_meta(self.doctype)
+		exportable_fields = stylo._dict({})
 
 		for key, fieldnames in self.export_fields.items():
 			if key == self.doctype:
@@ -73,7 +73,7 @@ class Exporter:
 		for key, exportable_fields in self.exportable_fields.items():
 			for _df in exportable_fields:
 				# make a copy of df dict to avoid reference mutation
-				if isinstance(_df, frappe.core.doctype.docfield.docfield.DocField):
+				if isinstance(_df, stylo.core.doctype.docfield.docfield.DocField):
 					df = _df.as_dict()
 				else:
 					df = _df.copy()
@@ -85,13 +85,13 @@ class Exporter:
 		return fields
 
 	def get_exportable_fields(self, doctype, fieldnames):
-		meta = frappe.get_meta(doctype)
+		meta = stylo.get_meta(doctype)
 
 		def is_exportable(df):
 			return df and df.fieldtype not in (display_fieldtypes + no_value_fields)
 
 		# add name field
-		name_field = frappe._dict(
+		name_field = stylo._dict(
 			{
 				"fieldtype": "Data",
 				"fieldname": "name",
@@ -113,15 +113,15 @@ class Exporter:
 		table_fields = [f for f in self.exportable_fields if f != self.doctype]
 		data = self.get_data_as_docs()
 
-		if not frappe.permissions.can_export(self.doctype):
-			if frappe.permissions.can_export(self.doctype, is_owner=True):
+		if not stylo.permissions.can_export(self.doctype):
+			if stylo.permissions.can_export(self.doctype, is_owner=True):
 				for doc in data:
-					if doc.get("owner") != frappe.session.user:
-						raise frappe.PermissionError(
+					if doc.get("owner") != stylo.session.user:
+						raise stylo.PermissionError(
 							_("You are not allowed to export {} doctype").format(self.doctype)
 						)
 			else:
-				raise frappe.PermissionError(
+				raise stylo.PermissionError(
 					_("You are not allowed to export {} doctype").format(self.doctype)
 				)
 
@@ -170,7 +170,7 @@ class Exporter:
 			order_by = f"`tab{self.doctype}`.`creation` DESC"
 
 		parent_fields = [format_column_name(df) for df in self.fields if df.parent == self.doctype]
-		parent_data = frappe.db.get_list(
+		parent_data = stylo.db.get_list(
 			self.doctype,
 			filters=filters,
 			fields=["name", "owner", *parent_fields],
@@ -193,7 +193,7 @@ class Exporter:
 				"parentfield",
 				*list({format_column_name(df) for df in self.fields if df.parent == child_table_doctype}),
 			]
-			data = frappe.get_all(
+			data = stylo.get_all(
 				child_table_doctype,
 				filters={
 					"parent": ("in", parent_names),

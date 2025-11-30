@@ -31,7 +31,7 @@ if typing.TYPE_CHECKING:
 	is_flag=True,
 	default=False,
 	help="Copy the files instead of symlinking",
-	envvar="FRAPPE_HARD_LINK_ASSETS",
+	envvar="Stylo_HARD_LINK_ASSETS",
 )
 @click.option(
 	"--make-copy",

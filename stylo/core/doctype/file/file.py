@@ -12,15 +12,15 @@ from urllib.parse import quote, unquote
 from PIL import Image, ImageFile, ImageOps
 from requests.exceptions import HTTPError, SSLError
 
-import frappe
-from frappe import _
-from frappe.database.schema import SPECIAL_CHAR_PATTERN
-from frappe.model.document import Document
-from frappe.permissions import get_doctypes_with_read
-from frappe.utils import call_hook_method, cint, get_files_path, get_hook_method, get_url
-from frappe.utils.file_manager import is_safe_path
-from frappe.utils.html_utils import escape_html
-from frappe.utils.image import optimize_image, strip_exif_data
+import stylo
+from stylo import _
+from stylo.database.schema import SPECIAL_CHAR_PATTERN
+from stylo.model.document import Document
+from stylo.permissions import get_doctypes_with_read
+from stylo.utils import call_hook_method, cint, get_files_path, get_hook_method, get_url
+from stylo.utils.file_manager import is_safe_path
+from stylo.utils.html_utils import escape_html
+from stylo.utils.image import optimize_image, strip_exif_data
 
 from .exceptions import AttachmentLimitReached, FolderNotEmpty, MaxFileSizeReachedError
 from .utils import *
@@ -56,7 +56,7 @@ class File(Document):
 				# home
 				self.name = self.file_name
 		else:
-			self.name = frappe.generate_hash(length=10)
+			self.name = stylo.generate_hash(length=10)
 
 	def before_insert(self):
 		self.set_folder_name()
@@ -73,7 +73,7 @@ class File(Document):
 		else:
 			self.save_file(content=self.get_content())
 			self.flags.new_file = True
-			frappe.local.rollback_observers.append(self)
+			stylo.local.rollback_observers.append(self)
 
 		self.validate_duplicate_entry()  # Hash is generated in save_file
 
@@ -99,17 +99,17 @@ class File(Document):
 		self.validate_file_url()
 		self.validate_file_on_disk()
 
-		self.file_size = frappe.form_dict.file_size or self.file_size
+		self.file_size = stylo.form_dict.file_size or self.file_size
 
 	def validate_attachment_references(self):
 		if not self.attached_to_doctype:
 			return
 
 		if not self.attached_to_name or not isinstance(self.attached_to_name, str | int):
-			frappe.throw(_("Attached To Name must be a string or an integer"), frappe.ValidationError)
+			stylo.throw(_("Attached To Name must be a string or an integer"), stylo.ValidationError)
 
 		if self.attached_to_field and SPECIAL_CHAR_PATTERN.search(self.attached_to_field):
-			frappe.throw(_("The fieldname you've specified in Attached To Field is invalid"))
+			stylo.throw(_("The fieldname you've specified in Attached To Field is invalid"))
 
 	def after_rename(self, *args, **kwargs):
 		for successor in self.get_successors():
@@ -117,7 +117,7 @@ class File(Document):
 
 	def on_trash(self):
 		if self.is_home_folder or self.is_attachments_folder:
-			frappe.throw(_("Cannot delete Home and Attachments folders"))
+			stylo.throw(_("Cannot delete Home and Attachments folders"))
 		self.validate_empty_folder()
 		self._delete_file_on_disk()
 		if not self.is_folder:
@@ -156,7 +156,7 @@ class File(Document):
 			return os.path.join(self.folder, self.file_name)
 
 	def get_successors(self):
-		return frappe.get_all("File", filters={"folder": self.name}, pluck="name")
+		return stylo.get_all("File", filters={"folder": self.name}, pluck="name")
 
 	def validate_file_path(self):
 		if self.is_remote_file:
@@ -164,7 +164,7 @@ class File(Document):
 
 		base_path = os.path.realpath(get_files_path(is_private=self.is_private))
 		if not os.path.realpath(self.get_full_path()).startswith(base_path):
-			frappe.throw(
+			stylo.throw(
 				_("The File URL you've entered is incorrect"),
 				title=_("Invalid File URL"),
 			)
@@ -175,7 +175,7 @@ class File(Document):
 
 		if not self.file_url.startswith(("/files/", "/private/files/")):
 			# Probably an invalid URL since it doesn't start with http either
-			frappe.throw(
+			stylo.throw(
 				_("URL must start with http:// or https://"),
 				title=_("Invalid URL"),
 			)
@@ -188,8 +188,8 @@ class File(Document):
 
 		old_file_url = self.file_url
 		file_name = self.file_url.split("/")[-1]
-		private_file_path = Path(frappe.get_site_path("private", "files", file_name))
-		public_file_path = Path(frappe.get_site_path("public", "files", file_name))
+		private_file_path = Path(stylo.get_site_path("private", "files", file_name))
+		public_file_path = Path(stylo.get_site_path("public", "files", file_name))
 
 		if cint(self.is_private):
 			source = public_file_path
@@ -208,12 +208,12 @@ class File(Document):
 			return
 
 		if not source.exists():
-			frappe.throw(
+			stylo.throw(
 				_("Cannot find file {} on disk").format(source),
 				exc=FileNotFoundError,
 			)
 		if target.exists():
-			frappe.throw(
+			stylo.throw(
 				_("A file with same name {} already exists").format(target),
 				exc=FileExistsError,
 			)
@@ -221,7 +221,7 @@ class File(Document):
 		# Uses os.rename which is an atomic operation
 		shutil.move(source, target)
 		self.flags.original_path = {"old": source, "new": target}
-		frappe.local.rollback_observers.append(self)
+		stylo.local.rollback_observers.append(self)
 
 		self.file_url = updated_file_url
 		update_existing_file_docs(self)
@@ -233,7 +233,7 @@ class File(Document):
 		):
 			return
 
-		frappe.db.set_value(
+		stylo.db.set_value(
 			self.attached_to_doctype,
 			self.attached_to_name,
 			self.attached_to_field,
@@ -244,7 +244,7 @@ class File(Document):
 		if self.attached_to_field:
 			return True
 
-		reference_dict = frappe.get_doc(self.attached_to_doctype, self.attached_to_name).as_dict()
+		reference_dict = stylo.get_doc(self.attached_to_doctype, self.attached_to_name).as_dict()
 
 		for key, value in reference_dict.items():
 			if value == old_file_url:
@@ -254,11 +254,11 @@ class File(Document):
 	def validate_attachment_limit(self):
 		attachment_limit = 0
 		if self.attached_to_doctype and self.attached_to_name:
-			attachment_limit = cint(frappe.get_meta(self.attached_to_doctype).max_attachments)
+			attachment_limit = cint(stylo.get_meta(self.attached_to_doctype).max_attachments)
 
 		if attachment_limit:
 			current_attachment_count = len(
-				frappe.get_all(
+				stylo.get_all(
 					"File",
 					filters={
 						"attached_to_doctype": self.attached_to_doctype,
@@ -269,9 +269,9 @@ class File(Document):
 			)
 
 			if current_attachment_count >= attachment_limit:
-				frappe.throw(
+				stylo.throw(
 					_("Maximum Attachment Limit of {0} has been reached for {1} {2}.").format(
-						frappe.bold(attachment_limit), self.attached_to_doctype, self.attached_to_name
+						stylo.bold(attachment_limit), self.attached_to_doctype, self.attached_to_name
 					),
 					exc=AttachmentLimitReached,
 					title=_("Attachment Limit Reached"),
@@ -289,7 +289,7 @@ class File(Document):
 			return
 
 		if self.attached_to_doctype:
-			self.folder = frappe.db.get_value("File", {"is_attachments_folder": 1})
+			self.folder = stylo.db.get_value("File", {"is_attachments_folder": 1})
 
 		elif not self.is_home_folder:
 			self.folder = "Home"
@@ -313,7 +313,7 @@ class File(Document):
 			return True
 
 		if not os.path.exists(full_path):
-			frappe.throw(_("File {0} does not exist").format(self.file_url), IOError)
+			stylo.throw(_("File {0} does not exist").format(self.file_url), IOError)
 
 	def validate_duplicate_entry(self):
 		if not self.flags.ignore_duplicate_entry_error and not self.is_folder:
@@ -334,18 +334,18 @@ class File(Document):
 						"attached_to_name": self.attached_to_name,
 					}
 				)
-			duplicate_file = frappe.db.get_value("File", filters, ["name", "file_url"], as_dict=1)
+			duplicate_file = stylo.db.get_value("File", filters, ["name", "file_url"], as_dict=1)
 
 			if duplicate_file:
-				duplicate_file_doc = frappe.get_cached_doc("File", duplicate_file.name)
+				duplicate_file_doc = stylo.get_cached_doc("File", duplicate_file.name)
 				if duplicate_file_doc.exists_on_disk():
 					# just use the url, to avoid uploading a duplicate
 					self.file_url = duplicate_file.file_url
 
 	def set_file_name(self):
 		if not self.file_name and not self.file_url:
-			frappe.throw(
-				_("Fields `file_name` or `file_url` must be set for File"), exc=frappe.MandatoryError
+			stylo.throw(
+				_("Fields `file_name` or `file_url` must be set for File"), exc=stylo.MandatoryError
 			)
 		elif not self.file_name and self.file_url:
 			self.file_name = self.file_url.split("/")[-1]
@@ -361,7 +361,7 @@ class File(Document):
 			with open(file_path, "rb") as f:
 				self.content_hash = get_content_hash(f.read())
 		except OSError:
-			frappe.throw(_("File {0} does not exist").format(file_path))
+			stylo.throw(_("File {0} does not exist").format(file_path))
 
 	def make_thumbnail(
 		self,
@@ -389,7 +389,7 @@ class File(Document):
 			image.thumbnail(size, Image.Resampling.LANCZOS)
 
 		thumbnail_url = f"{filename}_{suffix}.{extn}"
-		path = os.path.abspath(frappe.get_site_path("public", thumbnail_url.lstrip("/")))
+		path = os.path.abspath(stylo.get_site_path("public", thumbnail_url.lstrip("/")))
 
 		try:
 			image.save(path)
@@ -397,19 +397,19 @@ class File(Document):
 				self.db_set("thumbnail_url", thumbnail_url)
 
 		except OSError:
-			frappe.msgprint(_("Unable to write file format for {0}").format(path))
+			stylo.msgprint(_("Unable to write file format for {0}").format(path))
 			return
 
 		return thumbnail_url
 
 	def validate_empty_folder(self):
 		"""Throw exception if folder is not empty"""
-		if self.is_folder and frappe.get_all("File", filters={"folder": self.name}, limit=1):
-			frappe.throw(_("Folder {0} is not empty").format(self.name), FolderNotEmpty)
+		if self.is_folder and stylo.get_all("File", filters={"folder": self.name}, limit=1):
+			stylo.throw(_("Folder {0} is not empty").format(self.name), FolderNotEmpty)
 
 	def _delete_file_on_disk(self):
 		"""If file not attached to any other record, delete it"""
-		on_disk_file_not_shared = self.content_hash and not frappe.get_all(
+		on_disk_file_not_shared = self.content_hash and not stylo.get_all(
 			"File",
 			filters={
 				"content_hash": self.content_hash,
@@ -427,7 +427,7 @@ class File(Document):
 	def unzip(self) -> list["File"]:
 		"""Unzip current file and replace it by its children"""
 		if not self.file_url.endswith(".zip"):
-			frappe.throw(_("{0} is not a zip file").format(self.file_name))
+			stylo.throw(_("{0} is not a zip file").format(self.file_name))
 
 		zip_path = self.get_full_path()
 
@@ -443,11 +443,11 @@ class File(Document):
 					# skip hidden files
 					continue
 
-				file_doc = frappe.new_doc("File")
+				file_doc = stylo.new_doc("File")
 				try:
 					file_doc.content = z.read(file.filename)
 				except zipfile.BadZipFile:
-					frappe.throw(_("{0} is a not a valid zip file").format(self.file_name))
+					stylo.throw(_("{0} is a not a valid zip file").format(self.file_name))
 				file_doc.file_name = filename
 				file_doc.folder = self.folder
 				file_doc.is_private = self.is_private
@@ -456,7 +456,7 @@ class File(Document):
 				file_doc.save()
 				files.append(file_doc)
 
-		frappe.delete_doc("File", self.name)
+		stylo.delete_doc("File", self.name)
 		return files
 
 	def exists_on_disk(self):
@@ -464,7 +464,7 @@ class File(Document):
 
 	def get_content(self) -> bytes:
 		if self.is_folder:
-			frappe.throw(_("Cannot get file contents of a Folder"))
+			stylo.throw(_("Cannot get file contents of a Folder"))
 
 		if self.get("content"):
 			self._content = self.content
@@ -515,13 +515,13 @@ class File(Document):
 			pass
 
 		elif not self.file_url:
-			frappe.throw(_("There is some problem with the file url: {0}").format(file_path))
+			stylo.throw(_("There is some problem with the file url: {0}").format(file_path))
 
 		if not is_safe_path(file_path):
-			frappe.throw(_("Cannot access file path {0}").format(file_path))
+			stylo.throw(_("Cannot access file path {0}").format(file_path))
 
 		if os.path.sep in self.file_name:
-			frappe.throw(_("File name cannot have {0}").format(os.path.sep))
+			stylo.throw(_("File name cannot have {0}").format(os.path.sep))
 
 		return file_path
 
@@ -539,7 +539,7 @@ class File(Document):
 			f.write(self._content)
 			os.fsync(f.fileno())
 
-		frappe.local.rollback_observers.append(self)
+		stylo.local.rollback_observers.append(self)
 
 		return file_path
 
@@ -574,7 +574,7 @@ class File(Document):
 		if (
 			self.content_type
 			and self.content_type == "image/jpeg"
-			and frappe.get_system_settings("strip_exif_metadata_from_uploaded_images")
+			and stylo.get_system_settings("strip_exif_metadata_from_uploaded_images")
 		):
 			self._content = strip_exif_data(self._content, self.content_type)
 
@@ -583,7 +583,7 @@ class File(Document):
 
 		# check if a file exists with the same content hash and is also in the same folder (public or private)
 		if not ignore_existing_file_check:
-			duplicate_file = frappe.get_value(
+			duplicate_file = stylo.get_value(
 				"File",
 				{"content_hash": self.content_hash, "is_private": self.is_private},
 				["file_url", "name"],
@@ -591,7 +591,7 @@ class File(Document):
 			)
 
 		if duplicate_file:
-			file_doc: "File" = frappe.get_cached_doc("File", duplicate_file.name)
+			file_doc: "File" = stylo.get_cached_doc("File", duplicate_file.name)
 			if file_doc.exists_on_disk():
 				self.file_url = duplicate_file.file_url
 				file_exists = True
@@ -620,16 +620,16 @@ class File(Document):
 		return {"file_name": os.path.basename(fpath), "file_url": self.file_url}
 
 	def check_max_file_size(self):
-		from frappe.core.api.file import get_max_file_size
+		from stylo.core.api.file import get_max_file_size
 
 		max_file_size = get_max_file_size()
 		file_size = len(self._content or b"")
 
 		if file_size > max_file_size:
 			msg = _("File size exceeded the maximum allowed size of {0} MB").format(max_file_size / 1048576)
-			if frappe.has_permission("System Settings", "write"):
+			if stylo.has_permission("System Settings", "write"):
 				msg += ".<br>" + _("You can increase the limit from System Settings.")
-			frappe.throw(msg, exc=MaxFileSizeReachedError)
+			stylo.throw(msg, exc=MaxFileSizeReachedError)
 
 		return file_size
 
@@ -657,7 +657,7 @@ class File(Document):
 
 	def create_attachment_record(self):
 		icon = ' <i class="fa fa-lock text-warning"></i>' if self.is_private else ""
-		file_url = quote(frappe.safe_encode(self.file_url), safe="/:") if self.file_url else self.file_name
+		file_url = quote(stylo.safe_encode(self.file_url), safe="/:") if self.file_url else self.file_name
 		file_name = self.file_name or self.file_url
 
 		self.add_comment_in_reference_doc(
@@ -668,16 +668,16 @@ class File(Document):
 	def add_comment_in_reference_doc(self, comment_type, text):
 		if self.attached_to_doctype and self.attached_to_name:
 			try:
-				doc = frappe.get_doc(self.attached_to_doctype, self.attached_to_name)
+				doc = stylo.get_doc(self.attached_to_doctype, self.attached_to_name)
 				doc.add_comment(comment_type, text)
-			except frappe.DoesNotExistError:
-				frappe.clear_messages()
+			except stylo.DoesNotExistError:
+				stylo.clear_messages()
 
 	def set_is_private(self):
 		if self.file_url:
 			self.is_private = cint(self.file_url.startswith("/private"))
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def optimize_file(self):
 		if self.is_folder:
 			raise TypeError("Folders cannot be optimized")
@@ -717,7 +717,7 @@ class File(Document):
 		zf = zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED)
 		for _file in files:
 			if isinstance(_file, str):
-				_file = frappe.get_doc("File", _file)
+				_file = stylo.get_doc("File", _file)
 			if not isinstance(_file, File):
 				continue
 			if _file.is_folder:
@@ -730,18 +730,18 @@ class File(Document):
 
 
 def on_doctype_update():
-	frappe.db.add_index("File", ["attached_to_doctype", "attached_to_name"])
-	frappe.db.add_index("File", ["file_url(100)"])
+	stylo.db.add_index("File", ["attached_to_doctype", "attached_to_name"])
+	stylo.db.add_index("File", ["file_url(100)"])
 
 
 def has_permission(doc, ptype=None, user=None):
-	user = user or frappe.session.user
+	user = user or stylo.session.user
 
 	if user == "Administrator":
 		return True
 
 	if ptype == "create":
-		return frappe.has_permission("File", "create", user=user)
+		return stylo.has_permission("File", "create", user=user)
 
 	if not doc.is_private and ptype in ("read", "select"):
 		return True
@@ -754,9 +754,9 @@ def has_permission(doc, ptype=None, user=None):
 		attached_to_name = doc.attached_to_name
 
 		try:
-			ref_doc = frappe.get_doc(attached_to_doctype, attached_to_name)
-		except frappe.DoesNotExistError:
-			frappe.clear_last_message()
+			ref_doc = stylo.get_doc(attached_to_doctype, attached_to_name)
+		except stylo.DoesNotExistError:
+			stylo.clear_last_message()
 			return False
 
 		if ptype in ["write", "create", "delete"]:
@@ -768,20 +768,20 @@ def has_permission(doc, ptype=None, user=None):
 
 
 def get_permission_query_conditions(user: str | None = None) -> str:
-	user = user or frappe.session.user
+	user = user or stylo.session.user
 	if user == "Administrator":
 		return ""
 
-	if frappe.get_cached_value("User", user, "user_type") != "System User":
-		return f""" `tabFile`.`owner` = {frappe.db.escape(user)} """
+	if stylo.get_cached_value("User", user, "user_type") != "System User":
+		return f""" `tabFile`.`owner` = {stylo.db.escape(user)} """
 
 	readable_doctypes = ", ".join(repr(dt) for dt in get_doctypes_with_read())
 	return f"""
 		(`tabFile`.`is_private` = 0)
-		OR (`tabFile`.`attached_to_doctype` IS NULL AND `tabFile`.`owner` = {frappe.db.escape(user)})
+		OR (`tabFile`.`attached_to_doctype` IS NULL AND `tabFile`.`owner` = {stylo.db.escape(user)})
 		OR (`tabFile`.`attached_to_doctype` IN ({readable_doctypes}))
 	"""
 
 
 # Note: kept at the end to not cause circular, partial imports & maintain backwards compatibility
-from frappe.core.api.file import *
+from stylo.core.api.file import *

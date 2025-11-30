@@ -1,7 +1,7 @@
 // Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 // License: See license.txt
 
-frappe.ui.form.on("Currency", {
+stylo.ui.form.on("Currency", {
 	refresh(frm) {
 		frm.set_intro("");
 		if (!frm.doc.enabled) {

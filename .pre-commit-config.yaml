@@ -7,7 +7,7 @@ repos:
     rev: v4.3.0
     hooks:
       - id: trailing-whitespace
-        files: "frappe.*"
+        files: "stylo.*"
         exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
       - id: check-yaml
       - id: no-commit-to-branch
@@ -37,13 +37,13 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
           (?x)^(
-              frappe/public/dist/.*|
+              stylo/public/dist/.*|
               .*node_modules.*|
               .*boilerplate.*|
-              frappe/www/website_script.js|
-              frappe/templates/includes/.*|
-              frappe/public/js/lib/.*|
-              frappe/website/doctype/website_theme/website_theme_template.scss
+              stylo/www/website_script.js|
+              stylo/templates/includes/.*|
+              stylo/public/js/lib/.*|
+              stylo/website/doctype/website_theme/website_theme_template.scss
           )$
 
 ci:

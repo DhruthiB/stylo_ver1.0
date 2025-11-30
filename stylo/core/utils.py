@@ -3,14 +3,14 @@
 
 from markdownify import markdownify as md
 
-import frappe
+import stylo
 
 
 def get_parent_doc(doc):
 	"""Returns document of `reference_doctype`, `reference_doctype`"""
 	if not hasattr(doc, "parent_doc"):
 		if doc.reference_doctype and doc.reference_name:
-			doc.parent_doc = frappe.get_doc(doc.reference_doctype, doc.reference_name)
+			doc.parent_doc = stylo.get_doc(doc.reference_doctype, doc.reference_name)
 		else:
 			doc.parent_doc = None
 	return doc.parent_doc

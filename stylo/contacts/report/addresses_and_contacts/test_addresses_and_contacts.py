@@ -1,14 +1,14 @@
-import frappe
-import frappe.defaults
-from frappe.contacts.report.addresses_and_contacts.addresses_and_contacts import get_data
-from frappe.tests.utils import StyloTestCase
+import stylo
+import stylo.defaults
+from stylo.contacts.report.addresses_and_contacts.addresses_and_contacts import get_data
+from stylo.tests.utils import StyloTestCase
 
 
 def get_custom_linked_doctype():
-	if bool(frappe.get_all("DocType", filters={"name": "Test Custom Doctype"})):
+	if bool(stylo.get_all("DocType", filters={"name": "Test Custom Doctype"})):
 		return
 
-	doc = frappe.get_doc(
+	doc = stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -27,7 +27,7 @@ def get_custom_linked_doctype():
 
 def get_custom_doc_for_address_and_contacts():
 	get_custom_linked_doctype()
-	linked_doc = frappe.get_doc(
+	linked_doc = stylo.get_doc(
 		{
 			"doctype": "Test Custom Doctype",
 			"test_field": "Hello",
@@ -37,10 +37,10 @@ def get_custom_doc_for_address_and_contacts():
 
 
 def create_linked_address(link_list):
-	if frappe.flags.test_address_created:
+	if stylo.flags.test_address_created:
 		return
 
-	address = frappe.get_doc(
+	address = stylo.get_doc(
 		{
 			"doctype": "Address",
 			"address_title": "_Test Address",
@@ -56,16 +56,16 @@ def create_linked_address(link_list):
 		address.append("links", {"link_doctype": "Test Custom Doctype", "link_name": name})
 
 	address.insert()
-	frappe.flags.test_address_created = True
+	stylo.flags.test_address_created = True
 
 	return address.name
 
 
 def create_linked_contact(link_list, address):
-	if frappe.flags.test_contact_created:
+	if stylo.flags.test_contact_created:
 		return
 
-	contact = frappe.get_doc(
+	contact = stylo.get_doc(
 		{
 			"doctype": "Contact",
 			"salutation": "Mr",
@@ -83,7 +83,7 @@ def create_linked_contact(link_list, address):
 		contact.append("links", {"link_doctype": "Test Custom Doctype", "link_name": name})
 
 	contact.insert(ignore_permissions=True)
-	frappe.flags.test_contact_created = True
+	stylo.flags.test_contact_created = True
 
 
 class TestAddressesAndContacts(StyloTestCase):

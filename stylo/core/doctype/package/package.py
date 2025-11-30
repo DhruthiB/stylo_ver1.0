@@ -4,8 +4,8 @@
 import os
 from string import ascii_letters, digits
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 LICENSES = (
 	"GNU Affero General Public License",
@@ -21,10 +21,10 @@ class Package(Document):
 
 		allowed_characters = ascii_letters + digits + "-"
 		if not all(c in allowed_characters for c in self.package_name):
-			frappe.throw("Package name can only contain letters, digits and hyphens")
+			stylo.throw("Package name can only contain letters, digits and hyphens")
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_license_text(license_type: str) -> str | None:
 	if license_type in LICENSES:
 		with open(os.path.join(os.path.dirname(__file__), "licenses", license_type + ".md")) as textfile:

@@ -1,15 +1,15 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-import frappe.permissions
-from frappe import _
-from frappe.core.doctype.activity_log.activity_log import add_authentication_log
-from frappe.utils import get_fullname
+import stylo
+import stylo.permissions
+from stylo import _
+from stylo.core.doctype.activity_log.activity_log import add_authentication_log
+from stylo.utils import get_fullname
 
 
 def update_feed(doc, method=None):
-	if frappe.flags.in_patch or frappe.flags.in_install or frappe.flags.in_import:
+	if stylo.flags.in_patch or stylo.flags.in_install or stylo.flags.in_import:
 		return
 
 	if doc._action != "save" or doc.flags.ignore_feed:
@@ -25,24 +25,24 @@ def update_feed(doc, method=None):
 			if isinstance(feed, str):
 				feed = {"subject": feed}
 
-			feed = frappe._dict(feed)
+			feed = stylo._dict(feed)
 			doctype = feed.doctype or doc.doctype
 			name = feed.name or doc.name
 
 			# delete earlier feed
-			frappe.db.delete(
+			stylo.db.delete(
 				"Activity Log",
 				{"reference_doctype": doctype, "reference_name": name, "link_doctype": feed.link_doctype},
 			)
 
-			frappe.get_doc(
+			stylo.get_doc(
 				{
 					"doctype": "Activity Log",
 					"reference_doctype": doctype,
 					"reference_name": name,
 					"subject": feed.subject,
 					"full_name": get_fullname(doc.owner),
-					"reference_owner": frappe.db.get_value(doctype, name, "owner"),
+					"reference_owner": stylo.db.get_value(doctype, name, "owner"),
 					"link_doctype": feed.link_doctype,
 					"link_name": feed.link_name,
 				}
@@ -57,22 +57,22 @@ def login_feed(login_manager):
 
 def logout_feed(user, reason):
 	if user and user != "Guest":
-		subject = _("{0} logged out: {1}").format(get_fullname(user), frappe.bold(reason))
+		subject = _("{0} logged out: {1}").format(get_fullname(user), stylo.bold(reason))
 		add_authentication_log(subject, user, operation="Logout")
 
 
 def get_feed_match_conditions(user=None, doctype="Comment"):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
 	conditions = [
 		"`tab{doctype}`.owner={user} or `tab{doctype}`.reference_owner={user}".format(
-			user=frappe.db.escape(user), doctype=doctype
+			user=stylo.db.escape(user), doctype=doctype
 		)
 	]
 
-	user_permissions = frappe.permissions.get_user_permissions(user)
-	can_read = frappe.get_user().get_can_read()
+	user_permissions = stylo.permissions.get_user_permissions(user)
+	can_read = stylo.get_user().get_can_read()
 
 	can_read_doctypes = [f"'{dt}'" for dt in list(set(can_read) - set(list(user_permissions)))]
 
@@ -89,7 +89,7 @@ def get_feed_match_conditions(user=None, doctype="Comment"):
 			for dt, obj in user_permissions.items():
 				for n in obj:
 					can_read_docs.append(
-						"{}|{}".format(frappe.db.escape(dt), frappe.db.escape(n.get("doc", "")))
+						"{}|{}".format(stylo.db.escape(dt), stylo.db.escape(n.get("doc", "")))
 					)
 
 			if can_read_docs:

@@ -1,31 +1,31 @@
 from unittest.mock import patch
 
-import frappe
-from frappe import get_hooks
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.page_renderers.static_page import StaticPage
-from frappe.website.serve import get_response, get_response_content
-from frappe.website.utils import build_response, clear_website_cache, get_home_page
+import stylo
+from stylo import get_hooks
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.page_renderers.static_page import StaticPage
+from stylo.website.serve import get_response, get_response_content
+from stylo.website.utils import build_response, clear_website_cache, get_home_page
 
 
 class TestWebsite(StyloTestCase):
 	def setUp(self):
-		frappe.set_user("Guest")
+		stylo.set_user("Guest")
 
 	def tearDown(self):
-		frappe.db.delete("Access Log")
-		frappe.set_user("Administrator")
+		stylo.db.delete("Access Log")
+		stylo.set_user("Administrator")
 
 	def test_home_page(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		# test home page via role
-		user = frappe.get_doc(
+		user = stylo.get_doc(
 			dict(doctype="User", email="test-user-for-home-page@example.com", first_name="test")
 		).insert(ignore_if_duplicate=True)
 		user.reload()
 
-		role = frappe.get_doc(
+		role = stylo.get_doc(
 			dict(
 				doctype="Role",
 				role_name="home-page-test",
@@ -36,60 +36,60 @@ class TestWebsite(StyloTestCase):
 		user.add_roles(role.name)
 		user.save()
 
-		frappe.db.set_value("Role", "home-page-test", "home_page", "home-page-test")
-		frappe.set_user("test-user-for-home-page@example.com")
+		stylo.db.set_value("Role", "home-page-test", "home_page", "home-page-test")
+		stylo.set_user("test-user-for-home-page@example.com")
 		self.assertEqual(get_home_page(), "home-page-test")
 
-		frappe.set_user("Administrator")
-		frappe.db.set_value("Role", "home-page-test", "home_page", "")
+		stylo.set_user("Administrator")
+		stylo.db.set_value("Role", "home-page-test", "home_page", "")
 
 		# home page via portal settings
-		frappe.db.set_value("Portal Settings", None, "default_portal_home", "test-portal-home")
+		stylo.db.set_value("Portal Settings", None, "default_portal_home", "test-portal-home")
 
-		frappe.set_user("test-user-for-home-page@example.com")
-		frappe.cache().hdel("home_page", frappe.session.user)
+		stylo.set_user("test-user-for-home-page@example.com")
+		stylo.cache().hdel("home_page", stylo.session.user)
 		self.assertEqual(get_home_page(), "test-portal-home")
 
-		frappe.db.set_value("Portal Settings", None, "default_portal_home", "")
+		stylo.db.set_value("Portal Settings", None, "default_portal_home", "")
 		clear_website_cache()
 
 		# home page via website settings
-		frappe.db.set_value("Website Settings", None, "home_page", "contact")
+		stylo.db.set_value("Website Settings", None, "home_page", "contact")
 		self.assertEqual(get_home_page(), "contact")
 
-		frappe.db.set_value("Website Settings", None, "home_page", None)
+		stylo.db.set_value("Website Settings", None, "home_page", None)
 		clear_website_cache()
 
 		# fallback homepage
 		self.assertEqual(get_home_page(), "me")
 
 		# fallback homepage for guest
-		frappe.set_user("Guest")
+		stylo.set_user("Guest")
 		self.assertEqual(get_home_page(), "login")
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 		# test homepage via hooks
 		clear_website_cache()
 		with patch.object(
-			frappe,
+			stylo,
 			"get_hooks",
 			patched_get_hooks(
-				"get_website_user_home_page", ["frappe.www._test._test_home_page.get_website_user_home_page"]
+				"get_website_user_home_page", ["stylo.www._test._test_home_page.get_website_user_home_page"]
 			),
 		):
 			self.assertEqual(get_home_page(), "_test/_test_folder")
 
 		clear_website_cache()
-		with patch.object(frappe, "get_hooks", patched_get_hooks("website_user_home_page", ["login"])):
+		with patch.object(stylo, "get_hooks", patched_get_hooks("website_user_home_page", ["login"])):
 			self.assertEqual(get_home_page(), "login")
 
 		clear_website_cache()
-		with patch.object(frappe, "get_hooks", patched_get_hooks("home_page", ["about"])):
+		with patch.object(stylo, "get_hooks", patched_get_hooks("home_page", ["about"])):
 			self.assertEqual(get_home_page(), "about")
 
 		clear_website_cache()
 		with patch.object(
-			frappe, "get_hooks", patched_get_hooks("role_home_page", {"home-page-test": ["home-page-test"]})
+			stylo, "get_hooks", patched_get_hooks("role_home_page", {"home-page-test": ["home-page-test"]})
 		):
 			self.assertEqual(get_home_page(), "home-page-test")
 
@@ -99,7 +99,7 @@ class TestWebsite(StyloTestCase):
 
 		self.assertEqual(response.status_code, 200)
 
-		html = frappe.safe_decode(response.get_data())
+		html = stylo.safe_decode(response.get_data())
 
 		self.assertTrue("// login.js" in html)
 		self.assertTrue("<!-- login.html -->" in html)
@@ -132,20 +132,20 @@ class TestWebsite(StyloTestCase):
 		response = get_response()
 		self.assertEqual(response.status_code, 200)
 
-		html = frappe.safe_decode(response.get_data())
+		html = stylo.safe_decode(response.get_data())
 
 		self.assertTrue("// login.js" in html)
 		self.assertTrue("<!-- login.html -->" in html)
 
 	def test_app(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		set_request(method="GET", path="/app")
 		response = get_response()
 		self.assertEqual(response.status_code, 200)
 
-		html = frappe.safe_decode(response.get_data())
+		html = stylo.safe_decode(response.get_data())
 		self.assertTrue("window.app = true;" in html)
-		frappe.local.session_obj = None
+		stylo.local.session_obj = None
 
 	def test_not_found(self):
 		set_request(method="GET", path="/_test/missing")
@@ -153,18 +153,18 @@ class TestWebsite(StyloTestCase):
 		self.assertEqual(response.status_code, 404)
 
 	def test_redirect(self):
-		import frappe.hooks
+		import stylo.hooks
 
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
-		frappe.hooks.website_redirects = [
+		stylo.hooks.website_redirects = [
 			dict(source=r"/testfrom", target=r"://testto1"),
 			dict(source=r"/testfromregex.*", target=r"://testto2"),
 			dict(source=r"/testsub/(.*)", target=r"://testto3/\1"),
 			dict(source=r"/courses/course\?course=(.*)", target=r"/courses/\1", match_with_query_string=True),
 		]
 
-		website_settings = frappe.get_doc("Website Settings")
+		website_settings = stylo.get_doc("Website Settings")
 		website_settings.append("route_redirects", {"source": "/testsource", "target": "/testtarget"})
 		website_settings.save()
 
@@ -197,19 +197,19 @@ class TestWebsite(StyloTestCase):
 		self.assertEqual(response.status_code, 301)
 		self.assertEqual(response.headers.get("Location"), "/courses/data")
 
-		delattr(frappe.hooks, "website_redirects")
-		frappe.cache().delete_key("app_hooks")
+		delattr(stylo.hooks, "website_redirects")
+		stylo.cache().delete_key("app_hooks")
 
 	def test_custom_page_renderer(self):
-		from frappe import get_hooks
+		from stylo import get_hooks
 
 		def patched_get_hooks(*args, **kwargs):
 			return_value = get_hooks(*args, **kwargs)
 			if args and args[0] == "page_renderer":
-				return_value = ["frappe.tests.test_website.CustomPageRenderer"]
+				return_value = ["stylo.tests.test_website.CustomPageRenderer"]
 			return return_value
 
-		with patch.object(frappe, "get_hooks", patched_get_hooks):
+		with patch.object(stylo, "get_hooks", patched_get_hooks):
 			set_request(method="GET", path="/custom")
 			response = get_response()
 			self.assertEqual(response.status_code, 3984)
@@ -223,8 +223,8 @@ class TestWebsite(StyloTestCase):
 			self.assertEqual(response.status_code, 404)
 
 	def test_printview_page(self):
-		frappe.db.value_cache[("DocType", "Language", "name")] = (("Language",),)
-		frappe.set_user("Administrator")
+		stylo.db.value_cache[("DocType", "Language", "name")] = (("Language",),)
+		stylo.set_user("Administrator")
 		content = get_response_content("/Language/ru")
 		self.assertIn('<div class="print-format">', content)
 		self.assertIn("<div>Language</div>", content)
@@ -238,14 +238,14 @@ class TestWebsite(StyloTestCase):
 		self.assertIn("<p>Test content</p>", content)
 
 	def test_json_sidebar_data(self):
-		frappe.flags.look_for_sidebar = False
+		stylo.flags.look_for_sidebar = False
 		content = get_response_content("/_test/_test_folder/_test_page")
 		self.assertNotIn("Test Sidebar", content)
 		clear_website_cache()
-		frappe.flags.look_for_sidebar = True
+		stylo.flags.look_for_sidebar = True
 		content = get_response_content("/_test/_test_folder/_test_page")
 		self.assertIn("Test Sidebar", content)
-		frappe.flags.look_for_sidebar = False
+		stylo.flags.look_for_sidebar = False
 
 	def test_base_template(self):
 		content = get_response_content("/_test/_test_custom_base.html")
@@ -295,7 +295,7 @@ class TestWebsite(StyloTestCase):
 
 	def test_caching(self):
 		# to enable caching
-		frappe.flags.force_website_cache = True
+		stylo.flags.force_website_cache = True
 
 		clear_website_cache()
 		# first response no-cache
@@ -306,23 +306,23 @@ class TestWebsite(StyloTestCase):
 		response = get_response("/_test/_test_folder/_test_page")
 		self.assertIn(("X-From-Cache", "True"), list(response.headers))
 
-		frappe.flags.force_website_cache = False
+		stylo.flags.force_website_cache = False
 
 	def test_safe_render(self):
 		content = get_response_content("/_test/_test_safe_render_on")
 		self.assertNotIn("Safe Render On", content)
-		self.assertIn("frappe.exceptions.ValidationError: Illegal template", content)
+		self.assertIn("stylo.exceptions.ValidationError: Illegal template", content)
 
 		content = get_response_content("/_test/_test_safe_render_off")
 		self.assertIn("Safe Render Off", content)
 		self.assertIn("test.__test", content)
-		self.assertNotIn("frappe.exceptions.ValidationError: Illegal template", content)
+		self.assertNotIn("stylo.exceptions.ValidationError: Illegal template", content)
 
 	def test_never_render(self):
 		from pathlib import Path
 		from random import choices
 
-		WWW = Path(frappe.get_app_path("frappe")) / "www"
+		WWW = Path(stylo.get_app_path("stylo")) / "www"
 		FILES_TO_SKIP = choices(list(WWW.glob("**/*.py*")), k=10)
 
 		for suffix in FILES_TO_SKIP:
@@ -335,9 +335,9 @@ class TestWebsite(StyloTestCase):
 		self.assertIn('<meta name="description" content="Test Description for Metatag">', content)
 
 	def test_resolve_class(self):
-		from frappe.utils.jinja_globals import resolve_class
+		from stylo.utils.jinja_globals import resolve_class
 
-		context = frappe._dict(primary=True)
+		context = stylo._dict(primary=True)
 		self.assertEqual(resolve_class("test"), "test")
 		self.assertEqual(resolve_class("test", "test-2"), "test test-2")
 		self.assertEqual(resolve_class("test", {"test-2": False, "test-3": True}), "test test-3")
@@ -347,11 +347,11 @@ class TestWebsite(StyloTestCase):
 
 		content = '<a class="{{ resolve_class("btn btn-default", primary and "btn-primary") }}">Test</a>'
 		self.assertEqual(
-			frappe.render_template(content, context), '<a class="btn btn-default btn-primary">Test</a>'
+			stylo.render_template(content, context), '<a class="btn btn-default btn-primary">Test</a>'
 		)
 
 	def test_app_include(self):
-		from frappe import get_hooks
+		from stylo import get_hooks
 
 		def patched_get_hooks(*args, **kwargs):
 			return_value = get_hooks(*args, **kwargs)
@@ -360,12 +360,12 @@ class TestWebsite(StyloTestCase):
 				return_value.app_include_css.append("test_app_include.css")
 			return return_value
 
-		with patch.object(frappe, "get_hooks", patched_get_hooks):
-			frappe.set_user("Administrator")
-			frappe.hooks.app_include_js.append("test_app_include.js")
-			frappe.hooks.app_include_css.append("test_app_include.css")
-			frappe.conf.update({"app_include_js": ["test_app_include_via_site_config.js"]})
-			frappe.conf.update({"app_include_css": ["test_app_include_via_site_config.css"]})
+		with patch.object(stylo, "get_hooks", patched_get_hooks):
+			stylo.set_user("Administrator")
+			stylo.hooks.app_include_js.append("test_app_include.js")
+			stylo.hooks.app_include_css.append("test_app_include.css")
+			stylo.conf.update({"app_include_js": ["test_app_include_via_site_config.js"]})
+			stylo.conf.update({"app_include_css": ["test_app_include_via_site_config.css"]})
 
 			set_request(method="GET", path="/app")
 			content = get_response_content("/app")
@@ -378,8 +378,8 @@ class TestWebsite(StyloTestCase):
 				'<link type="text/css" rel="stylesheet" href="/test_app_include_via_site_config.css">',
 				content,
 			)
-			delattr(frappe.local, "request")
-			frappe.set_user("Guest")
+			delattr(stylo.local, "request")
+			stylo.set_user("Guest")
 
 
 def patched_get_hooks(hook, value):

@@ -1,11 +1,11 @@
-import frappe
-from frappe.model.document import get_controller
-from frappe.website.page_renderers.base_template_page import BaseTemplatePage
-from frappe.website.router import (
+import stylo
+from stylo.model.document import get_controller
+from stylo.website.page_renderers.base_template_page import BaseTemplatePage
+from stylo.website.router import (
 	get_doctypes_with_web_view,
 	get_page_info_from_web_page_with_dynamic_routes,
 )
-from frappe.website.utils import cache_html
+from stylo.website.utils import cache_html
 
 
 class DocumentPage(BaseTemplatePage):
@@ -24,24 +24,24 @@ class DocumentPage(BaseTemplatePage):
 	def search_in_doctypes_with_web_view(self):
 		for doctype in get_doctypes_with_web_view():
 			filters = dict(route=self.path)
-			meta = frappe.get_meta(doctype)
+			meta = stylo.get_meta(doctype)
 			condition_field = self.get_condition_field(meta)
 
 			if condition_field:
 				filters[condition_field] = 1
 
 			try:
-				self.docname = frappe.db.get_value(doctype, filters, "name")
+				self.docname = stylo.db.get_value(doctype, filters, "name")
 				if self.docname:
 					self.doctype = doctype
-					doc = frappe.get_cached_doc(self.doctype, self.docname)
+					doc = stylo.get_cached_doc(self.doctype, self.docname)
 					return (
 						doc.meta.allow_guest_to_view
 						or doc.has_permission()
-						or frappe.has_website_permission(doc)
+						or stylo.has_website_permission(doc)
 					)
 			except Exception as e:
-				if not frappe.db.is_missing_column(e):
+				if not stylo.db.is_missing_column(e):
 					raise e
 
 	def search_web_page_dynamic_routes(self):
@@ -61,11 +61,11 @@ class DocumentPage(BaseTemplatePage):
 
 	@cache_html
 	def get_html(self):
-		self.doc = frappe.get_doc(self.doctype, self.docname)
+		self.doc = stylo.get_doc(self.doctype, self.docname)
 		self.init_context()
 		self.update_context()
 		self.post_process_context()
-		html = frappe.get_template(self.template_path).render(self.context)
+		html = stylo.get_template(self.template_path).render(self.context)
 		return html
 
 	def update_context(self):

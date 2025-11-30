@@ -5,10 +5,10 @@ from copy import deepcopy
 from logging.handlers import RotatingFileHandler
 
 # imports - module imports
-import frappe
-from frappe.utils import get_sites
+import stylo
+from stylo.utils import get_sites
 
-default_log_level = logging.WARNING if frappe._dev_server else logging.ERROR
+default_log_level = logging.WARNING if stylo._dev_server else logging.ERROR
 
 
 def get_logger(
@@ -36,7 +36,7 @@ def get_logger(
 	"""
 
 	if allow_site is True:
-		site = getattr(frappe.local, "site", None)
+		site = getattr(stylo.local, "site", None)
 	elif allow_site in get_sites():
 		site = allow_site
 	else:
@@ -45,19 +45,19 @@ def get_logger(
 	logger_name = "{}-{}".format(module, site or "all")
 
 	try:
-		return frappe.loggers[logger_name]
+		return stylo.loggers[logger_name]
 	except KeyError:
 		pass
 
 	if not module:
-		module = "frappe"
+		module = "stylo"
 		with_more_info = True
 
 	logfile = module + ".log"
 	log_filename = os.path.join("..", "logs", logfile)
 
 	logger = logging.getLogger(logger_name)
-	logger.setLevel(frappe.log_level or default_log_level)
+	logger.setLevel(stylo.log_level or default_log_level)
 	logger.propagate = False
 
 	formatter = logging.Formatter(f"%(asctime)s %(levelname)s {module} %(message)s")
@@ -80,7 +80,7 @@ def get_logger(
 	if filter:
 		logger.addFilter(filter)
 
-	frappe.loggers[logger_name] = logger
+	stylo.loggers[logger_name] = logger
 
 	return logger
 
@@ -90,16 +90,16 @@ class SiteContextFilter(logging.Filter):
 
 	def filter(self, record) -> bool:
 		if "Form Dict" not in str(record.msg):
-			site = getattr(frappe.local, "site", None)
-			form_dict = sanitized_dict(getattr(frappe.local, "form_dict", None))
+			site = getattr(stylo.local, "site", None)
+			form_dict = sanitized_dict(getattr(stylo.local, "form_dict", None))
 			record.msg = str(record.msg) + f"\nSite: {site}\nForm Dict: {form_dict}"
 			return True
 
 
 def set_log_level(level: int) -> None:
 	"""Use this method to set log level to something other than the default DEBUG"""
-	frappe.log_level = getattr(logging, (level or "").upper(), None) or default_log_level
-	frappe.loggers = {}
+	stylo.log_level = getattr(logging, (level or "").upper(), None) or default_log_level
+	stylo.loggers = {}
 
 
 def sanitized_dict(form_dict):

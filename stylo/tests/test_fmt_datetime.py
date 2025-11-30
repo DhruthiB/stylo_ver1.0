@@ -2,9 +2,9 @@
 # License: MIT. See LICENSE
 import datetime
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import (
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import (
 	format_datetime,
 	format_time,
 	formatdate,
@@ -43,25 +43,25 @@ class TestFmtDatetime(StyloTestCase):
 
 	def setUp(self):
 		# create test domain
-		self.pre_test_date_format = frappe.db.get_default("date_format")
-		self.pre_test_time_format = frappe.db.get_default("time_format")
+		self.pre_test_date_format = stylo.db.get_default("date_format")
+		self.pre_test_time_format = stylo.db.get_default("time_format")
 
 	def tearDown(self):
-		frappe.db.set_default("date_format", self.pre_test_date_format)
-		frappe.db.set_default("time_format", self.pre_test_time_format)
-		frappe.local.user_date_format = None
-		frappe.local.user_time_format = None
-		frappe.db.rollback()
+		stylo.db.set_default("date_format", self.pre_test_date_format)
+		stylo.db.set_default("time_format", self.pre_test_time_format)
+		stylo.local.user_date_format = None
+		stylo.local.user_time_format = None
+		stylo.db.rollback()
 
 	# Test utility functions
 
 	def test_set_default_date_format(self):
-		frappe.db.set_default("date_format", "ZYX321")
-		self.assertEqual(frappe.db.get_default("date_format"), "ZYX321")
+		stylo.db.set_default("date_format", "ZYX321")
+		self.assertEqual(stylo.db.get_default("date_format"), "ZYX321")
 
 	def test_set_default_time_format(self):
-		frappe.db.set_default("time_format", "XYZ123")
-		self.assertEqual(frappe.db.get_default("time_format"), "XYZ123")
+		stylo.db.set_default("time_format", "XYZ123")
+		self.assertEqual(stylo.db.get_default("time_format"), "XYZ123")
 
 	def test_get_functions(self):
 		# Test round-trip through getdate, get_datetime and get_time
@@ -78,20 +78,20 @@ class TestFmtDatetime(StyloTestCase):
 
 	def test_formatdate_forced_broken_locale(self):
 		# Test with forced date formats
-		lang = frappe.local.lang
+		lang = stylo.local.lang
 		# Force fallback from Babel
 		try:
-			frappe.local.lang = "FAKE"
+			stylo.local.lang = "FAKE"
 			self.assertEqual(formatdate(test_date, "dd-yyyy-mm"), test_date_obj.strftime("%d-%Y-%m"))
 			self.assertEqual(formatdate(test_date, "dd-yyyy-MM"), test_date_obj.strftime("%d-%Y-%m"))
 		finally:
-			frappe.local.lang = lang
+			stylo.local.lang = lang
 
 	def test_format_date(self):
 		# Test formatdate with various default date formats set
 		for fmt, valid_fmt in test_date_formats.items():
-			frappe.db.set_default("date_format", fmt)
-			frappe.local.user_date_format = None
+			stylo.db.set_default("date_format", fmt)
+			stylo.local.user_date_format = None
 			self.assertEqual(get_user_date_format(), fmt)
 			self.assertEqual(formatdate(test_date), valid_fmt)
 
@@ -103,8 +103,8 @@ class TestFmtDatetime(StyloTestCase):
 	def test_format_time(self):
 		# Test format_time with various default time formats set
 		for fmt, valid_fmt in test_time_formats.items():
-			frappe.db.set_default("time_format", fmt)
-			frappe.local.user_time_format = None
+			stylo.db.set_default("time_format", fmt)
+			stylo.local.user_time_format = None
 			self.assertEqual(get_user_time_format(), fmt)
 			self.assertEqual(format_time(test_time), valid_fmt)
 
@@ -120,10 +120,10 @@ class TestFmtDatetime(StyloTestCase):
 	def test_format_datetime(self):
 		# Test formatdate with various default date formats set
 		for date_fmt, valid_date in test_date_formats.items():
-			frappe.db.set_default("date_format", date_fmt)
-			frappe.local.user_date_format = None
+			stylo.db.set_default("date_format", date_fmt)
+			stylo.local.user_date_format = None
 			for time_fmt, valid_time in test_time_formats.items():
-				frappe.db.set_default("time_format", time_fmt)
-				frappe.local.user_time_format = None
+				stylo.db.set_default("time_format", time_fmt)
+				stylo.local.user_time_format = None
 				valid_fmt = f"{valid_date} {valid_time}"
 				self.assertEqual(format_datetime(test_datetime), valid_fmt)

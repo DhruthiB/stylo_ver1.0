@@ -1,7 +1,7 @@
 # Copyright (c) 2018, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
+import stylo
 
 common_default_keys = ["__default", "__global"]
 
@@ -14,7 +14,7 @@ doctypes_for_mapping = {
 
 
 def get_doctype_map_key(doctype):
-	return frappe.scrub(doctype) + "_map"
+	return stylo.scrub(doctype) + "_map"
 
 
 doctype_map_keys = tuple(map(get_doctype_map_key, doctypes_for_mapping))
@@ -77,9 +77,9 @@ doctype_cache_keys = (
 
 
 def clear_user_cache(user=None):
-	from frappe.desk.notifications import clear_notifications
+	from stylo.desk.notifications import clear_notifications
 
-	cache = frappe.cache()
+	cache = stylo.cache()
 
 	# this will automatically reload the global cache
 	# so it is important to clear this first
@@ -98,40 +98,40 @@ def clear_user_cache(user=None):
 
 
 def clear_domain_cache(user=None):
-	cache = frappe.cache()
+	cache = stylo.cache()
 	domain_cache_keys = ("domain_restricted_doctypes", "domain_restricted_pages")
 	cache.delete_value(domain_cache_keys)
 
 
 def clear_global_cache():
-	from frappe.website.utils import clear_website_cache
+	from stylo.website.utils import clear_website_cache
 
 	clear_doctype_cache()
 	clear_website_cache()
-	frappe.cache().delete_value(global_cache_keys)
-	frappe.cache().delete_value(forge_cache_keys)
-	frappe.setup_module_map()
+	stylo.cache().delete_value(global_cache_keys)
+	stylo.cache().delete_value(forge_cache_keys)
+	stylo.setup_module_map()
 
 
 def clear_defaults_cache(user=None):
 	if user:
 		for p in [user, *common_default_keys]:
-			frappe.cache().hdel("defaults", p)
-	elif frappe.flags.in_install != "frappe":
-		frappe.cache().delete_key("defaults")
+			stylo.cache().hdel("defaults", p)
+	elif stylo.flags.in_install != "stylo":
+		stylo.cache().delete_key("defaults")
 
 
 def clear_doctype_cache(doctype=None):
-	from frappe.desk.notifications import delete_notification_count_for
+	from stylo.desk.notifications import delete_notification_count_for
 
 	clear_controller_cache(doctype)
 
-	cache = frappe.cache()
+	cache = stylo.cache()
 
 	for key in ("is_table", "doctype_modules", "document_cache"):
 		cache.delete_value(key)
 
-	frappe.local.document_cache = {}
+	stylo.local.document_cache = {}
 
 	def clear_single(dt):
 		for name in doctype_cache_keys:
@@ -141,15 +141,15 @@ def clear_doctype_cache(doctype=None):
 		clear_single(doctype)
 
 		# clear all parent doctypes
-		for dt in frappe.get_all(
-			"DocField", "parent", dict(fieldtype=["in", frappe.model.table_fields], options=doctype)
+		for dt in stylo.get_all(
+			"DocField", "parent", dict(fieldtype=["in", stylo.model.table_fields], options=doctype)
 		):
 			clear_single(dt.parent)
 
 		# clear all parent doctypes
-		if not frappe.flags.in_install:
-			for dt in frappe.get_all(
-				"Custom Field", "dt", dict(fieldtype=["in", frappe.model.table_fields], options=doctype)
+		if not stylo.flags.in_install:
+			for dt in stylo.get_all(
+				"Custom Field", "dt", dict(fieldtype=["in", stylo.model.table_fields], options=doctype)
 			):
 				clear_single(dt.dt)
 
@@ -164,41 +164,41 @@ def clear_doctype_cache(doctype=None):
 
 def clear_controller_cache(doctype=None):
 	if not doctype:
-		frappe.controllers.pop(frappe.local.site, None)
+		stylo.controllers.pop(stylo.local.site, None)
 		return
 
-	if site_controllers := frappe.controllers.get(frappe.local.site):
+	if site_controllers := stylo.controllers.get(stylo.local.site):
 		site_controllers.pop(doctype, None)
 
 
 def get_doctype_map(doctype, name, filters=None, order_by=None):
-	return frappe.cache().hget(
+	return stylo.cache().hget(
 		get_doctype_map_key(doctype),
 		name,
-		lambda: frappe.get_all(doctype, filters=filters, order_by=order_by, ignore_ddl=True),
+		lambda: stylo.get_all(doctype, filters=filters, order_by=order_by, ignore_ddl=True),
 	)
 
 
 def clear_doctype_map(doctype, name):
-	frappe.cache().hdel(frappe.scrub(doctype) + "_map", name)
+	stylo.cache().hdel(stylo.scrub(doctype) + "_map", name)
 
 
 def build_table_count_cache():
 	if (
-		frappe.flags.in_patch
-		or frappe.flags.in_install
-		or frappe.flags.in_migrate
-		or frappe.flags.in_import
-		or frappe.flags.in_setup_wizard
+		stylo.flags.in_patch
+		or stylo.flags.in_install
+		or stylo.flags.in_migrate
+		or stylo.flags.in_import
+		or stylo.flags.in_setup_wizard
 	):
 		return
 
-	_cache = frappe.cache()
-	table_name = frappe.qb.Field("table_name").as_("name")
-	table_rows = frappe.qb.Field("table_rows").as_("count")
-	information_schema = frappe.qb.Schema("information_schema")
+	_cache = stylo.cache()
+	table_name = stylo.qb.Field("table_name").as_("name")
+	table_rows = stylo.qb.Field("table_rows").as_("count")
+	information_schema = stylo.qb.Schema("information_schema")
 
-	data = (frappe.qb.from_(information_schema.tables).select(table_name, table_rows)).run(as_dict=True)
+	data = (stylo.qb.from_(information_schema.tables).select(table_name, table_rows)).run(as_dict=True)
 	counts = {d.get("name").replace("tab", "", 1): d.get("count", None) for d in data}
 	_cache.set_value("information_schema:counts", counts)
 
@@ -207,16 +207,16 @@ def build_table_count_cache():
 
 def build_domain_restriced_doctype_cache(*args, **kwargs):
 	if (
-		frappe.flags.in_patch
-		or frappe.flags.in_install
-		or frappe.flags.in_migrate
-		or frappe.flags.in_import
-		or frappe.flags.in_setup_wizard
+		stylo.flags.in_patch
+		or stylo.flags.in_install
+		or stylo.flags.in_migrate
+		or stylo.flags.in_import
+		or stylo.flags.in_setup_wizard
 	):
 		return
-	_cache = frappe.cache()
-	active_domains = frappe.get_active_domains()
-	doctypes = frappe.get_all("DocType", filters={"restrict_to_domain": ("IN", active_domains)})
+	_cache = stylo.cache()
+	active_domains = stylo.get_active_domains()
+	doctypes = stylo.get_all("DocType", filters={"restrict_to_domain": ("IN", active_domains)})
 	doctypes = [doc.name for doc in doctypes]
 	_cache.set_value("domain_restricted_doctypes", doctypes)
 
@@ -225,16 +225,16 @@ def build_domain_restriced_doctype_cache(*args, **kwargs):
 
 def build_domain_restriced_page_cache(*args, **kwargs):
 	if (
-		frappe.flags.in_patch
-		or frappe.flags.in_install
-		or frappe.flags.in_migrate
-		or frappe.flags.in_import
-		or frappe.flags.in_setup_wizard
+		stylo.flags.in_patch
+		or stylo.flags.in_install
+		or stylo.flags.in_migrate
+		or stylo.flags.in_import
+		or stylo.flags.in_setup_wizard
 	):
 		return
-	_cache = frappe.cache()
-	active_domains = frappe.get_active_domains()
-	pages = frappe.get_all("Page", filters={"restrict_to_domain": ("IN", active_domains)})
+	_cache = stylo.cache()
+	active_domains = stylo.get_active_domains()
+	pages = stylo.get_all("Page", filters={"restrict_to_domain": ("IN", active_domains)})
 	pages = [page.name for page in pages]
 	_cache.set_value("domain_restricted_pages", pages)
 

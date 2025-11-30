@@ -5,8 +5,8 @@ import re
 
 import redis
 
-import frappe
-from frappe.utils import cstr
+import stylo
+from stylo.utils import cstr
 
 
 class RedisWrapper(redis.Redis):
@@ -24,11 +24,11 @@ class RedisWrapper(redis.Redis):
 			return key
 		if user:
 			if user is True:
-				user = frappe.session.user
+				user = stylo.session.user
 
 			key = f"user:{user}:{key}"
 
-		return f"{frappe.conf.db_name}|{key}".encode()
+		return f"{stylo.conf.db_name}|{key}".encode()
 
 	def set_value(self, key, val, user=None, expires_in_sec=None, shared=False, cache_locally=True):
 		"""Sets cache value.
@@ -41,7 +41,7 @@ class RedisWrapper(redis.Redis):
 		key = self.make_key(key, user, shared)
 
 		if not expires_in_sec and cache_locally:
-			frappe.local.cache[key] = val
+			stylo.local.cache[key] = val
 
 		try:
 			if expires_in_sec:
@@ -58,13 +58,13 @@ class RedisWrapper(redis.Redis):
 
 		:param key: Cache key.
 		:param generator: Function to be called to generate a value if `None` is returned.
-		:param expires: If the key is supposed to be with an expiry, don't store it in frappe.local
+		:param expires: If the key is supposed to be with an expiry, don't store it in stylo.local
 		"""
 		original_key = key
 		key = self.make_key(key, user, shared)
 
-		if key in frappe.local.cache:
-			val = frappe.local.cache[key]
+		if key in stylo.local.cache:
+			val = stylo.local.cache[key]
 
 		else:
 			val = None
@@ -82,7 +82,7 @@ class RedisWrapper(redis.Redis):
 					self.set_value(original_key, val, user=user)
 
 				else:
-					frappe.local.cache[key] = val
+					stylo.local.cache[key] = val
 
 		return val
 
@@ -101,7 +101,7 @@ class RedisWrapper(redis.Redis):
 
 		except redis.exceptions.ConnectionError:
 			regex = re.compile(cstr(key).replace("|", r"\|").replace("*", r"[\w]*"))
-			return [k for k in list(frappe.local.cache) if regex.match(cstr(k))]
+			return [k for k in list(stylo.local.cache) if regex.match(cstr(k))]
 
 	def delete_keys(self, key):
 		"""Delete keys with wildcard `*`."""
@@ -119,8 +119,8 @@ class RedisWrapper(redis.Redis):
 			if make_keys:
 				key = self.make_key(key, shared=shared)
 
-			if key in frappe.local.cache:
-				del frappe.local.cache[key]
+			if key in stylo.local.cache:
+				del stylo.local.cache[key]
 
 			try:
 				self.delete(key)
@@ -156,7 +156,7 @@ class RedisWrapper(redis.Redis):
 
 		# set in local
 		if cache_locally:
-			frappe.local.cache.setdefault(_name, {})[key] = value
+			stylo.local.cache.setdefault(_name, {})[key] = value
 
 		# set in redis
 		try:
@@ -186,14 +186,14 @@ class RedisWrapper(redis.Redis):
 
 	def hget(self, name, key, generator=None, shared=False):
 		_name = self.make_key(name, shared=shared)
-		if _name not in frappe.local.cache:
-			frappe.local.cache[_name] = {}
+		if _name not in stylo.local.cache:
+			stylo.local.cache[_name] = {}
 
 		if not key:
 			return None
 
-		if key in frappe.local.cache[_name]:
-			return frappe.local.cache[_name][key]
+		if key in stylo.local.cache[_name]:
+			return stylo.local.cache[_name][key]
 
 		value = None
 		try:
@@ -203,7 +203,7 @@ class RedisWrapper(redis.Redis):
 
 		if value is not None:
 			value = pickle.loads(value)
-			frappe.local.cache[_name][key] = value
+			stylo.local.cache[_name][key] = value
 		elif generator:
 			value = generator()
 			self.hset(name, key, value, shared=shared)
@@ -212,9 +212,9 @@ class RedisWrapper(redis.Redis):
 	def hdel(self, name, key, shared=False):
 		_name = self.make_key(name, shared=shared)
 
-		if _name in frappe.local.cache:
-			if key in frappe.local.cache[_name]:
-				del frappe.local.cache[_name][key]
+		if _name in stylo.local.cache:
+			if key in stylo.local.cache[_name]:
+				del stylo.local.cache[_name][key]
 		try:
 			super().hdel(_name, key)
 		except redis.exceptions.ConnectionError:
@@ -222,7 +222,7 @@ class RedisWrapper(redis.Redis):
 
 	def hdel_keys(self, name_starts_with, key):
 		"""Delete hash names with wildcard `*` and key"""
-		for name in frappe.cache().get_keys(name_starts_with):
+		for name in stylo.cache().get_keys(name_starts_with):
 			name = name.split("|", 1)[1]
 			self.hdel(name, key)
 
@@ -258,21 +258,21 @@ class RedisWrapper(redis.Redis):
 
 
 def setup_cache():
-	if frappe.conf.redis_cache_sentinel_enabled:
-		sentinels = [tuple(node.split(":")) for node in frappe.conf.get("redis_cache_sentinels", [])]
+	if stylo.conf.redis_cache_sentinel_enabled:
+		sentinels = [tuple(node.split(":")) for node in stylo.conf.get("redis_cache_sentinels", [])]
 		sentinel = get_sentinel_connection(
 			sentinels=sentinels,
-			sentinel_username=frappe.conf.get("redis_cache_sentinel_username"),
-			sentinel_password=frappe.conf.get("redis_cache_sentinel_password"),
-			master_username=frappe.conf.get("redis_cache_master_username"),
-			master_password=frappe.conf.get("redis_cache_master_password"),
+			sentinel_username=stylo.conf.get("redis_cache_sentinel_username"),
+			sentinel_password=stylo.conf.get("redis_cache_sentinel_password"),
+			master_username=stylo.conf.get("redis_cache_master_username"),
+			master_password=stylo.conf.get("redis_cache_master_password"),
 		)
 		return sentinel.master_for(
-			frappe.conf.get("redis_cache_master_service"),
+			stylo.conf.get("redis_cache_master_service"),
 			redis_class=RedisWrapper,
 		)
 
-	return RedisWrapper.from_url(frappe.conf.get("redis_cache"))
+	return RedisWrapper.from_url(stylo.conf.get("redis_cache"))
 
 
 def get_sentinel_connection(

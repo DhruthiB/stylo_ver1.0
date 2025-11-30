@@ -1,16 +1,16 @@
-import frappe
-from frappe import _
-from frappe.permissions import AUTOMATIC_ROLES
-from frappe.utils import add_to_date, now
+import stylo
+from stylo import _
+from stylo.permissions import AUTOMATIC_ROLES
+from stylo.utils import add_to_date, now
 
-UI_TEST_USER = "frappe@example.com"
+UI_TEST_USER = "stylo@example.com"
 
 
 def whitelist_for_tests(fn):
-	if frappe.request and not (frappe.flags.in_test or getattr(frappe.local, "dev_server", 0)):
-		frappe.throw("Cannot run UI tests. Use a development server with `forge start`")
+	if stylo.request and not (stylo.flags.in_test or getattr(stylo.local, "dev_server", 0)):
+		stylo.throw("Cannot run UI tests. Use a development server with `forge start`")
 
-	return frappe.whitelist()(fn)
+	return stylo.whitelist()(fn)
 
 
 @whitelist_for_tests
@@ -21,7 +21,7 @@ def create_if_not_exists(doc):
 	:param doc: dict of field value pairs. can be a list of dict for multiple records.
 	"""
 
-	doc = frappe.parse_json(doc)
+	doc = stylo.parse_json(doc)
 
 	if not isinstance(doc, list):
 		docs = [doc]
@@ -30,12 +30,12 @@ def create_if_not_exists(doc):
 
 	names = []
 	for doc in docs:
-		doc = frappe._dict(doc)
+		doc = stylo._dict(doc)
 		filters = doc.copy()
 		filters.pop("doctype")
-		name = frappe.db.exists(doc.doctype, filters)
+		name = stylo.db.exists(doc.doctype, filters)
 		if not name:
-			d = frappe.get_doc(doc)
+			d = stylo.get_doc(doc)
 			d.insert(ignore_permissions=True)
 			name = d.name
 		names.append(name)
@@ -45,30 +45,30 @@ def create_if_not_exists(doc):
 
 @whitelist_for_tests
 def create_todo_records():
-	frappe.db.truncate("ToDo")
+	stylo.db.truncate("ToDo")
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "ToDo",
 			"date": add_to_date(now(), days=7),
 			"description": "this is first todo",
 		}
 	).insert()
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "ToDo",
 			"date": add_to_date(now(), days=-7),
 			"description": "this is second todo",
 		}
 	).insert()
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "ToDo",
 			"date": add_to_date(now(), months=2),
 			"description": "this is third todo",
 		}
 	).insert()
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "ToDo",
 			"date": add_to_date(now(), months=-2),
@@ -79,18 +79,18 @@ def create_todo_records():
 
 @whitelist_for_tests
 def clear_notes():
-	for note in frappe.get_all("Note", pluck="name"):
-		frappe.delete_doc("Note", note, force=True)
+	for note in stylo.get_all("Note", pluck="name"):
+		stylo.delete_doc("Note", note, force=True)
 
 
 @whitelist_for_tests
 def create_communication_record():
-	doc = frappe.get_doc(
+	doc = stylo.get_doc(
 		{
 			"doctype": "Communication",
 			"recipients": "test@gmail.com",
 			"subject": "Test Form Communication 1",
-			"communication_date": frappe.utils.now_datetime(),
+			"communication_date": stylo.utils.now_datetime(),
 		}
 	)
 	doc.insert()
@@ -99,19 +99,19 @@ def create_communication_record():
 
 @whitelist_for_tests
 def setup_workflow():
-	from frappe.workflow.doctype.workflow.test_workflow import create_todo_workflow
+	from stylo.workflow.doctype.workflow.test_workflow import create_todo_workflow
 
 	create_todo_workflow()
 	create_todo_records()
-	frappe.clear_cache()
+	stylo.clear_cache()
 
 
 @whitelist_for_tests
 def create_contact_phone_nos_records():
-	if frappe.get_all("Contact", {"first_name": "Test Contact"}):
+	if stylo.get_all("Contact", {"first_name": "Test Contact"}):
 		return
 
-	doc = frappe.new_doc("Contact")
+	doc = stylo.new_doc("Contact")
 	doc.first_name = "Test Contact"
 	for index in range(1000):
 		doc.append("phone_nos", {"phone": f"123456{index}"})
@@ -120,10 +120,10 @@ def create_contact_phone_nos_records():
 
 @whitelist_for_tests
 def create_doctype(name, fields):
-	fields = frappe.parse_json(fields)
-	if frappe.db.exists("DocType", name):
+	fields = stylo.parse_json(fields)
+	if stylo.db.exists("DocType", name):
 		return
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -137,10 +137,10 @@ def create_doctype(name, fields):
 
 @whitelist_for_tests
 def create_child_doctype(name, fields):
-	fields = frappe.parse_json(fields)
-	if frappe.db.exists("DocType", name):
+	fields = stylo.parse_json(fields)
+	if stylo.db.exists("DocType", name):
 		return
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -155,7 +155,7 @@ def create_child_doctype(name, fields):
 
 @whitelist_for_tests
 def create_contact_records():
-	if frappe.get_all("Contact", {"first_name": "Test Form Contact 1"}):
+	if stylo.get_all("Contact", {"first_name": "Test Form Contact 1"}):
 		return
 
 	insert_contact("Test Form Contact 1", "12345")
@@ -165,26 +165,26 @@ def create_contact_records():
 
 @whitelist_for_tests
 def create_multiple_todo_records():
-	if frappe.get_all("ToDo", {"description": "Multiple ToDo 1"}):
+	if stylo.get_all("ToDo", {"description": "Multiple ToDo 1"}):
 		return
 
 	values = [(f"100{i}", f"Multiple ToDo {i}") for i in range(1, 1002)]
 
-	frappe.db.bulk_insert("ToDo", fields=["name", "description"], values=set(values))
+	stylo.db.bulk_insert("ToDo", fields=["name", "description"], values=set(values))
 
 
 def insert_contact(first_name, phone_number):
-	doc = frappe.get_doc({"doctype": "Contact", "first_name": first_name})
+	doc = stylo.get_doc({"doctype": "Contact", "first_name": first_name})
 	doc.append("phone_nos", {"phone": phone_number})
 	doc.insert()
 
 
 @whitelist_for_tests
 def create_form_tour():
-	if frappe.db.exists("Form Tour", {"name": "Test Form Tour"}):
+	if stylo.db.exists("Form Tour", {"name": "Test Form Tour"}):
 		return
 
-	tour = frappe.get_doc(
+	tour = stylo.get_doc(
 		{
 			"doctype": "Form Tour",
 			"title": "Test Form Tour",
@@ -237,17 +237,17 @@ def create_data_for_discussions():
 
 
 def create_web_page(title, route, single_thread):
-	web_page = frappe.db.exists("Web Page", {"route": route})
+	web_page = stylo.db.exists("Web Page", {"route": route})
 	if web_page:
 		return web_page
-	web_page = frappe.get_doc({"doctype": "Web Page", "title": title, "route": route, "published": True})
+	web_page = stylo.get_doc({"doctype": "Web Page", "title": title, "route": route, "published": True})
 	web_page.save()
 
 	web_page.append(
 		"page_blocks",
 		{
 			"web_template": "Discussions",
-			"web_template_values": frappe.as_json(
+			"web_template_values": stylo.as_json(
 				{
 					"title": "Discussions",
 					"cta_title": "New Discussion",
@@ -263,12 +263,12 @@ def create_web_page(title, route, single_thread):
 
 
 def create_topic_and_reply(web_page):
-	topic = frappe.db.exists(
+	topic = stylo.db.exists(
 		"Discussion Topic", {"reference_doctype": "Web Page", "reference_docname": web_page}
 	)
 
 	if not topic:
-		topic = frappe.get_doc(
+		topic = stylo.get_doc(
 			{
 				"doctype": "Discussion Topic",
 				"reference_doctype": "Web Page",
@@ -278,7 +278,7 @@ def create_topic_and_reply(web_page):
 		)
 		topic.save()
 
-		reply = frappe.get_doc(
+		reply = stylo.get_doc(
 			{"doctype": "Discussion Reply", "topic": topic.name, "reply": "This is a test reply"}
 		)
 
@@ -287,9 +287,9 @@ def create_topic_and_reply(web_page):
 
 @whitelist_for_tests
 def update_webform_to_multistep():
-	if not frappe.db.exists("Web Form", "update-profile-duplicate"):
-		doc = frappe.get_doc("Web Form", "edit-profile")
-		_doc = frappe.copy_doc(doc)
+	if not stylo.db.exists("Web Form", "update-profile-duplicate"):
+		doc = stylo.get_doc("Web Form", "edit-profile")
+		_doc = stylo.copy_doc(doc)
 		_doc.title = "update-profile-duplicate"
 		_doc.route = "update-profile-duplicate"
 		_doc.web_form_fields[5].fieldtype = "Page Break"
@@ -299,7 +299,7 @@ def update_webform_to_multistep():
 
 @whitelist_for_tests
 def update_child_table(name):
-	doc = frappe.get_doc("DocType", name)
+	doc = stylo.get_doc("DocType", name)
 	if len(doc.fields) == 1:
 		doc.append(
 			"fields",
@@ -317,7 +317,7 @@ def update_child_table(name):
 
 @whitelist_for_tests
 def insert_doctype_with_child_table_record(name):
-	if frappe.get_all(name, {"title": "Test Grid Search"}):
+	if stylo.get_all(name, {"title": "Test Grid Search"}):
 		return
 
 	def insert_child(doc, data, barcode, check, rating, duration, date):
@@ -333,7 +333,7 @@ def insert_doctype_with_child_table_record(name):
 			},
 		)
 
-	doc = frappe.new_doc(name)
+	doc = stylo.new_doc(name)
 	doc.title = "Test Grid Search"
 	doc.append("child_table", {"title": "Test Grid Search"})
 
@@ -391,17 +391,17 @@ def insert_translations():
 	]
 
 	for doc in translation:
-		if not frappe.db.exists("doc"):
-			frappe.get_doc(doc).insert()
+		if not stylo.db.exists("doc"):
+			stylo.get_doc(doc).insert()
 
 
 @whitelist_for_tests
 def create_blog_post():
-	blog_category = frappe.get_doc(
+	blog_category = stylo.get_doc(
 		{"name": "general", "doctype": "Blog Category", "title": "general"}
 	).insert(ignore_if_duplicate=True)
 
-	blogger = frappe.get_doc(
+	blogger = stylo.get_doc(
 		{
 			"name": "attachment blogger",
 			"doctype": "Blogger",
@@ -410,7 +410,7 @@ def create_blog_post():
 		}
 	).insert(ignore_if_duplicate=True)
 
-	doc = frappe.get_doc(
+	doc = stylo.get_doc(
 		{
 			"name": "test-blog-attachment-post",
 			"doctype": "Blog Post",
@@ -428,13 +428,13 @@ def create_blog_post():
 def create_test_user(username=None):
 	name = username or UI_TEST_USER
 
-	if frappe.db.exists("User", name):
+	if stylo.db.exists("User", name):
 		return
 
-	user = frappe.new_doc("User")
+	user = stylo.new_doc("User")
 	user.email = name
 	user.first_name = "Stylo"
-	user.new_password = frappe.local.conf.admin_password
+	user.new_password = stylo.local.conf.admin_password
 	user.send_welcome_email = 0
 	user.time_zone = "Asia/Kolkata"
 	user.flags.ignore_password_policy = True
@@ -442,7 +442,7 @@ def create_test_user(username=None):
 
 	user.reload()
 
-	all_roles = set(frappe.get_all("Role", pluck="name"))
+	all_roles = set(stylo.get_all("Role", pluck="name"))
 
 	for role in all_roles - set(AUTOMATIC_ROLES):
 		user.append("roles", {"role": role})
@@ -452,9 +452,9 @@ def create_test_user(username=None):
 
 @whitelist_for_tests
 def setup_tree_doctype():
-	frappe.delete_doc_if_exists("DocType", "Custom Tree")
+	stylo.delete_doc_if_exists("DocType", "Custom Tree")
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -470,15 +470,15 @@ def setup_tree_doctype():
 		}
 	).insert()
 
-	if not frappe.db.exists("Custom Tree", "All Trees"):
-		frappe.get_doc({"doctype": "Custom Tree", "tree": "All Trees"}).insert()
+	if not stylo.db.exists("Custom Tree", "All Trees"):
+		stylo.get_doc({"doctype": "Custom Tree", "tree": "All Trees"}).insert()
 
 
 @whitelist_for_tests
 def setup_image_doctype():
-	frappe.delete_doc_if_exists("DocType", "Custom Image")
+	stylo.delete_doc_if_exists("DocType", "Custom Image")
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -495,22 +495,22 @@ def setup_image_doctype():
 
 @whitelist_for_tests
 def setup_inbox():
-	frappe.db.delete("User Email")
-	doc = frappe.new_doc("Email Account")
+	stylo.db.delete("User Email")
+	doc = stylo.new_doc("Email Account")
 	doc.email_id = "email_linking@example.com"
 	doc.insert(ignore_permissions=True, ignore_if_duplicate=True)
 
-	user = frappe.get_doc("User", frappe.session.user)
+	user = stylo.get_doc("User", stylo.session.user)
 	user.append("user_emails", {"email_account": "Email Linking"})
 	user.save()
 
 
 @whitelist_for_tests
 def setup_default_view(view, force_reroute=None):
-	frappe.delete_doc_if_exists("Property Setter", "Event-main-default_view")
-	frappe.delete_doc_if_exists("Property Setter", "Event-main-force_re_route_to_default_view")
+	stylo.delete_doc_if_exists("Property Setter", "Event-main-default_view")
+	stylo.delete_doc_if_exists("Property Setter", "Event-main-force_re_route_to_default_view")
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"is_system_generated": 0,
 			"doctype_or_field": "DocType",
@@ -523,7 +523,7 @@ def setup_default_view(view, force_reroute=None):
 	).insert()
 
 	if force_reroute:
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"is_system_generated": 0,
 				"doctype_or_field": "DocType",
@@ -538,14 +538,14 @@ def setup_default_view(view, force_reroute=None):
 
 @whitelist_for_tests
 def create_note():
-	if not frappe.db.exists("Note", "Routing Test"):
-		frappe.get_doc({"doctype": "Note", "title": "Routing Test"}).insert()
+	if not stylo.db.exists("Note", "Routing Test"):
+		stylo.get_doc({"doctype": "Note", "title": "Routing Test"}).insert()
 
 
 @whitelist_for_tests
 def create_kanban():
-	if not frappe.db.exists("Custom Field", "Note-kanban"):
-		frappe.get_doc(
+	if not stylo.db.exists("Custom Field", "Note-kanban"):
+		stylo.get_doc(
 			{
 				"is_system_generated": 0,
 				"dt": "Note",
@@ -558,8 +558,8 @@ def create_kanban():
 			}
 		).insert()
 
-	if not frappe.db.exists("Kanban Board", "_Note _Kanban"):
-		frappe.get_doc(
+	if not stylo.db.exists("Kanban Board", "_Note _Kanban"):
+		stylo.get_doc(
 			{
 				"doctype": "Kanban Board",
 				"name": "_Note _Kanban",
@@ -586,22 +586,22 @@ def create_kanban():
 
 @whitelist_for_tests
 def create_todo(description):
-	frappe.get_doc({"doctype": "ToDo", "description": description}).insert()
+	stylo.get_doc({"doctype": "ToDo", "description": description}).insert()
 
 
 @whitelist_for_tests
 def create_todo_with_attachment_limit(description):
-	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+	from stylo.custom.doctype.property_setter.property_setter import make_property_setter
 
 	make_property_setter("ToDo", None, "max_attachments", 12, "int", for_doctype=True)
 
-	return frappe.get_doc({"doctype": "ToDo", "description": description}).insert()
+	return stylo.get_doc({"doctype": "ToDo", "description": description}).insert()
 
 
 @whitelist_for_tests
 def create_admin_kanban():
-	if not frappe.db.exists("Kanban Board", "Admin Kanban"):
-		frappe.get_doc(
+	if not stylo.db.exists("Kanban Board", "Admin Kanban"):
+		stylo.get_doc(
 			{
 				"doctype": "Kanban Board",
 				"name": "Admin Kanban",
@@ -629,7 +629,7 @@ def create_admin_kanban():
 
 @whitelist_for_tests
 def add_remove_role(action, user, role):
-	user_doc = frappe.get_doc("User", user)
+	user_doc = stylo.get_doc("User", user)
 	if action == "remove":
 		user_doc.remove_roles(role)
 	else:

@@ -3,45 +3,45 @@
 
 import json
 
-import frappe
+import stylo
 
-# import frappe
-from frappe.model.document import Document
+# import stylo
+from stylo.model.document import Document
 
 
 class DashboardSettings(Document):
 	pass
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def create_dashboard_settings(user):
-	if not frappe.db.exists("Dashboard Settings", user):
-		doc = frappe.new_doc("Dashboard Settings")
+	if not stylo.db.exists("Dashboard Settings", user):
+		doc = stylo.new_doc("Dashboard Settings")
 		doc.name = user
 		doc.insert(ignore_permissions=True)
-		frappe.db.commit()
+		stylo.db.commit()
 		return doc
 
 
 def get_permission_query_conditions(user):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
-	return f"""(`tabDashboard Settings`.name = {frappe.db.escape(user)})"""
+	return f"""(`tabDashboard Settings`.name = {stylo.db.escape(user)})"""
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def save_chart_config(reset, config, chart_name):
-	reset = frappe.parse_json(reset)
-	doc = frappe.get_doc("Dashboard Settings", frappe.session.user)
-	chart_config = frappe.parse_json(doc.chart_config) or {}
+	reset = stylo.parse_json(reset)
+	doc = stylo.get_doc("Dashboard Settings", stylo.session.user)
+	chart_config = stylo.parse_json(doc.chart_config) or {}
 
 	if reset:
 		chart_config[chart_name] = {}
 	else:
-		config = frappe.parse_json(config)
+		config = stylo.parse_json(config)
 		if chart_name not in chart_config:
 			chart_config[chart_name] = {}
 		chart_config[chart_name].update(config)
 
-	frappe.db.set_value("Dashboard Settings", frappe.session.user, "chart_config", json.dumps(chart_config))
+	stylo.db.set_value("Dashboard Settings", stylo.session.user, "chart_config", json.dumps(chart_config))

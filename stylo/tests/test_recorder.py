@@ -4,81 +4,81 @@
 
 import sqlparse
 
-import frappe
-import frappe.recorder
-from frappe.recorder import normalize_query
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.serve import get_response_content
+import stylo
+import stylo.recorder
+from stylo.recorder import normalize_query
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.serve import get_response_content
 
 
 class TestRecorder(StyloTestCase):
 	def setUp(self):
-		frappe.recorder.stop()
-		frappe.recorder.delete()
+		stylo.recorder.stop()
+		stylo.recorder.delete()
 		set_request()
-		frappe.recorder.start()
-		frappe.recorder.record()
+		stylo.recorder.start()
+		stylo.recorder.record()
 
 	def stop_recording(self):
-		frappe.recorder.dump()
-		frappe.recorder.stop()
+		stylo.recorder.dump()
+		stylo.recorder.stop()
 
 	def test_start(self):
 		self.stop_recording()
-		requests = frappe.recorder.get()
+		requests = stylo.recorder.get()
 		self.assertEqual(len(requests), 1)
 
 	def test_do_not_record(self):
-		frappe.recorder.do_not_record(frappe.get_all)("DocType")
+		stylo.recorder.do_not_record(stylo.get_all)("DocType")
 		self.stop_recording()
-		requests = frappe.recorder.get()
+		requests = stylo.recorder.get()
 		self.assertEqual(len(requests), 0)
 
 	def test_get(self):
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
+		requests = stylo.recorder.get()
 		self.assertEqual(len(requests), 1)
 
-		request = frappe.recorder.get(requests[0]["uuid"])
+		request = stylo.recorder.get(requests[0]["uuid"])
 		self.assertTrue(request)
 
 	def test_delete(self):
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
+		requests = stylo.recorder.get()
 		self.assertEqual(len(requests), 1)
 
-		frappe.recorder.delete()
+		stylo.recorder.delete()
 
-		requests = frappe.recorder.get()
+		requests = stylo.recorder.get()
 		self.assertEqual(len(requests), 0)
 
 	def test_record_without_sql_queries(self):
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
-		request = frappe.recorder.get(requests[0]["uuid"])
+		requests = stylo.recorder.get()
+		request = stylo.recorder.get(requests[0]["uuid"])
 
 		self.assertEqual(len(request["calls"]), 0)
 
 	def test_record_with_sql_queries(self):
-		frappe.get_all("DocType")
+		stylo.get_all("DocType")
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
-		request = frappe.recorder.get(requests[0]["uuid"])
+		requests = stylo.recorder.get()
+		request = stylo.recorder.get(requests[0]["uuid"])
 
 		self.assertNotEqual(len(request["calls"]), 0)
 
 	def test_explain(self):
-		frappe.db.sql("SELECT * FROM tabDocType")
-		frappe.db.sql("COMMIT")
+		stylo.db.sql("SELECT * FROM tabDocType")
+		stylo.db.sql("COMMIT")
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
-		request = frappe.recorder.get(requests[0]["uuid"])
+		requests = stylo.recorder.get()
+		request = stylo.recorder.get(requests[0]["uuid"])
 
 		self.assertEqual(len(request["calls"][0]["explain_result"]), 1)
 		self.assertEqual(len(request["calls"][1]["explain_result"]), 0)
@@ -90,14 +90,14 @@ class TestRecorder(StyloTestCase):
 			{"mariadb": "COMMIT", "postgres": "COMMIT"},
 		]
 
-		sql_dialect = frappe.db.db_type or "mariadb"
+		sql_dialect = stylo.db.db_type or "mariadb"
 		for query in queries:
-			frappe.db.sql(query[sql_dialect])
+			stylo.db.sql(query[sql_dialect])
 
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
-		request = frappe.recorder.get(requests[0]["uuid"])
+		requests = stylo.recorder.get()
+		request = stylo.recorder.get(requests[0]["uuid"])
 
 		self.assertEqual(len(request["calls"]), len(queries))
 
@@ -119,12 +119,12 @@ class TestRecorder(StyloTestCase):
 			("COMMIT", 3),
 		]
 		for query in queries:
-			frappe.db.sql(query[0])
+			stylo.db.sql(query[0])
 
 		self.stop_recording()
 
-		requests = frappe.recorder.get()
-		request = frappe.recorder.get(requests[0]["uuid"])
+		requests = stylo.recorder.get()
+		request = stylo.recorder.get(requests[0]["uuid"])
 
 		for query, call in zip(queries, request["calls"], strict=False):
 			self.assertEqual(call["exact_copies"], query[1])
@@ -136,14 +136,14 @@ class TestRecorder(StyloTestCase):
 
 class TestRecorderDeco(StyloTestCase):
 	def test_recorder_flag(self):
-		frappe.recorder.delete()
+		stylo.recorder.delete()
 
-		@frappe.recorder.record_queries
+		@stylo.recorder.record_queries
 		def test():
-			frappe.get_all("User")
+			stylo.get_all("User")
 
 		test()
-		self.assertTrue(frappe.recorder.get())
+		self.assertTrue(stylo.recorder.get())
 
 
 class TestQueryNormalization(StyloTestCase):

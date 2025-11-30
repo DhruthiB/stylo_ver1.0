@@ -1,10 +1,10 @@
 import time
 from unittest.mock import MagicMock
 
-import frappe
-from frappe.tests.test_api import StyloAPITestCase
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.caching import redis_cache, request_cache, site_cache
+import stylo
+from stylo.tests.test_api import StyloAPITestCase
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.caching import redis_cache, request_cache, site_cache
 
 CACHE_TTL = 4
 external_service = MagicMock(return_value=30)
@@ -20,18 +20,18 @@ def request_specific_api(a: list | tuple | dict | int, b: int) -> int:
 	return a**b * todays_value
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 @site_cache
 def ping() -> str:
-	register_with_external_service(frappe.local.site)
-	return frappe.local.site
+	register_with_external_service(stylo.local.site)
+	return stylo.local.site
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 @site_cache(ttl=CACHE_TTL)
 def ping_with_ttl() -> str:
-	register_with_external_service(frappe.local.site)
-	return frappe.local.site
+	register_with_external_service(stylo.local.site)
+	return stylo.local.site
 
 
 class TestCachingUtils(StyloTestCase):
@@ -41,8 +41,8 @@ class TestCachingUtils(StyloTestCase):
 			[1, 2, 3, 4],
 			range(10),
 			{"abc": "test-key"},
-			frappe.get_last_doc("DocType"),
-			frappe._dict(),
+			stylo.get_last_doc("DocType"),
+			stylo._dict(),
 		]
 
 		def same_output_received():
@@ -174,7 +174,7 @@ class TestRedisCache(StyloAPITestCase):
 		@redis_cache(user=True)
 		def calculate_area(radius: float) -> float:
 			nonlocal function_call_count
-			PI_APPROX = ENGINEERING_PI if frappe.session.user == "Engineer" else PI
+			PI_APPROX = ENGINEERING_PI if stylo.session.user == "Engineer" else PI
 			function_call_count += 1
 			return PI_APPROX * radius**2
 

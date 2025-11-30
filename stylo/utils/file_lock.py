@@ -5,15 +5,15 @@
 
 This file implements a "weak" form lock which is not suitable for synchroniztion. This is only used
 for document locking for queue_action.
-Use `frappe.utils.synchroniztion.filelock` for process synchroniztion.
+Use `stylo.utils.synchroniztion.filelock` for process synchroniztion.
 """
 
 import os
 from pathlib import Path
 from time import time
 
-import frappe
-from frappe.utils import get_site_path, touch_file
+import stylo
+from stylo.utils import get_site_path, touch_file
 
 LOCKS_DIR = "locks"
 
@@ -72,5 +72,5 @@ def get_lock_path(name):
 
 def release_document_locks():
 	"""Unlocks all documents that were locked by the current context."""
-	for doc in frappe.local.locked_documents:
+	for doc in stylo.local.locked_documents:
 		doc.unlock()

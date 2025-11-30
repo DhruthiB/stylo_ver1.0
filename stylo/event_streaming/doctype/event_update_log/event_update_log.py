@@ -1,10 +1,10 @@
 # Copyright (c) 2019, Stylo Technologies Pvt. Ltd. and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model import no_value_fields, table_fields
-from frappe.model.document import Document
-from frappe.utils.background_jobs import get_jobs
+import stylo
+from stylo.model import no_value_fields, table_fields
+from stylo.model.document import Document
+from stylo.utils.background_jobs import get_jobs
 
 
 class EventUpdateLog(Document):
@@ -12,17 +12,17 @@ class EventUpdateLog(Document):
 		"""Send update notification updates to event consumers
 		whenever update log is generated"""
 		enqueued_method = (
-			"frappe.event_streaming.doctype.event_consumer.event_consumer.notify_event_consumers"
+			"stylo.event_streaming.doctype.event_consumer.event_consumer.notify_event_consumers"
 		)
 		jobs = get_jobs()
-		if not jobs or enqueued_method not in jobs[frappe.local.site]:
-			frappe.enqueue(enqueued_method, doctype=self.ref_doctype, queue="long", enqueue_after_commit=True)
+		if not jobs or enqueued_method not in jobs[stylo.local.site]:
+			stylo.enqueue(enqueued_method, doctype=self.ref_doctype, queue="long", enqueue_after_commit=True)
 
 
 def notify_consumers(doc, event):
 	"""called via hooks"""
 	# make event update log for doctypes having event consumers
-	if frappe.flags.in_install or frappe.flags.in_migrate:
+	if stylo.flags.in_install or stylo.flags.in_migrate:
 		return
 
 	if check_doctype_has_consumers(doc.doctype):
@@ -47,13 +47,13 @@ def check_doctype_has_consumers(doctype: str) -> bool:
 	"""Check if doctype has event consumers for event streaming"""
 
 	def fetch_from_db():
-		return frappe.get_all(
+		return stylo.get_all(
 			"Event Consumer Document Type",
 			filters={"ref_doctype": doctype, "status": "Approved", "unsubscribed": 0},
 			ignore_ddl=True,
 		)
 
-	return bool(frappe.cache().hget(ENABLED_DOCTYPES_CACHE_KEY, doctype, fetch_from_db))
+	return bool(stylo.cache().hget(ENABLED_DOCTYPES_CACHE_KEY, doctype, fetch_from_db))
 
 
 def get_update(old, new, for_child=False):
@@ -75,7 +75,7 @@ def get_update(old, new, for_child=False):
 	if not new:
 		return None
 
-	out = frappe._dict(changed={}, added={}, removed={}, row_changed={})
+	out = stylo._dict(changed={}, added={}, removed={}, row_changed={})
 	for df in new.meta.fields:
 		if df.fieldtype in no_value_fields and df.fieldtype not in table_fields:
 			continue
@@ -100,10 +100,10 @@ def make_event_update_log(doc, update_type):
 	"""Save update info for doctypes that have event consumers"""
 	if update_type != "Delete":
 		# diff for update type, doc for create type
-		data = frappe.as_json(doc) if not doc.get("diff") else frappe.as_json(doc.diff)
+		data = stylo.as_json(doc) if not doc.get("diff") else stylo.as_json(doc.diff)
 	else:
 		data = None
-	return frappe.get_doc(
+	return stylo.get_doc(
 		{
 			"doctype": "Event Update Log",
 			"update_type": update_type,
@@ -168,7 +168,7 @@ def is_consumer_uptodate(update_log, consumer):
 		# consumer is obviously up to date
 		return True
 
-	prev_logs = frappe.get_all(
+	prev_logs = stylo.get_all(
 		"Event Update Log",
 		filters={
 			"ref_doctype": update_log.ref_doctype,
@@ -182,7 +182,7 @@ def is_consumer_uptodate(update_log, consumer):
 	if not len(prev_logs):
 		return False
 
-	prev_log_consumers = frappe.get_all(
+	prev_log_consumers = stylo.get_all(
 		"Event Update Log Consumer",
 		fields=["consumer"],
 		filters={
@@ -199,12 +199,12 @@ def mark_consumer_read(update_log_name, consumer_name):
 	"""
 	This function appends the Consumer to the list of Consumers that has 'read' an Update Log
 	"""
-	update_log = frappe.get_doc("Event Update Log", update_log_name)
+	update_log = stylo.get_doc("Event Update Log", update_log_name)
 	if len([x for x in update_log.consumers if x.consumer == consumer_name]):
 		return
 
-	frappe.get_doc(
-		frappe._dict(
+	stylo.get_doc(
+		stylo._dict(
 			doctype="Event Update Log Consumer",
 			consumer=consumer_name,
 			parent=update_log_name,
@@ -220,7 +220,7 @@ def get_unread_update_logs(consumer_name, dt, dn):
 	"""
 	already_consumed = [
 		x[0]
-		for x in frappe.db.sql(
+		for x in stylo.db.sql(
 			"""
 		SELECT
 			update_log.name
@@ -236,14 +236,14 @@ def get_unread_update_logs(consumer_name, dt, dn):
 				"dt": dt,
 				"dn": dn,
 				"log_name": "update_log.name"
-				if frappe.conf.db_type == "mariadb"
+				if stylo.conf.db_type == "mariadb"
 				else "CAST(update_log.name AS VARCHAR)",
 			},
 			as_dict=0,
 		)
 	]
 
-	logs = frappe.get_all(
+	logs = stylo.get_all(
 		"Event Update Log",
 		fields=["update_type", "ref_doctype", "docname", "data", "name", "creation"],
 		filters={"ref_doctype": dt, "docname": dn, "name": ["not in", already_consumed]},
@@ -253,7 +253,7 @@ def get_unread_update_logs(consumer_name, dt, dn):
 	return logs
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_update_logs_for_consumer(event_consumer, doctypes, last_update):
 	"""
 	Fetches all the UpdateLogs for the consumer
@@ -261,12 +261,12 @@ def get_update_logs_for_consumer(event_consumer, doctypes, last_update):
 	"""
 
 	if isinstance(doctypes, str):
-		doctypes = frappe.parse_json(doctypes)
+		doctypes = stylo.parse_json(doctypes)
 
-	from frappe.event_streaming.doctype.event_consumer.event_consumer import has_consumer_access
+	from stylo.event_streaming.doctype.event_consumer.event_consumer import has_consumer_access
 
-	consumer = frappe.get_doc("Event Consumer", event_consumer)
-	docs = frappe.get_list(
+	consumer = stylo.get_doc("Event Consumer", event_consumer)
+	docs = stylo.get_list(
 		doctype="Event Update Log",
 		filters={"ref_doctype": ("in", doctypes), "creation": (">", last_update)},
 		fields=["update_type", "ref_doctype", "docname", "data", "name", "creation"],

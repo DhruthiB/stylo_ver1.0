@@ -3,12 +3,12 @@
 
 from typing import Protocol, runtime_checkable
 
-import frappe
-from frappe import _
-from frappe.model.base_document import get_controller
-from frappe.model.document import Document
-from frappe.utils import cint
-from frappe.utils.caching import site_cache
+import stylo
+from stylo import _
+from stylo.model.base_document import get_controller
+from stylo.model.document import Document
+from stylo.utils import cint
+from stylo.utils.caching import site_cache
 
 DEFAULT_LOGTYPES_RETENTION = {
 	"Error Log": 30,
@@ -51,10 +51,10 @@ class LogSettings(Document):
 			if _supports_log_clearing(entry.ref_doctype):
 				continue
 
-			msg = _("{} does not support automated log clearing.").format(frappe.bold(entry.ref_doctype))
-			if frappe.conf.developer_mode:
+			msg = _("{} does not support automated log clearing.").format(stylo.bold(entry.ref_doctype))
+			if stylo.conf.developer_mode:
 				msg += "<br>" + _("Implement `clear_old_logs` method to enable auto error clearing.")
-			frappe.msgprint(msg, title=_("DocType not supported by Log Settings."))
+			stylo.msgprint(msg, title=_("DocType not supported by Log Settings."))
 			self.remove(entry)
 
 	def _deduplicate_entries(self):
@@ -69,14 +69,14 @@ class LogSettings(Document):
 		added_logtypes = set()
 		for logtype, retention in DEFAULT_LOGTYPES_RETENTION.items():
 			if logtype not in existing_logtypes and _supports_log_clearing(logtype):
-				if not frappe.db.exists("DocType", logtype):
+				if not stylo.db.exists("DocType", logtype):
 					continue
 
 				self.append("logs_to_clear", {"ref_doctype": logtype, "days": cint(retention)})
 				added_logtypes.add(logtype)
 
 		if added_logtypes:
-			frappe.msgprint(_("Added default log doctypes: {}").format(",".join(added_logtypes)), alert=True)
+			stylo.msgprint(_("Added default log doctypes: {}").format(",".join(added_logtypes)), alert=True)
 
 	def clear_logs(self):
 		"""
@@ -91,9 +91,9 @@ class LogSettings(Document):
 
 			# Only pass what the method can handle, this is considering any
 			# future addition that might happen to the required interface.
-			kwargs = frappe.get_newargs(func, {"days": entry.days})
+			kwargs = stylo.get_newargs(func, {"days": entry.days})
 			func(**kwargs)
-			frappe.db.commit()
+			stylo.db.commit()
 
 	def register_doctype(self, doctype: str, days=30):
 		existing_logtypes = {d.ref_doctype for d in self.logs_to_clear}
@@ -108,15 +108,15 @@ class LogSettings(Document):
 
 
 def run_log_clean_up():
-	doc = frappe.get_doc("Log Settings")
+	doc = stylo.get_doc("Log Settings")
 	doc.add_default_logtypes()
 	doc.save()
 	doc.clear_logs()
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def has_unseen_error_log():
-	if frappe.get_all("Error Log", filters={"seen": 0}, limit=1):
+	if stylo.get_all("Error Log", filters={"seen": 0}, limit=1):
 		return {
 			"show_alert": True,
 			"message": _("You have unseen {0}").format(
@@ -125,8 +125,8 @@ def has_unseen_error_log():
 		}
 
 
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
+@stylo.whitelist()
+@stylo.validate_and_sanitize_search_inputs
 def get_log_doctypes(doctype, txt, searchfield, start, page_len, filters):
 	filters = filters or {}
 
@@ -137,7 +137,7 @@ def get_log_doctypes(doctype, txt, searchfield, start, page_len, filters):
 			["name", "like", f"%%{txt}%%"],
 		]
 	)
-	doctypes = frappe.get_list("DocType", filters=filters, pluck="name")
+	doctypes = stylo.get_list("DocType", filters=filters, pluck="name")
 
 	supported_doctypes = [(d,) for d in doctypes if _supports_log_clearing(d)]
 
@@ -162,28 +162,28 @@ def clear_log_table(doctype, days=90):
 
 	ref: https://mariadb.com/kb/en/big-deletes/#deleting-more-than-half-a-table
 	"""
-	from frappe.utils import get_table_name
+	from stylo.utils import get_table_name
 
 	if doctype not in LOG_DOCTYPES:
-		raise frappe.ValidationError(f"Unsupported logging DocType: {doctype}")
+		raise stylo.ValidationError(f"Unsupported logging DocType: {doctype}")
 
 	original = get_table_name(doctype)
 	temporary = f"{original} temp_table"
 	backup = f"{original} backup_table"
 
 	try:
-		frappe.db.sql_ddl(f"CREATE TABLE `{temporary}` LIKE `{original}`")
+		stylo.db.sql_ddl(f"CREATE TABLE `{temporary}` LIKE `{original}`")
 
 		# Copy all recent data to new table
-		frappe.db.sql(
+		stylo.db.sql(
 			f"""INSERT INTO `{temporary}`
 				SELECT * FROM `{original}`
 				WHERE `{original}`.`modified` > NOW() - INTERVAL '{days}' DAY"""
 		)
-		frappe.db.sql_ddl(f"RENAME TABLE `{original}` TO `{backup}`, `{temporary}` TO `{original}`")
+		stylo.db.sql_ddl(f"RENAME TABLE `{original}` TO `{backup}`, `{temporary}` TO `{original}`")
 	except Exception:
-		frappe.db.rollback()
-		frappe.db.sql_ddl(f"DROP TABLE IF EXISTS `{temporary}`")
+		stylo.db.rollback()
+		stylo.db.sql_ddl(f"DROP TABLE IF EXISTS `{temporary}`")
 		raise
 	else:
-		frappe.db.sql_ddl(f"DROP TABLE `{backup}`")
+		stylo.db.sql_ddl(f"DROP TABLE `{backup}`")

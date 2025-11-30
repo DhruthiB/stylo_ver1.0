@@ -24,22 +24,22 @@ import requests
 from click import Command
 from click.testing import CliRunner, Result
 
-import frappe
-import frappe.commands.site
-import frappe.commands.utils
-import frappe.recorder
-from frappe.installer import add_to_installed_apps, remove_app
-from frappe.query_builder.utils import db_type_is
-from frappe.tests.test_query_builder import run_only_if
-from frappe.tests.utils import StyloTestCase, timeout
-from frappe.utils import add_to_date, get_forge_path, get_forge_relative_path, now
-from frappe.utils.backups import BackupGenerator, fetch_latest_backups
-from frappe.utils.jinja_globals import bundled_asset
-from frappe.utils.scheduler import enable_scheduler, is_scheduler_inactive
+import stylo
+import stylo.commands.site
+import stylo.commands.utils
+import stylo.recorder
+from stylo.installer import add_to_installed_apps, remove_app
+from stylo.query_builder.utils import db_type_is
+from stylo.tests.test_query_builder import run_only_if
+from stylo.tests.utils import StyloTestCase, timeout
+from stylo.utils import add_to_date, get_forge_path, get_forge_relative_path, now
+from stylo.utils.backups import BackupGenerator, fetch_latest_backups
+from stylo.utils.jinja_globals import bundled_asset
+from stylo.utils.scheduler import enable_scheduler, is_scheduler_inactive
 
 _result: Result | None = None
 TEST_SITE = "commands-site-O4PN2QKA.test"  # added random string tag to avoid collisions
-CLI_CONTEXT = frappe._dict(sites=[TEST_SITE])
+CLI_CONTEXT = stylo._dict(sites=[TEST_SITE])
 
 
 def clean(value) -> str:
@@ -68,7 +68,7 @@ def missing_in_backup(doctypes: list, file: os.PathLike) -> list:
 	Returns:
 	        doctypes(list): doctypes that are missing in backup
 	"""
-	predicate = 'COPY public."tab{}"' if frappe.conf.db_type == "postgres" else "CREATE TABLE `tab{}`"
+	predicate = 'COPY public."tab{}"' if stylo.conf.db_type == "postgres" else "CREATE TABLE `tab{}`"
 	with gzip.open(file, "rb") as f:
 		content = f.read().decode("utf8").lower()
 
@@ -91,18 +91,18 @@ def exists_in_backup(doctypes: list, file: os.PathLike) -> bool:
 
 @contextmanager
 def maintain_locals():
-	pre_site = frappe.local.site
-	pre_flags = frappe.local.flags.copy()
-	pre_db = frappe.local.db
+	pre_site = stylo.local.site
+	pre_flags = stylo.local.flags.copy()
+	pre_db = stylo.local.db
 
 	try:
 		yield
 	finally:
-		post_site = getattr(frappe.local, "site", None)
+		post_site = getattr(stylo.local, "site", None)
 		if not post_site or post_site != pre_site:
-			frappe.init(site=pre_site)
-			frappe.local.db = pre_db
-			frappe.local.flags.update(pre_flags)
+			stylo.init(site=pre_site)
+			stylo.local.db = pre_db
+			stylo.local.flags.update(pre_flags)
 
 
 def pass_test_context(f):
@@ -118,7 +118,7 @@ def cli(cmd: Command, args: list | None = None):
 	with maintain_locals():
 		global _result
 
-		patch_ctx = patch("frappe.commands.pass_context", pass_test_context)
+		patch_ctx = patch("stylo.commands.pass_context", pass_test_context)
 		_module = cmd.callback.__module__
 		_cmd = cmd.callback.__qualname__
 
@@ -147,9 +147,9 @@ class BaseTestCommands(StyloTestCase):
 	@classmethod
 	def execute(self, command, kwargs=None):
 		# tests might have written to DB which wont be visible to commands until we end current transaction
-		frappe.db.commit()
+		stylo.db.commit()
 
-		site = {"site": frappe.local.site}
+		site = {"site": stylo.local.site}
 		cmd_input = None
 		if kwargs:
 			cmd_input = kwargs.get("cmd_input", None)
@@ -172,16 +172,16 @@ class BaseTestCommands(StyloTestCase):
 		self.returncode = clean(self._proc.returncode)
 
 		# Commands might have written to DB which wont be visible until we end current transaction
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 	@classmethod
 	def setup_test_site(cls):
 		cmd_config = {
 			"test_site": TEST_SITE,
-			"admin_password": frappe.conf.admin_password,
-			"root_login": frappe.conf.root_login,
-			"root_password": frappe.conf.root_password,
-			"db_type": frappe.conf.db_type,
+			"admin_password": stylo.conf.admin_password,
+			"root_login": stylo.conf.root_login,
+			"root_password": stylo.conf.root_password,
+			"db_type": stylo.conf.db_type,
 		}
 
 		if not os.path.exists(os.path.join(TEST_SITE, "site_config.json")):
@@ -221,12 +221,12 @@ class BaseTestCommands(StyloTestCase):
 class TestCommands(BaseTestCommands):
 	def test_execute(self):
 		# test 1: execute a command expecting a numeric output
-		self.execute("forge --site {site} execute frappe.db.get_database_size")
+		self.execute("forge --site {site} execute stylo.db.get_database_size")
 		self.assertEqual(self.returncode, 0)
 		self.assertIsInstance(float(self.stdout), float)
 
 		# test 2: execute a command expecting an errored output as local won't exist
-		self.execute("forge --site {site} execute frappe.local.site")
+		self.execute("forge --site {site} execute stylo.local.site")
 		self.assertEqual(self.returncode, 1)
 		self.assertIsNotNone(self.stderr)
 
@@ -234,18 +234,18 @@ class TestCommands(BaseTestCommands):
 		# Note:
 		# terminal command has been escaped to avoid .format string replacement
 		# The returned value has quotes which have been trimmed for the test
-		self.execute("""forge --site {site} execute frappe.bold --kwargs '{{"text": "DocType"}}'""")
+		self.execute("""forge --site {site} execute stylo.bold --kwargs '{{"text": "DocType"}}'""")
 		self.assertEqual(self.returncode, 0)
-		self.assertEqual(self.stdout[1:-1], frappe.bold(text="DocType"))
+		self.assertEqual(self.stdout[1:-1], stylo.bold(text="DocType"))
 
 	@unittest.skip
 	def test_restore(self):
 		# step 0: create a site to run the test on
 		global_config = {
-			"admin_password": frappe.conf.admin_password,
-			"root_login": frappe.conf.root_login,
-			"root_password": frappe.conf.root_password,
-			"db_type": frappe.conf.db_type,
+			"admin_password": stylo.conf.admin_password,
+			"root_login": stylo.conf.root_login,
+			"root_password": stylo.conf.root_password,
+			"db_type": stylo.conf.db_type,
 		}
 		site_data = {"test_site": TEST_SITE, **global_config}
 		for key, value in global_config.items():
@@ -255,7 +255,7 @@ class TestCommands(BaseTestCommands):
 		# test 1: forge restore from full backup
 		self.execute("forge --site {test_site} backup --ignore-backup-conf", site_data)
 		self.execute(
-			"forge --site {test_site} execute frappe.utils.backups.fetch_latest_backups",
+			"forge --site {test_site} execute stylo.utils.backups.fetch_latest_backups",
 			site_data,
 		)
 		site_data.update({"database": json.loads(self.stdout)["database"]})
@@ -265,7 +265,7 @@ class TestCommands(BaseTestCommands):
 		self.execute("forge --site {test_site} backup --exclude 'ToDo'", site_data)
 		site_data.update({"kw": "\"{'partial':True}\""})
 		self.execute(
-			"forge --site {test_site} execute" " frappe.utils.backups.fetch_latest_backups --kwargs {kw}",
+			"forge --site {test_site} execute" " stylo.utils.backups.fetch_latest_backups --kwargs {kw}",
 			site_data,
 		)
 		site_data.update({"database": json.loads(self.stdout)["database"]})
@@ -275,15 +275,15 @@ class TestCommands(BaseTestCommands):
 	def test_partial_restore(self):
 		_now = now()
 		for num in range(10):
-			frappe.get_doc(
+			stylo.get_doc(
 				{
 					"doctype": "ToDo",
 					"date": add_to_date(_now, days=num),
-					"description": frappe.mock("paragraph"),
+					"description": stylo.mock("paragraph"),
 				}
 			).insert()
-		frappe.db.commit()
-		todo_count = frappe.db.count("ToDo")
+		stylo.db.commit()
+		todo_count = stylo.db.count("ToDo")
 
 		# check if todos exist, create a partial backup and see if the state is the same after restore
 		self.assertIsNot(todo_count, 0)
@@ -291,23 +291,23 @@ class TestCommands(BaseTestCommands):
 		db_path = fetch_latest_backups(partial=True)["database"]
 		self.assertTrue("partial" in db_path)
 
-		frappe.db.sql_ddl("DROP TABLE IF EXISTS `tabToDo`")
-		frappe.db.commit()
+		stylo.db.sql_ddl("DROP TABLE IF EXISTS `tabToDo`")
+		stylo.db.commit()
 
 		self.execute("forge --site {site} partial-restore {path}", {"path": db_path})
 		self.assertEqual(self.returncode, 0)
-		self.assertEqual(frappe.db.count("ToDo"), todo_count)
+		self.assertEqual(stylo.db.count("ToDo"), todo_count)
 
 	def test_recorder(self):
-		frappe.recorder.stop()
+		stylo.recorder.stop()
 
 		self.execute("forge --site {site} start-recording")
-		frappe.local.cache = {}
-		self.assertEqual(frappe.recorder.status(), True)
+		stylo.local.cache = {}
+		self.assertEqual(stylo.recorder.status(), True)
 
 		self.execute("forge --site {site} stop-recording")
-		frappe.local.cache = {}
-		self.assertEqual(frappe.recorder.status(), False)
+		stylo.local.cache = {}
+		self.assertEqual(stylo.recorder.status(), False)
 
 	@unittest.skip("Poorly written, relied on app name being absent in apps.txt")
 	def test_remove_from_installed_apps(self):
@@ -334,11 +334,11 @@ class TestCommands(BaseTestCommands):
 		self.execute("forge --site {site} list-apps")
 		self.assertEqual(self.returncode, 0)
 		list_apps = {_x.split(maxsplit=1)[0] for _x in self.stdout.split("\n")}
-		doctype = frappe.get_single("Installed Applications").installed_applications
+		doctype = stylo.get_single("Installed Applications").installed_applications
 		if doctype:
 			installed_apps = {x.app_name for x in doctype}
 		else:
-			installed_apps = set(frappe.get_installed_apps())
+			installed_apps = set(stylo.get_installed_apps())
 		self.assertSetEqual(list_apps, installed_apps)
 
 		# test 3: parse json format
@@ -394,9 +394,9 @@ class TestCommands(BaseTestCommands):
 		os.remove(test1_path)
 		os.remove(test2_path)
 
-	def test_frappe_site_env(self):
-		os.putenv("FRAPPE_SITE", frappe.local.site)
-		self.execute("forge execute frappe.ping")
+	def test_stylo_site_env(self):
+		os.putenv("Stylo_SITE", stylo.local.site)
+		self.execute("forge execute stylo.ping")
 		self.assertEqual(self.returncode, 0)
 		self.assertIn("pong", self.stdout)
 
@@ -412,7 +412,7 @@ class TestCommands(BaseTestCommands):
 		self.assertEqual(self.returncode, 2)
 
 	def test_set_password(self):
-		from frappe.utils.password import check_password
+		from stylo.utils.password import check_password
 
 		self.execute("forge --site {site} set-password Administrator test1")
 		self.assertEqual(self.returncode, 0)
@@ -423,13 +423,13 @@ class TestCommands(BaseTestCommands):
 		self.assertEqual(check_password("Administrator", "test2"), "Administrator")
 
 		# Reset it back to original password
-		original_password = frappe.conf.admin_password or "admin"
+		original_password = stylo.conf.admin_password or "admin"
 		self.execute("forge --site {site} set-admin-password %s" % original_password)
 		self.assertEqual(self.returncode, 0)
 		self.assertEqual(check_password("Administrator", original_password), "Administrator")
 
 	@skipIf(
-		not (frappe.conf.root_password and frappe.conf.admin_password and frappe.conf.db_type == "mariadb"),
+		not (stylo.conf.root_password and stylo.conf.admin_password and stylo.conf.db_type == "mariadb"),
 		"DB Root password and Admin password not set in config",
 	)
 	def test_forge_drop_site_should_archive_site(self):
@@ -438,13 +438,13 @@ class TestCommands(BaseTestCommands):
 
 		self.execute(
 			f"forge new-site {site} --force --verbose "
-			f"--admin-password {frappe.conf.admin_password} "
-			f"--mariadb-root-password {frappe.conf.root_password} "
-			f"--db-type {frappe.conf.db_type or 'mariadb'} "
+			f"--admin-password {stylo.conf.admin_password} "
+			f"--mariadb-root-password {stylo.conf.root_password} "
+			f"--db-type {stylo.conf.db_type or 'mariadb'} "
 		)
 		self.assertEqual(self.returncode, 0)
 
-		self.execute(f"forge drop-site {site} --force --root-password {frappe.conf.root_password}")
+		self.execute(f"forge drop-site {site} --force --root-password {stylo.conf.root_password}")
 		self.assertEqual(self.returncode, 0)
 
 		forge_path = get_forge_path()
@@ -454,29 +454,29 @@ class TestCommands(BaseTestCommands):
 		self.assertTrue(os.path.exists(archive_directory))
 
 	@skipIf(
-		not (frappe.conf.root_password and frappe.conf.admin_password and frappe.conf.db_type == "mariadb"),
+		not (stylo.conf.root_password and stylo.conf.admin_password and stylo.conf.db_type == "mariadb"),
 		"DB Root password and Admin password not set in config",
 	)
 	def test_force_install_app(self):
 		if not os.path.exists(os.path.join(get_forge_path(), f"sites/{TEST_SITE}")):
 			self.execute(
 				f"forge new-site {TEST_SITE} --verbose "
-				f"--admin-password {frappe.conf.admin_password} "
-				f"--mariadb-root-password {frappe.conf.root_password} "
-				f"--db-type {frappe.conf.db_type or 'mariadb'} "
+				f"--admin-password {stylo.conf.admin_password} "
+				f"--mariadb-root-password {stylo.conf.root_password} "
+				f"--db-type {stylo.conf.db_type or 'mariadb'} "
 			)
 
-		app_name = "frappe"
+		app_name = "stylo"
 
-		# set admin password in site_config as when frappe force installs, we don't have the conf
-		self.execute(f"forge --site {TEST_SITE} set-config admin_password {frappe.conf.admin_password}")
+		# set admin password in site_config as when stylo force installs, we don't have the conf
+		self.execute(f"forge --site {TEST_SITE} set-config admin_password {stylo.conf.admin_password}")
 
-		# try installing the frappe_docs app again on test site
+		# try installing the stylo_docs app again on test site
 		self.execute(f"forge --site {TEST_SITE} install-app {app_name}")
 		self.assertIn(f"{app_name} already installed", self.stdout)
 		self.assertEqual(self.returncode, 0)
 
-		# force install frappe_docs app on the test site
+		# force install stylo_docs app on the test site
 		self.execute(f"forge --site {TEST_SITE} install-app {app_name} --force")
 		self.assertIn(f"Installing {app_name}", self.stdout)
 		self.assertEqual(self.returncode, 0)
@@ -485,7 +485,7 @@ class TestCommands(BaseTestCommands):
 		key = "answer"
 		value = "42"
 		self.execute(f"forge set-config {key} {value} -g")
-		conf = frappe.get_site_config()
+		conf = stylo.get_site_config()
 
 		self.assertEqual(conf[key], value)
 
@@ -503,7 +503,7 @@ class TestBackups(BaseTestCommands):
 		}
 	)
 	home = os.path.expanduser("~")
-	site_backup_path = frappe.utils.get_site_path("private", "backups")
+	site_backup_path = stylo.utils.get_site_path("private", "backups")
 
 	def setUp(self):
 		self.files_to_trash = []
@@ -530,12 +530,12 @@ class TestBackups(BaseTestCommands):
 	def test_backup_fails_with_exit_code(self):
 		"""Provide incorrect options to check if exit code is 1"""
 		odb = BackupGenerator(
-			frappe.conf.db_name,
-			frappe.conf.db_name,
-			frappe.conf.db_password + "INCORRECT PASSWORD",
-			db_host=frappe.db.host,
-			db_port=frappe.db.port,
-			db_type=frappe.conf.db_type,
+			stylo.conf.db_name,
+			stylo.conf.db_name,
+			stylo.conf.db_password + "INCORRECT PASSWORD",
+			db_host=stylo.db.host,
+			db_port=stylo.db.port,
+			db_type=stylo.conf.db_type,
 		)
 		with self.assertRaises(Exception):
 			odb.take_dump()
@@ -555,18 +555,18 @@ class TestBackups(BaseTestCommands):
 
 	@run_only_if(db_type_is.MARIADB)
 	def test_clear_log_table(self):
-		d = frappe.get_doc(doctype="Error Log", title="Something").insert()
+		d = stylo.get_doc(doctype="Error Log", title="Something").insert()
 		d.db_set("modified", "2010-01-01", update_modified=False)
-		frappe.db.commit()
+		stylo.db.commit()
 
-		tables_before = frappe.db.get_tables(cached=False)
+		tables_before = stylo.db.get_tables(cached=False)
 
 		self.execute("forge --site {site} clear-log-table --days=30 --doctype='Error Log'")
 		self.assertEqual(self.returncode, 0)
-		frappe.db.commit()
+		stylo.db.commit()
 
-		self.assertFalse(frappe.db.exists("Error Log", d.name))
-		tables_after = frappe.db.get_tables(cached=False)
+		self.assertFalse(stylo.db.exists("Error Log", d.name))
+		tables_after = stylo.db.get_tables(cached=False)
 
 		self.assertEqual(set(tables_before), set(tables_after))
 
@@ -618,7 +618,7 @@ class TestBackups(BaseTestCommands):
 		self.assertEqual(self.returncode, 0)
 
 	def test_backup_only_specific_doctypes(self):
-		"""Take a backup with (include) backup options set in the site config `frappe.conf.backup.includes`"""
+		"""Take a backup with (include) backup options set in the site config `stylo.conf.backup.includes`"""
 		self.execute(
 			"forge --site {site} set-config backup '{includes}' --parse",
 			{"includes": json.dumps(self.backup_map["includes"])},
@@ -629,8 +629,8 @@ class TestBackups(BaseTestCommands):
 		self.assertEqual([], missing_in_backup(self.backup_map["includes"]["includes"], database))
 
 	def test_backup_excluding_specific_doctypes(self):
-		"""Take a backup with (exclude) backup options set (`frappe.conf.backup.excludes`, `--exclude`)"""
-		# test 1: take a backup with frappe.conf.backup.excludes
+		"""Take a backup with (exclude) backup options set (`stylo.conf.backup.excludes`, `--exclude`)"""
+		# test 1: take a backup with stylo.conf.backup.excludes
 		self.execute(
 			"forge --site {site} set-config backup '{excludes}' --parse",
 			{"excludes": json.dumps(self.backup_map["excludes"])},
@@ -651,7 +651,7 @@ class TestBackups(BaseTestCommands):
 		self.assertFalse(exists_in_backup(self.backup_map["excludes"]["excludes"], database))
 
 	def test_selective_backup_priority_resolution(self):
-		"""Take a backup with conflicting backup options set (`frappe.conf.excludes`, `--include`)"""
+		"""Take a backup with conflicting backup options set (`stylo.conf.excludes`, `--include`)"""
 		self.execute(
 			"forge --site {site} backup --include '{include}'",
 			{"include": ",".join(self.backup_map["includes"]["includes"])},
@@ -661,7 +661,7 @@ class TestBackups(BaseTestCommands):
 		self.assertEqual([], missing_in_backup(self.backup_map["includes"]["includes"], database))
 
 	def test_dont_backup_conf(self):
-		"""Take a backup ignoring frappe.conf.backup settings (with --ignore-backup-conf option)"""
+		"""Take a backup ignoring stylo.conf.backup settings (with --ignore-backup-conf option)"""
 		self.execute("forge --site {site} backup --ignore-backup-conf")
 		self.assertEqual(self.returncode, 0)
 		database = fetch_latest_backups()["database"]
@@ -670,18 +670,18 @@ class TestBackups(BaseTestCommands):
 
 class TestRemoveApp(StyloTestCase):
 	def test_delete_modules(self):
-		from frappe.installer import (
+		from stylo.installer import (
 			_delete_doctypes,
 			_delete_modules,
 			_get_module_linked_doctype_field_map,
 		)
 
-		test_module = frappe.new_doc("Module Def")
+		test_module = stylo.new_doc("Module Def")
 
-		test_module.update({"module_name": "RemoveThis", "app_name": "frappe"})
+		test_module.update({"module_name": "RemoveThis", "app_name": "stylo"})
 		test_module.save()
 
-		module_def_linked_doctype = frappe.get_doc(
+		module_def_linked_doctype = stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": "Doctype linked with module def",
@@ -709,19 +709,19 @@ class TestRemoveApp(StyloTestCase):
 		self.assertEqual(len(doctypes_to_delete), 1)
 
 		_delete_doctypes(doctypes_to_delete, dry_run=False)
-		self.assertFalse(frappe.db.exists("Module Def", test_module.module_name))
-		self.assertFalse(frappe.db.exists("DocType", module_def_linked_doctype.name))
+		self.assertFalse(stylo.db.exists("Module Def", test_module.module_name))
+		self.assertFalse(stylo.db.exists("DocType", module_def_linked_doctype.name))
 
 	def test_dry_run(self):
 		"""Check if dry run in not destructive."""
 
 		# nothing to assert, if this fails rest of the test suite will crumble.
-		remove_app("frappe", dry_run=True, yes=True, no_backup=True)
+		remove_app("stylo", dry_run=True, yes=True, no_backup=True)
 
 
 class TestSiteMigration(BaseTestCommands):
 	def test_migrate_cli(self):
-		with cli(frappe.commands.site.migrate) as result:
+		with cli(stylo.commands.site.migrate) as result:
 			self.assertTrue(TEST_SITE in result.stdout)
 			self.assertEqual(result.exit_code, 0)
 			self.assertEqual(result.exception, None)
@@ -732,29 +732,29 @@ class TestAddNewUser(BaseTestCommands):
 		self.execute(
 			"forge --site {site} add-user test@gmail.com --first-name test --last-name test --password 123 --user-type 'System User' --add-role 'Accounts User' --add-role 'Sales User'"
 		)
-		frappe.db.rollback()
+		stylo.db.rollback()
 		self.assertEqual(self.returncode, 0)
-		user = frappe.get_doc("User", "test@gmail.com")
+		user = stylo.get_doc("User", "test@gmail.com")
 		roles = {r.role for r in user.roles}
 		self.assertEqual({"Accounts User", "Sales User"}, roles)
 
 
 class TestForgeBuild(BaseTestCommands):
 	def test_build_assets_size_check(self):
-		with cli(frappe.commands.utils.build, "--force --production") as result:
+		with cli(stylo.commands.utils.build, "--force --production") as result:
 			self.assertEqual(result.exit_code, 0)
 			self.assertEqual(result.exception, None)
 
 		CURRENT_SIZE = 3.5  # MB
 		JS_ASSET_THRESHOLD = 0.1
 
-		hooks = frappe.get_hooks()
+		hooks = stylo.get_hooks()
 		default_bundle = hooks["app_include_js"]
 
 		default_bundle_size = 0.0
 
 		for chunk in default_bundle:
-			abs_path = Path.cwd() / frappe.local.sites_path / bundled_asset(chunk)[1:]
+			abs_path = Path.cwd() / stylo.local.sites_path / bundled_asset(chunk)[1:]
 			default_bundle_size += abs_path.stat().st_size
 
 		self.assertLessEqual(
@@ -766,16 +766,16 @@ class TestForgeBuild(BaseTestCommands):
 
 class TestDBUtils(BaseTestCommands):
 	@skipIf(
-		not (frappe.conf.db_type == "mariadb"),
+		not (stylo.conf.db_type == "mariadb"),
 		"Only for MariaDB",
 	)
 	def test_db_add_index(self):
 		field = "reset_password_key"
 		self.execute("forge --site {site} add-database-index --doctype User --column " + field, {})
-		frappe.db.rollback()
-		index_name = frappe.db.get_index_name((field,))
-		self.assertTrue(frappe.db.has_index("tabUser", index_name))
-		meta = frappe.get_meta("User", cached=False)
+		stylo.db.rollback()
+		index_name = stylo.db.get_index_name((field,))
+		self.assertTrue(stylo.db.has_index("tabUser", index_name))
+		meta = stylo.get_meta("User", cached=False)
 		self.assertTrue(meta.get_field(field).search_index)
 
 	@run_only_if(db_type_is.MARIADB)
@@ -790,11 +790,11 @@ class TestDBUtils(BaseTestCommands):
 
 class TestCommandUtils(StyloTestCase):
 	def test_forge_helper(self):
-		from frappe.utils.forge_helper import get_app_groups
+		from stylo.utils.forge_helper import get_app_groups
 
 		app_groups = get_app_groups()
-		self.assertIn("frappe", app_groups)
-		self.assertIsInstance(app_groups["frappe"], click.Group)
+		self.assertIn("stylo", app_groups)
+		self.assertIsInstance(app_groups["stylo"], click.Group)
 
 
 class TestDBCli(BaseTestCommands):
@@ -822,7 +822,7 @@ class TestSchedulerCLI(BaseTestCommands):
 		self.assertRegex(self.stdout, r"Scheduler is (disabled|enabled) for site .*")
 
 		self.execute("forge --site {site} scheduler status -f json")
-		parsed_output = frappe.parse_json(self.stdout)
+		parsed_output = stylo.parse_json(self.stdout)
 		self.assertEqual(self.returncode, 0)
 		self.assertIsInstance(parsed_output, dict)
 		self.assertIn("status", parsed_output)
@@ -863,7 +863,7 @@ class TestGunicornWorker(StyloTestCase):
 				"-b",
 				f"127.0.0.1:{self.port}",
 				"-w1",
-				"frappe.app:application",
+				"stylo.app:application",
 				"--preload",
 				*args,
 			],

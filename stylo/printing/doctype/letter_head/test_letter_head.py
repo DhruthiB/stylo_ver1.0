@@ -1,12 +1,12 @@
 # Copyright (c) 2017, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestLetterHead(StyloTestCase):
 	def test_auto_image(self):
-		letter_head = frappe.get_doc(
+		letter_head = stylo.get_doc(
 			dict(doctype="Letter Head", letter_head_name="Test", source="Image", image="/public/test.png")
 		).insert()
 

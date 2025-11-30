@@ -1,4 +1,4 @@
-frappe.listview_settings["Blog Post"] = {
+stylo.listview_settings["Blog Post"] = {
 	add_fields: ["title", "published", "blogger", "blog_category"],
 	get_indicator: function (doc) {
 		if (doc.published) {

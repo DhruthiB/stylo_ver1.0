@@ -1,7 +1,7 @@
 import socket
 from urllib.parse import urlparse
 
-from frappe import get_conf
+from stylo import get_conf
 
 REDIS_KEYS = ("redis_cache", "redis_queue", "redis_socketio")
 

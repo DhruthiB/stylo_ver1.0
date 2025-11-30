@@ -1,18 +1,18 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
-test_records = frappe.get_test_records("Page")
+test_records = stylo.get_test_records("Page")
 
 
 class TestPage(StyloTestCase):
 	def test_naming(self):
 		self.assertRaises(
-			frappe.NameError,
-			frappe.get_doc(dict(doctype="Page", page_name="DocType", module="Core")).insert,
+			stylo.NameError,
+			stylo.get_doc(dict(doctype="Page", page_name="DocType", module="Core")).insert,
 		)
 		self.assertRaises(
-			frappe.NameError,
-			frappe.get_doc(dict(doctype="Page", page_name="Settings", module="Core")).insert,
+			stylo.NameError,
+			stylo.get_doc(dict(doctype="Page", page_name="Settings", module="Core")).insert,
 		)

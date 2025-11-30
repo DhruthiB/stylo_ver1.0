@@ -58,7 +58,7 @@ _dev_server = int(sbool(os.environ.get("DEV_SERVER", False)))
 _qb_patched = {}
 re._MAXCACHE = 50  # reduced from default 512 given we are already maintaining this on parent worker
 
-_tune_gc = bool(sbool(os.environ.get("FRAPPE_TUNE_GC", True)))
+_tune_gc = bool(sbool(os.environ.get("Stylo_TUNE_GC", True)))
 
 if _dev_server:
 	warnings.simplefilter("always", DeprecationWarning)

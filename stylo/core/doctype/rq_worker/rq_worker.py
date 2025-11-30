@@ -6,10 +6,10 @@ from contextlib import suppress
 
 from rq import Worker
 
-import frappe
-from frappe.model.document import Document
-from frappe.utils import cint, convert_utc_to_system_timezone
-from frappe.utils.background_jobs import get_workers
+import stylo
+from stylo.model.document import Document
+from stylo.utils import cint, convert_utc_to_system_timezone
+from stylo.utils.background_jobs import get_workers
 
 
 class RQWorker(Document):
@@ -17,7 +17,7 @@ class RQWorker(Document):
 		all_workers = get_workers()
 		workers = [w for w in all_workers if w.name == self.name]
 		if not workers:
-			raise frappe.DoesNotExistError
+			raise stylo.DoesNotExistError
 		d = serialize_worker(workers[0])
 
 		super(Document, self).__init__(d)
@@ -51,13 +51,13 @@ class RQWorker(Document):
 		pass
 
 
-def serialize_worker(worker: Worker) -> frappe._dict:
+def serialize_worker(worker: Worker) -> stylo._dict:
 	queue_names = worker.queue_names()
 
 	queue = ", ".join(queue_names)
 	queue_types = ",".join(q.rsplit(":", 1)[1] for q in queue_names)
 
-	return frappe._dict(
+	return stylo._dict(
 		name=worker.name,
 		queue=queue,
 		queue_type=queue_types,

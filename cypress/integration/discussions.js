@@ -4,9 +4,9 @@ context("Discussions", () => {
 		cy.visit("/app");
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
-				return frappe.call("frappe.tests.ui_test_helpers.create_data_for_discussions");
+			.its("stylo")
+			.then((stylo) => {
+				return stylo.call("stylo.tests.ui_test_helpers.create_data_for_discussions");
 			});
 	});
 

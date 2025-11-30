@@ -1,7 +1,7 @@
 # Copyright (c) 2022, Stylo Technologies and contributors
 # For license information, please see license.txt
 
-import frappe
+import stylo
 
 COLUMNS = [
 	{"label": "Table", "fieldname": "table", "fieldtype": "Data", "width": 200},
@@ -12,9 +12,9 @@ COLUMNS = [
 
 
 def execute(filters=None):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 
-	data = frappe.db.multisql(
+	data = stylo.db.multisql(
 		{
 			"mariadb": """
 				SELECT table_name AS `table`,

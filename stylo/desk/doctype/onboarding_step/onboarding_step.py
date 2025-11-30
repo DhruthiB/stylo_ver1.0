@@ -3,9 +3,9 @@
 
 import json
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class OnboardingStep(Document):
@@ -14,15 +14,15 @@ class OnboardingStep(Document):
 		doc.is_skipped = 0
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_onboarding_steps(ob_steps):
 	steps = []
 	for s in json.loads(ob_steps):
-		doc = frappe.get_doc("Onboarding Step", s.get("step"))
+		doc = stylo.get_doc("Onboarding Step", s.get("step"))
 		step = doc.as_dict().copy()
 		step.label = _(doc.title)
 		if step.action == "Create Entry":
-			step.is_submittable = frappe.db.get_value(
+			step.is_submittable = stylo.db.get_value(
 				"DocType", step.reference_document, "is_submittable", cache=True
 			)
 		steps.append(step)

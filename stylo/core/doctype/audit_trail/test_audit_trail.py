@@ -1,9 +1,9 @@
 # Copyright (c) 2023, Stylo Technologies and Contributors
 # See license.txt
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import today
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import today
 
 
 class TestAuditTrail(StyloTestCase):
@@ -12,16 +12,16 @@ class TestAuditTrail(StyloTestCase):
 		self.custom_doctype = create_custom_doctype()
 
 	def test_compare_changed_fields(self):
-		doc = frappe.new_doc("Test Custom Doctype for Doc Comparator")
+		doc = stylo.new_doc("Test Custom Doctype for Doc Comparator")
 		doc.test_field = "first value"
 		doc.submit()
 		doc.cancel()
 
-		changed_fields = frappe._dict(test_field="second value")
+		changed_fields = stylo._dict(test_field="second value")
 		amended_doc = amend_document(doc, changed_fields, {}, 1)
 		amended_doc.cancel()
 
-		changed_fields = frappe._dict(test_field="third value")
+		changed_fields = stylo._dict(test_field="third value")
 		re_amended_doc = amend_document(amended_doc, changed_fields, {}, 1)
 
 		comparator = create_comparator_doc("Test Custom Doctype for Doc Comparator", re_amended_doc.name)
@@ -31,19 +31,19 @@ class TestAuditTrail(StyloTestCase):
 		self.check_expected_values(test_field_values, ["first value", "second value", "third value"])
 
 	def test_compare_rows(self):
-		doc = frappe.new_doc("Test Custom Doctype for Doc Comparator")
+		doc = stylo.new_doc("Test Custom Doctype for Doc Comparator")
 		doc.append("child_table_field", {"test_table_field": "old row 1 value"})
 		doc.submit()
 		doc.cancel()
 
 		child_table_new = [{"test_table_field": "new row 1 value"}, {"test_table_field": "row 2 value"}]
-		rows_updated = frappe._dict(child_table_field=child_table_new)
+		rows_updated = stylo._dict(child_table_field=child_table_new)
 		amended_doc = amend_document(doc, {}, rows_updated, 1)
 
 		comparator = create_comparator_doc("Test Custom Doctype for Doc Comparator", amended_doc.name)
 		documents, results = comparator.compare_document()
 
-		results = frappe._dict(results)
+		results = stylo._dict(results)
 		self.check_rows_updated(results.row_changed)
 		self.check_rows_added(results.added[amended_doc.name])
 
@@ -70,7 +70,7 @@ class TestAuditTrail(StyloTestCase):
 
 
 def create_custom_child_doctype():
-	child_doctype = frappe.get_doc(
+	child_doctype = stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -91,7 +91,7 @@ def create_custom_child_doctype():
 
 
 def create_custom_doctype():
-	custom_doctype = frappe.get_doc(
+	custom_doctype = stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"module": "Core",
@@ -118,7 +118,7 @@ def create_custom_doctype():
 
 
 def amend_document(amend_from, changed_fields, rows_updated, submit=False):
-	amended_doc = frappe.copy_doc(amend_from)
+	amended_doc = stylo.copy_doc(amend_from)
 	amended_doc.amended_from = amend_from.name
 	amended_doc.update(changed_fields)
 	for child_table in rows_updated:
@@ -129,7 +129,7 @@ def amend_document(amend_from, changed_fields, rows_updated, submit=False):
 
 
 def create_comparator_doc(doctype_name, document):
-	comparator = frappe.new_doc("Audit Trail")
+	comparator = stylo.new_doc("Audit Trail")
 	args_dict = {
 		"doctype_name": doctype_name,
 		"document": document,

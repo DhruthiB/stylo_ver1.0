@@ -5,7 +5,7 @@ import os
 
 from PIL import Image
 
-import frappe
+import stylo
 
 
 def resize_images(path, maxdim=700):
@@ -70,5 +70,5 @@ def optimize_image(content, content_type, max_width=1920, max_height=1080, optim
 		optimized_content = output.getvalue()
 		return optimized_content if len(optimized_content) < len(content) else content
 	except Exception as e:
-		frappe.msgprint(frappe._("Failed to optimize image: {0}").format(str(e)))
+		stylo.msgprint(stylo._("Failed to optimize image: {0}").format(str(e)))
 		return content

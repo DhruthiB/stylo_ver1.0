@@ -167,23 +167,23 @@
 
 {% block script %}
 	<script>
-		frappe.boot = {{ boot }};
-		frappe._messages = {{ translated_messages }};
-		frappe.web_form_doc = {{ web_form_doc | json }};
-		frappe.reference_doc = {{ reference_doc | json }};
+		stylo.boot = {{ boot }};
+		stylo._messages = {{ translated_messages }};
+		stylo.web_form_doc = {{ web_form_doc | json }};
+		stylo.reference_doc = {{ reference_doc | json }};
 	</script>
 
-	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+	<script type="text/javascript" src="/assets/stylo/node_modules/vue/dist/vue.js"></script>
 	<script>
 		Vue.prototype.__ = window.__;
-		Vue.prototype.frappe = window.frappe;
+		Vue.prototype.stylo = window.stylo;
 	</script>
 
 	{{ include_script("web_form.bundle.js") }}
 
 	<script>
 		{% if client_script %}
-			frappe.init_client_script = () => {
+			stylo.init_client_script = () => {
 				try {
 					{{ client_script }}
 				} catch(e) {

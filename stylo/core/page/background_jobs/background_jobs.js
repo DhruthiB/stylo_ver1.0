@@ -1,4 +1,4 @@
-frappe.pages["background_jobs"].on_page_load = (wrapper) => {
+stylo.pages["background_jobs"].on_page_load = (wrapper) => {
 	const background_job = new BackgroundJobs(wrapper);
 
 	$(wrapper).bind("show", () => {
@@ -10,26 +10,26 @@ frappe.pages["background_jobs"].on_page_load = (wrapper) => {
 
 class BackgroundJobs {
 	constructor(wrapper) {
-		this.page = frappe.ui.make_app_page({
+		this.page = stylo.ui.make_app_page({
 			parent: wrapper,
 			title: __("Background Jobs"),
 			single_column: true,
 		});
 
 		this.page.add_inner_button(__("Remove Failed Jobs"), () => {
-			frappe.confirm(__("Are you sure you want to remove all failed jobs?"), () => {
-				frappe
-					.call("frappe.core.page.background_jobs.background_jobs.remove_failed_jobs")
+			stylo.confirm(__("Are you sure you want to remove all failed jobs?"), () => {
+				stylo
+					.call("stylo.core.page.background_jobs.background_jobs.remove_failed_jobs")
 					.then(() => this.refresh_jobs());
 			});
 		});
 
-		this.page.main.addClass("frappe-card");
+		this.page.main.addClass("stylo-card");
 		this.page.body.append('<div class="table-area"></div>');
 		this.$content = $(this.page.body).find(".table-area");
 
 		this.make_filters();
-		this.refresh_jobs = frappe.utils.throttle(this.refresh_jobs.bind(this), 1000);
+		this.refresh_jobs = stylo.utils.throttle(this.refresh_jobs.bind(this), 1000);
 	}
 
 	make_filters() {
@@ -89,8 +89,8 @@ class BackgroundJobs {
 	}
 
 	update_scheduler_status() {
-		frappe.call({
-			method: "frappe.core.page.background_jobs.background_jobs.get_scheduler_status",
+		stylo.call({
+			method: "stylo.core.page.background_jobs.background_jobs.get_scheduler_status",
 			callback: (r) => {
 				let { status } = r.message;
 				if (status === "active") {
@@ -113,21 +113,21 @@ class BackgroundJobs {
 		}
 
 		this.page.add_inner_message(__("Refreshing..."));
-		frappe.call({
-			method: "frappe.core.page.background_jobs.background_jobs.get_info",
+		stylo.call({
+			method: "stylo.core.page.background_jobs.background_jobs.get_info",
 			args,
 			callback: (res) => {
 				this.page.add_inner_message("");
 
 				let template = view === "Jobs" ? "background_jobs" : "background_workers";
 				this.$content.html(
-					frappe.render_template(template, {
+					stylo.render_template(template, {
 						jobs: res.message || [],
 					})
 				);
 
 				let auto_refresh = this.auto_refresh.get_value();
-				if (frappe.get_route()[0] === "background_jobs" && auto_refresh) {
+				if (stylo.get_route()[0] === "background_jobs" && auto_refresh) {
 					setTimeout(() => this.refresh_jobs(), 2000);
 				}
 			},

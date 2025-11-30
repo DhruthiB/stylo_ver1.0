@@ -3,22 +3,22 @@ from io import BytesIO
 
 from PyPDF2 import PdfWriter
 
-import frappe
-from frappe import _
-from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.translate import print_language
-from frappe.utils.deprecations import deprecated
-from frappe.utils.pdf import get_pdf
+import stylo
+from stylo import _
+from stylo.core.doctype.access_log.access_log import make_access_log
+from stylo.translate import print_language
+from stylo.utils.deprecations import deprecated
+from stylo.utils.pdf import get_pdf
 
 no_cache = 1
 
 base_template_path = "www/printview.html"
 standard_format = "templates/print_formats/standard.html"
 
-from frappe.www.printview import validate_print_permission
+from stylo.www.printview import validate_print_permission
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhead=None, options=None):
 	"""
 	Concatenate multiple docs as PDF .
@@ -71,7 +71,7 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 
 		# Concatenating pdf files
 		for _i, ss in enumerate(result):
-			pdf_writer = frappe.get_print(
+			pdf_writer = stylo.get_print(
 				doctype,
 				ss,
 				format,
@@ -81,14 +81,14 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 				letterhead=letterhead,
 				pdf_options=options,
 			)
-		frappe.local.response.filename = "{doctype}.pdf".format(
+		stylo.local.response.filename = "{doctype}.pdf".format(
 			doctype=doctype.replace(" ", "-").replace("/", "-")
 		)
 	else:
 		for doctype_name in doctype:
 			for doc_name in doctype[doctype_name]:
 				try:
-					pdf_writer = frappe.get_print(
+					pdf_writer = stylo.get_print(
 						doctype_name,
 						doc_name,
 						format,
@@ -99,19 +99,19 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 						pdf_options=options,
 					)
 				except Exception:
-					frappe.log_error(
+					stylo.log_error(
 						title="Error in Multi PDF download",
 						message=f"Permission Error on doc {doc_name} of doctype {doctype_name}",
 						reference_doctype=doctype_name,
 						reference_name=doc_name,
 					)
-		frappe.local.response.filename = f"{name}.pdf"
+		stylo.local.response.filename = f"{name}.pdf"
 
 	with BytesIO() as merged_pdf:
 		pdf_writer.write(merged_pdf)
-		frappe.local.response.filecontent = merged_pdf.getvalue()
+		stylo.local.response.filecontent = merged_pdf.getvalue()
 
-	frappe.local.response.type = "pdf"
+	stylo.local.response.type = "pdf"
 
 
 @deprecated
@@ -121,51 +121,51 @@ def read_multi_pdf(output: PdfWriter) -> bytes:
 		return merged_pdf.getvalue()
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def download_pdf(
 	doctype: str, name: str, format=None, doc=None, no_letterhead=0, language=None, letterhead=None
 ):
-	doc = doc or frappe.get_doc(doctype, name)
+	doc = doc or stylo.get_doc(doctype, name)
 	validate_print_permission(doc)
 
 	with print_language(language):
-		pdf_file = frappe.get_print(
+		pdf_file = stylo.get_print(
 			doctype, name, format, doc=doc, as_pdf=True, letterhead=letterhead, no_letterhead=no_letterhead
 		)
 
-	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
-	frappe.local.response.filecontent = pdf_file
-	frappe.local.response.type = "pdf"
+	stylo.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
+	stylo.local.response.filecontent = pdf_file
+	stylo.local.response.type = "pdf"
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def report_to_pdf(html, orientation="Landscape"):
 	make_access_log(file_type="PDF", method="PDF", page=html)
-	frappe.local.response.filename = "report.pdf"
-	frappe.local.response.filecontent = get_pdf(html, {"orientation": orientation})
-	frappe.local.response.type = "pdf"
+	stylo.local.response.filename = "report.pdf"
+	stylo.local.response.filecontent = get_pdf(html, {"orientation": orientation})
+	stylo.local.response.type = "pdf"
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def print_by_server(
 	doctype, name, printer_setting, print_format=None, doc=None, no_letterhead=0, file_path=None
 ):
-	print_settings = frappe.get_doc("Network Printer Settings", printer_setting)
+	print_settings = stylo.get_doc("Network Printer Settings", printer_setting)
 	try:
 		import cups
 	except ImportError:
-		frappe.throw(_("You need to install pycups to use this feature!"))
+		stylo.throw(_("You need to install pycups to use this feature!"))
 
 	try:
 		cups.setServer(print_settings.server_ip)
 		cups.setPort(print_settings.port)
 		conn = cups.Connection()
 		output = PdfWriter()
-		output = frappe.get_print(
+		output = stylo.get_print(
 			doctype, name, print_format, doc=doc, no_letterhead=no_letterhead, as_pdf=True, output=output
 		)
 		if not file_path:
-			file_path = os.path.join("/", "tmp", f"frappe-pdf-{frappe.generate_hash()}.pdf")
+			file_path = os.path.join("/", "tmp", f"stylo-pdf-{stylo.generate_hash()}.pdf")
 		output.write(open(file_path, "wb"))
 		conn.printFile(print_settings.printer_name, file_path, name, {})
 	except OSError as e:
@@ -175,6 +175,6 @@ def print_by_server(
 			or "UnknownContentError" in e.message
 			or "RemoteHostClosedError" in e.message
 		):
-			frappe.throw(_("PDF generation failed"))
+			stylo.throw(_("PDF generation failed"))
 	except cups.IPPError:
-		frappe.throw(_("Printing failed"))
+		stylo.throw(_("Printing failed"))

@@ -1,26 +1,26 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
-from frappe.query_builder import Interval
-from frappe.query_builder.functions import Now
+import stylo
+from stylo.model.document import Document
+from stylo.query_builder import Interval
+from stylo.query_builder.functions import Now
 
 
 class ErrorLog(Document):
 	def onload(self):
-		if not self.seen and not frappe.flags.read_only:
+		if not self.seen and not stylo.flags.read_only:
 			self.db_set("seen", 1, update_modified=0)
-			frappe.db.commit()
+			stylo.db.commit()
 
 	@staticmethod
 	def clear_old_logs(days=30):
-		table = frappe.qb.DocType("Error Log")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
+		table = stylo.qb.DocType("Error Log")
+		stylo.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def clear_error_logs():
 	"""Flush all Error Logs"""
-	frappe.only_for("System Manager")
-	frappe.db.truncate("Error Log")
+	stylo.only_for("System Manager")
+	stylo.db.truncate("Error Log")

@@ -6,14 +6,14 @@ import unittest
 
 import requests
 
-import frappe
-from frappe.core.doctype.user.user import generate_keys
-from frappe.frappeclient import AuthError, StyloClient, StyloException
-from frappe.utils.data import get_url
+import stylo
+from stylo.core.doctype.user.user import generate_keys
+from stylo.styloclient import AuthError, StyloClient, StyloException
+from stylo.utils.data import get_url
 
 
 class TestStyloClient(unittest.TestCase):
-	PASSWORD = frappe.conf.admin_password or "admin"
+	PASSWORD = stylo.conf.admin_password or "admin"
 
 	@classmethod
 	def setUpClass(cls) -> None:
@@ -29,8 +29,8 @@ class TestStyloClient(unittest.TestCase):
 
 	def test_insert_many(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": ("in", ("Sing", "a", "song", "of", "sixpence"))})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": ("in", ("Sing", "a", "song", "of", "sixpence"))})
+		stylo.db.commit()
 
 		server.insert_many(
 			[
@@ -42,20 +42,20 @@ class TestStyloClient(unittest.TestCase):
 			]
 		)
 
-		self.assertTrue(frappe.db.get_value("Note", {"title": "Sing"}))
-		self.assertTrue(frappe.db.get_value("Note", {"title": "a"}))
-		self.assertTrue(frappe.db.get_value("Note", {"title": "song"}))
-		self.assertTrue(frappe.db.get_value("Note", {"title": "of"}))
-		self.assertTrue(frappe.db.get_value("Note", {"title": "sixpence"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "Sing"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "a"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "song"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "of"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "sixpence"}))
 
 	def test_create_doc(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": "test_create"})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": "test_create"})
+		stylo.db.commit()
 
 		server.insert({"doctype": "Note", "public": True, "title": "test_create"})
 
-		self.assertTrue(frappe.db.get_value("Note", {"title": "test_create"}))
+		self.assertTrue(stylo.db.get_value("Note", {"title": "test_create"}))
 
 	def test_list_docs(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
@@ -65,8 +65,8 @@ class TestStyloClient(unittest.TestCase):
 
 	def test_get_doc(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": "get_this"})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": "get_this"})
+		stylo.db.commit()
 
 		server.insert_many(
 			[
@@ -78,8 +78,8 @@ class TestStyloClient(unittest.TestCase):
 
 	def test_get_value(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": "get_value"})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": "get_value"})
+		stylo.db.commit()
 
 		test_content = "test get value"
 
@@ -114,14 +114,14 @@ class TestStyloClient(unittest.TestCase):
 		self.assertEqual(
 			server.get_value("Website Settings", "title_prefix").get("title_prefix"), "test-prefix"
 		)
-		frappe.db.rollback()  # Clear snapshot isolation
-		frappe.db.set_single_value("Website Settings", "title_prefix", "")
-		frappe.db.commit()
+		stylo.db.rollback()  # Clear snapshot isolation
+		stylo.db.set_single_value("Website Settings", "title_prefix", "")
+		stylo.db.commit()
 
 	def test_update_doc(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": ("in", ("Sing", "sing"))})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": ("in", ("Sing", "sing"))})
+		stylo.db.commit()
 
 		server.insert({"doctype": "Note", "public": True, "title": "Sing"})
 		doc = server.get_doc("Note", "Sing")
@@ -132,13 +132,13 @@ class TestStyloClient(unittest.TestCase):
 
 	def test_update_child_doc(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Contact", {"first_name": "George", "last_name": "Steevens"})
-		frappe.db.delete("Contact", {"first_name": "William", "last_name": "Shakespeare"})
-		frappe.db.delete("Communication", {"reference_doctype": "Event"})
-		frappe.db.delete("Communication Link", {"link_doctype": "Contact"})
-		frappe.db.delete("Event", {"subject": "Sing a song of sixpence"})
-		frappe.db.delete("Event Participants", {"reference_doctype": "Contact"})
-		frappe.db.commit()
+		stylo.db.delete("Contact", {"first_name": "George", "last_name": "Steevens"})
+		stylo.db.delete("Contact", {"first_name": "William", "last_name": "Shakespeare"})
+		stylo.db.delete("Communication", {"reference_doctype": "Event"})
+		stylo.db.delete("Communication Link", {"link_doctype": "Contact"})
+		stylo.db.delete("Event", {"subject": "Sing a song of sixpence"})
+		stylo.db.delete("Event Participants", {"reference_doctype": "Contact"})
+		stylo.db.commit()
 
 		# create multiple contacts
 		server.insert_many(
@@ -170,12 +170,12 @@ class TestStyloClient(unittest.TestCase):
 
 		# the change should run the parent document's validations and
 		# create a Communication record with the new contact
-		self.assertTrue(frappe.db.exists("Communication Link", {"link_name": "William Shakespeare"}))
+		self.assertTrue(stylo.db.exists("Communication Link", {"link_name": "William Shakespeare"}))
 
 	def test_delete_doc(self):
 		server = StyloClient(get_url(), "Administrator", self.PASSWORD, verify=False)
-		frappe.db.delete("Note", {"title": "delete"})
-		frappe.db.commit()
+		stylo.db.delete("Note", {"title": "delete"})
+		stylo.db.commit()
 
 		server.insert_many(
 			[
@@ -184,19 +184,19 @@ class TestStyloClient(unittest.TestCase):
 		)
 		server.delete("Note", "delete")
 
-		self.assertFalse(frappe.db.get_value("Note", {"title": "delete"}))
+		self.assertFalse(stylo.db.get_value("Note", {"title": "delete"}))
 
 	def test_auth_via_api_key_secret(self):
 		# generate API key and API secret for administrator
 		keys = generate_keys("Administrator")
-		frappe.db.commit()
-		generated_secret = frappe.utils.password.get_decrypted_password(
+		stylo.db.commit()
+		generated_secret = stylo.utils.password.get_decrypted_password(
 			"User", "Administrator", fieldname="api_secret"
 		)
 
-		api_key = frappe.db.get_value("User", "Administrator", "api_key")
+		api_key = stylo.db.get_value("User", "Administrator", "api_key")
 		header = {"Authorization": f"token {api_key}:{generated_secret}"}
-		res = requests.post(get_url() + "/api/method/frappe.auth.get_logged_user", headers=header)
+		res = requests.post(get_url() + "/api/method/stylo.auth.get_logged_user", headers=header)
 
 		self.assertEqual(res.status_code, 200)
 		self.assertEqual("Administrator", res.json()["message"])
@@ -204,22 +204,22 @@ class TestStyloClient(unittest.TestCase):
 
 		header = {
 			"Authorization": "Basic {}".format(
-				base64.b64encode(frappe.safe_encode(f"{api_key}:{generated_secret}")).decode()
+				base64.b64encode(stylo.safe_encode(f"{api_key}:{generated_secret}")).decode()
 			)
 		}
-		res = requests.post(get_url() + "/api/method/frappe.auth.get_logged_user", headers=header)
+		res = requests.post(get_url() + "/api/method/stylo.auth.get_logged_user", headers=header)
 		self.assertEqual(res.status_code, 200)
 		self.assertEqual("Administrator", res.json()["message"])
 
 		# Valid api key, invalid api secret
 		api_secret = "ksk&93nxoe3os"
 		header = {"Authorization": f"token {api_key}:{api_secret}"}
-		res = requests.post(get_url() + "/api/method/frappe.auth.get_logged_user", headers=header)
+		res = requests.post(get_url() + "/api/method/stylo.auth.get_logged_user", headers=header)
 		self.assertEqual(res.status_code, 401)
 
 		# random api key and api secret
 		api_key = "@3djdk3kld"
 		api_secret = "ksk&93nxoe3os"
 		header = {"Authorization": f"token {api_key}:{api_secret}"}
-		res = requests.post(get_url() + "/api/method/frappe.auth.get_logged_user", headers=header)
+		res = requests.post(get_url() + "/api/method/stylo.auth.get_logged_user", headers=header)
 		self.assertEqual(res.status_code, 401)

@@ -5,9 +5,9 @@ from pathlib import Path
 from werkzeug.wrappers import Response
 from werkzeug.wsgi import wrap_file
 
-import frappe
-from frappe.website.page_renderers.base_renderer import BaseRenderer
-from frappe.website.utils import is_binary_file
+import stylo
+from stylo.website.page_renderers.base_renderer import BaseRenderer
+from stylo.website.utils import is_binary_file
 
 UNSUPPORTED_STATIC_PAGE_TYPES = ("html", "md", "js", "xml", "css", "txt", "py", "json")
 
@@ -23,8 +23,8 @@ class StaticPage(BaseRenderer):
 		self.file_path = ""
 		if not self.is_valid_file_path():
 			return
-		for app in frappe.get_installed_apps():
-			app_path = Path(frappe.get_app_path(app, "www"))
+		for app in stylo.get_installed_apps():
+			app_path = Path(stylo.get_app_path(app, "www"))
 			requested_path = (app_path / self.path).resolve()
 			if (
 				requested_path.is_relative_to(app_path)
@@ -46,6 +46,6 @@ class StaticPage(BaseRenderer):
 	def render(self):
 		# file descriptor to be left open, closed by middleware
 		f = open(self.file_path, "rb")
-		response = Response(wrap_file(frappe.local.request.environ, f), direct_passthrough=True)
+		response = Response(wrap_file(stylo.local.request.environ, f), direct_passthrough=True)
 		response.mimetype = mimetypes.guess_type(self.file_path)[0] or "application/octet-stream"
 		return response

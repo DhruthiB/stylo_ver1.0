@@ -1,4 +1,4 @@
-import frappe
+import stylo
 
 
 class DbManager:
@@ -37,7 +37,7 @@ class DbManager:
 				"CREATE TEMPORARY TABLES, CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, "
 				"CREATE ROUTINE, ALTER ROUTINE, EXECUTE, LOCK TABLES"
 			)
-			if frappe.conf.rds_db
+			if stylo.conf.rds_db
 			else "ALL PRIVILEGES"
 		)
 		self.db.sql(f"GRANT {permissions} ON `{target}`.* TO '{user}'@'{host}'")
@@ -53,7 +53,7 @@ class DbManager:
 		import os
 		from distutils.spawn import find_executable
 
-		from frappe.utils import make_esc
+		from stylo.utils import make_esc
 
 		esc = make_esc("$ ")
 		pv = find_executable("pv")
@@ -68,7 +68,7 @@ class DbManager:
 
 		command = (
 			"{pipe} mysql -u {user} -p{password} -h{host} "
-			+ ("-P{port}" if frappe.db.port else "")
+			+ ("-P{port}" if stylo.db.port else "")
 			+ " {target}"
 		)
 
@@ -76,10 +76,10 @@ class DbManager:
 			pipe=pipe,
 			user=esc(user),
 			password=esc(password),
-			host=esc(frappe.db.host),
+			host=esc(stylo.db.host),
 			target=esc(target),
-			port=frappe.db.port,
+			port=stylo.db.port,
 		)
 
 		os.system(command)
-		frappe.cache().delete_keys("")  # Delete all keys associated with this site.
+		stylo.cache().delete_keys("")  # Delete all keys associated with this site.

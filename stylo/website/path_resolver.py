@@ -3,17 +3,17 @@ import re
 import click
 from werkzeug.routing import Rule
 
-import frappe
-from frappe.website.page_renderers.document_page import DocumentPage
-from frappe.website.page_renderers.list_page import ListPage
-from frappe.website.page_renderers.not_found_page import NotFoundPage
-from frappe.website.page_renderers.print_page import PrintPage
-from frappe.website.page_renderers.redirect_page import RedirectPage
-from frappe.website.page_renderers.static_page import StaticPage
-from frappe.website.page_renderers.template_page import TemplatePage
-from frappe.website.page_renderers.web_form import WebFormPage
-from frappe.website.router import evaluate_dynamic_routes
-from frappe.website.utils import can_cache, get_home_page
+import stylo
+from stylo.website.page_renderers.document_page import DocumentPage
+from stylo.website.page_renderers.list_page import ListPage
+from stylo.website.page_renderers.not_found_page import NotFoundPage
+from stylo.website.page_renderers.print_page import PrintPage
+from stylo.website.page_renderers.redirect_page import RedirectPage
+from stylo.website.page_renderers.static_page import StaticPage
+from stylo.website.page_renderers.template_page import TemplatePage
+from stylo.website.page_renderers.web_form import WebFormPage
+from stylo.website.router import evaluate_dynamic_routes
+from stylo.website.utils import can_cache, get_home_page
 
 
 class PathResolver:
@@ -24,18 +24,18 @@ class PathResolver:
 
 	def resolve(self):
 		"""Returns endpoint and a renderer instance that can render the endpoint"""
-		request = frappe._dict()
-		if hasattr(frappe.local, "request"):
-			request = frappe.local.request or request
+		request = stylo._dict()
+		if hasattr(stylo.local, "request"):
+			request = stylo.local.request or request
 
 		# check if the request url is in 404 list
-		if request.url and can_cache() and frappe.cache().hget("website_404", request.url):
+		if request.url and can_cache() and stylo.cache().hget("website_404", request.url):
 			return self.path, NotFoundPage(self.path)
 
 		try:
 			resolve_redirect(self.path, request.query_string)
-		except frappe.Redirect:
-			return frappe.flags.redirect_location, RedirectPage(self.path)
+		except stylo.Redirect:
+			return stylo.flags.redirect_location, RedirectPage(self.path)
 
 		endpoint = resolve_path(self.path)
 
@@ -69,9 +69,9 @@ class PathResolver:
 	@staticmethod
 	def get_custom_page_renderers():
 		custom_renderers = []
-		for renderer_path in frappe.get_hooks("page_renderer") or []:
+		for renderer_path in stylo.get_hooks("page_renderer") or []:
 			try:
-				renderer = frappe.get_attr(renderer_path)
+				renderer = stylo.get_attr(renderer_path)
 				if not hasattr(renderer, "can_render"):
 					click.echo(f"{renderer.__name__} does not have can_render method")
 					continue
@@ -105,29 +105,29 @@ def resolve_redirect(path, query_string=None):
 	                # use r as a string prefix if you use regex groups or want to escape any string literal
 	        ]
 	"""
-	redirects = frappe.get_hooks("website_redirects")
-	redirects += frappe.get_all("Website Route Redirect", ["source", "target"], order_by=None)
+	redirects = stylo.get_hooks("website_redirects")
+	redirects += stylo.get_all("Website Route Redirect", ["source", "target"], order_by=None)
 
 	if not redirects:
 		return
 
-	redirect_to = frappe.cache().hget("website_redirects", path)
+	redirect_to = stylo.cache().hget("website_redirects", path)
 
 	if redirect_to:
-		frappe.flags.redirect_location = redirect_to
-		raise frappe.Redirect
+		stylo.flags.redirect_location = redirect_to
+		raise stylo.Redirect
 
 	for rule in redirects:
 		pattern = rule["source"].strip("/ ") + "$"
 		path_to_match = path
 		if query_string and rule.get("match_with_query_string"):
-			path_to_match = path + "?" + frappe.safe_decode(query_string)
+			path_to_match = path + "?" + stylo.safe_decode(query_string)
 
 		if re.match(pattern, path_to_match):
 			redirect_to = re.sub(pattern, rule["target"], path_to_match)
-			frappe.flags.redirect_location = redirect_to
-			frappe.cache().hset("website_redirects", path_to_match, redirect_to)
-			raise frappe.Redirect
+			stylo.flags.redirect_location = redirect_to
+			stylo.cache().hset("website_redirects", path_to_match, redirect_to)
+			raise stylo.Redirect
 
 
 def resolve_path(path):
@@ -140,7 +140,7 @@ def resolve_path(path):
 	if path == "index":
 		path = get_home_page()
 
-	frappe.local.path = path
+	stylo.local.path = path
 
 	if path != "index":
 		path = resolve_from_map(path)
@@ -161,20 +161,20 @@ def get_website_rules():
 	"""Get website route rules from hooks and DocType route"""
 
 	def _get():
-		rules = frappe.get_hooks("website_route_rules")
-		for d in frappe.get_all("DocType", "name, route", dict(has_web_view=1)):
+		rules = stylo.get_hooks("website_route_rules")
+		for d in stylo.get_all("DocType", "name, route", dict(has_web_view=1)):
 			if d.route:
 				rules.append(dict(from_route="/" + d.route.strip("/"), to_route=d.name))
 
 		return rules
 
-	if frappe.local.dev_server:
+	if stylo.local.dev_server:
 		# dont cache in development
 		return _get()
 
-	return frappe.cache().get_value("website_route_rules", _get)
+	return stylo.cache().get_value("website_route_rules", _get)
 
 
 def validate_path(path: str):
 	if not PathResolver(path).is_valid_path():
-		frappe.throw(frappe._("Path {0} it not a valid path").format(frappe.bold(path)))
+		stylo.throw(stylo._("Path {0} it not a valid path").format(stylo.bold(path)))

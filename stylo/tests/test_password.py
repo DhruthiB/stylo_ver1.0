@@ -2,15 +2,15 @@
 # License: MIT. See LICENSE
 from cryptography.fernet import Fernet
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.password import check_password, decrypt, encrypt, passlibctx, update_password
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.password import check_password, decrypt, encrypt, passlibctx, update_password
 
 
 class TestPassword(StyloTestCase):
 	def setUp(self):
-		frappe.delete_doc("Email Account", "Test Email Account Password")
-		frappe.delete_doc("Email Account", "Test Email Account Password-new")
+		stylo.delete_doc("Email Account", "Test Email Account Password")
+		stylo.delete_doc("Email Account", "Test Email Account Password-new")
 
 	def test_encrypted_password(self):
 		doc = self.make_email_account()
@@ -34,8 +34,8 @@ class TestPassword(StyloTestCase):
 		return doc, new_password
 
 	def make_email_account(self, name="Test Email Account Password"):
-		if not frappe.db.exists("Email Account", name):
-			return frappe.get_doc(
+		if not stylo.db.exists("Email Account", name):
+			return stylo.get_doc(
 				{
 					"doctype": "Email Account",
 					"domain": "example.com",
@@ -49,7 +49,7 @@ class TestPassword(StyloTestCase):
 			).insert()
 
 		else:
-			return frappe.get_doc("Email Account", name)
+			return stylo.get_doc("Email Account", name)
 
 	def test_hashed_password(self, user="test@example.com"):
 		old_password = "Eastern_43A1W"
@@ -72,7 +72,7 @@ class TestPassword(StyloTestCase):
 		self.assertTrue(check_password(user, old_password))
 
 		# shouldn't work with old password
-		self.assertRaises(frappe.AuthenticationError, check_password, user, new_password)
+		self.assertRaises(stylo.AuthenticationError, check_password, user, new_password)
 
 	def test_password_on_rename_user(self):
 		password = "test-rename-password"
@@ -83,13 +83,13 @@ class TestPassword(StyloTestCase):
 
 		old_name = doc.name
 		new_name = old_name + "-new"
-		frappe.rename_doc(doc.doctype, old_name, new_name)
+		stylo.rename_doc(doc.doctype, old_name, new_name)
 
-		new_doc = frappe.get_doc(doc.doctype, new_name)
+		new_doc = stylo.get_doc(doc.doctype, new_name)
 		self.assertEqual(new_doc.get_password(), password)
 		self.assertTrue(not get_password_list(doc))
 
-		frappe.rename_doc(doc.doctype, new_name, old_name)
+		stylo.rename_doc(doc.doctype, new_name, old_name)
 		self.assertTrue(get_password_list(doc))
 
 	def test_password_on_delete(self):
@@ -122,7 +122,7 @@ class TestPassword(StyloTestCase):
 
 
 def get_password_list(doc):
-	return frappe.db.sql(
+	return stylo.db.sql(
 		"""SELECT `password`
 			FROM `__Auth`
 			WHERE `doctype`=%s

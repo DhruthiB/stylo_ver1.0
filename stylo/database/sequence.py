@@ -1,4 +1,4 @@
-from frappe import db, scrub
+from stylo import db, scrub
 
 
 def create_sequence(

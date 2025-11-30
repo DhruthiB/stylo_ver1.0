@@ -1,13 +1,13 @@
 // Copyright (c) 2019, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Dashboard", {
+stylo.ui.form.on("Dashboard", {
 	refresh: function (frm) {
 		frm.add_custom_button(__("Show Dashboard"), () =>
-			frappe.set_route("dashboard-view", frm.doc.name)
+			stylo.set_route("dashboard-view", frm.doc.name)
 		);
 
-		if (!frappe.boot.developer_mode && frm.doc.is_standard) {
+		if (!stylo.boot.developer_mode && frm.doc.is_standard) {
 			frm.disable_form();
 		}
 

@@ -16,13 +16,13 @@ from rq.logutils import setup_loghandlers
 from rq.worker import RandomWorker, RoundRobinWorker
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-import frappe
-import frappe.monitor
-from frappe import _
-from frappe.utils import cint, cstr, get_forge_id
-from frappe.utils.commands import log
-from frappe.utils.deprecations import deprecation_warning
-from frappe.utils.redis_queue import RedisQueue
+import stylo
+import stylo.monitor
+from stylo import _
+from stylo.utils import cint, cstr, get_forge_id
+from stylo.utils.commands import log
+from stylo.utils.deprecations import deprecation_warning
+from stylo.utils.redis_queue import RedisQueue
 
 # TTL to keep RQ job logs in redis for.
 RQ_JOB_FAILURE_TTL = 7 * 24 * 60 * 60  # 7 days instead of 1 year (default)
@@ -35,7 +35,7 @@ _redis_queue_conn = None
 
 @lru_cache
 def get_queues_timeout():
-	common_site_config = frappe.get_conf()
+	common_site_config = stylo.get_conf()
 	custom_workers_config = common_site_config.get("workers", {})
 	default_timeout = 300
 
@@ -74,7 +74,7 @@ def enqueue(
 	:param event: this is passed to enable clearing of jobs from queues
 	:param is_async: if is_async=False, the method is executed immediately, else via a worker
 	:param job_name: [DEPRECATED] can be used to name an enqueue call, which can be used to prevent duplicate calls
-	:param now: if now=True, the method is executed via frappe.call
+	:param now: if now=True, the method is executed via stylo.call
 	:param kwargs: keyword arguments to be passed to the method
 	:param job_id: Assigning unique job id, which can be checked using `is_job_enqueued`
 	"""
@@ -88,30 +88,30 @@ def enqueue(
 	if job_name:
 		deprecation_warning("Using enqueue with `job_name` is deprecated, use `job_id` instead.")
 
-	if not is_async and not frappe.flags.in_test:
+	if not is_async and not stylo.flags.in_test:
 		deprecation_warning(
 			"Using enqueue with is_async=False outside of tests is not recommended, use now=True instead."
 		)
 
-	call_directly = now or (not is_async and not frappe.flags.in_test)
+	call_directly = now or (not is_async and not stylo.flags.in_test)
 	if call_directly:
-		return frappe.call(method, **kwargs)
+		return stylo.call(method, **kwargs)
 
 	try:
 		q = get_queue(queue, is_async=is_async)
 	except ConnectionError:
-		if frappe.local.flags.in_migrate:
+		if stylo.local.flags.in_migrate:
 			# If redis is not available during migration, execute the job directly
 			print(f"Redis queue is unreachable: Executing {method} synchronously")
-			return frappe.call(method, **kwargs)
+			return stylo.call(method, **kwargs)
 
 		raise
 
 	if not timeout:
 		timeout = get_queues_timeout().get(queue) or 300
 	queue_args = {
-		"site": frappe.local.site,
-		"user": frappe.session.user,
+		"site": stylo.local.site,
+		"user": stylo.session.user,
 		"method": method,
 		"event": event,
 		"job_name": job_name or cstr(method),
@@ -120,10 +120,10 @@ def enqueue(
 	}
 
 	if enqueue_after_commit:
-		if not frappe.flags.enqueue_after_commit:
-			frappe.flags.enqueue_after_commit = []
+		if not stylo.flags.enqueue_after_commit:
+			stylo.flags.enqueue_after_commit = []
 
-		frappe.flags.enqueue_after_commit.append(
+		stylo.flags.enqueue_after_commit.append(
 			{
 				"queue": queue,
 				"is_async": is_async,
@@ -139,8 +139,8 @@ def enqueue(
 		timeout=timeout,
 		kwargs=queue_args,
 		at_front=at_front,
-		failure_ttl=frappe.conf.get("rq_job_failure_ttl") or RQ_JOB_FAILURE_TTL,
-		result_ttl=frappe.conf.get("rq_results_ttl") or RQ_RESULTS_TTL,
+		failure_ttl=stylo.conf.get("rq_job_failure_ttl") or RQ_JOB_FAILURE_TTL,
+		result_ttl=stylo.conf.get("rq_results_ttl") or RQ_RESULTS_TTL,
 		job_id=job_id,
 		on_failure=truncate_failed_registry,
 	)
@@ -149,7 +149,7 @@ def enqueue(
 def enqueue_doc(doctype, name=None, method=None, queue="default", timeout=300, now=False, **kwargs):
 	"""Enqueue a method to be run on a document"""
 	return enqueue(
-		"frappe.utils.background_jobs.run_doc_method",
+		"stylo.utils.background_jobs.run_doc_method",
 		doctype=doctype,
 		name=name,
 		doc_method=method,
@@ -161,73 +161,73 @@ def enqueue_doc(doctype, name=None, method=None, queue="default", timeout=300, n
 
 
 def run_doc_method(doctype, name, doc_method, **kwargs):
-	getattr(frappe.get_doc(doctype, name), doc_method)(**kwargs)
+	getattr(stylo.get_doc(doctype, name), doc_method)(**kwargs)
 
 
 def execute_job(site, method, event, job_name, kwargs, user=None, is_async=True, retry=0):
 	"""Executes job in a worker, performs commit/rollback and logs if there is any error"""
 	retval = None
 	if is_async:
-		frappe.connect(site)
+		stylo.connect(site)
 		if os.environ.get("CI"):
-			frappe.flags.in_test = True
+			stylo.flags.in_test = True
 
 		if user:
-			frappe.set_user(user)
+			stylo.set_user(user)
 
 	if isinstance(method, str):
 		method_name = method
-		method = frappe.get_attr(method)
+		method = stylo.get_attr(method)
 	else:
 		method_name = cstr(method.__name__)
 
-	for before_job_task in frappe.get_hooks("before_job"):
-		frappe.call(before_job_task, method=method_name, kwargs=kwargs, transaction_type="job")
+	for before_job_task in stylo.get_hooks("before_job"):
+		stylo.call(before_job_task, method=method_name, kwargs=kwargs, transaction_type="job")
 
 	try:
 		retval = method(**kwargs)
 
-	except (frappe.db.InternalError, frappe.RetryBackgroundJobError) as e:
-		frappe.db.rollback()
+	except (stylo.db.InternalError, stylo.RetryBackgroundJobError) as e:
+		stylo.db.rollback()
 
 		if retry < 5 and (
-			isinstance(e, frappe.RetryBackgroundJobError)
-			or (frappe.db.is_deadlocked(e) or frappe.db.is_timedout(e))
+			isinstance(e, stylo.RetryBackgroundJobError)
+			or (stylo.db.is_deadlocked(e) or stylo.db.is_timedout(e))
 		):
 			# retry the job if
 			# 1213 = deadlock
 			# 1205 = lock wait timeout
 			# or RetryBackgroundJobError is explicitly raised
-			frappe.job.after_job.reset()
-			frappe.destroy()
+			stylo.job.after_job.reset()
+			stylo.destroy()
 			time.sleep(retry + 1)
 
 			return execute_job(site, method, event, job_name, kwargs, is_async=is_async, retry=retry + 1)
 
 		else:
-			frappe.log_error(title=method_name)
+			stylo.log_error(title=method_name)
 			raise
 
 	except Exception:
-		frappe.db.rollback()
-		frappe.log_error(title=method_name)
-		frappe.db.commit()
-		print(frappe.get_traceback())
+		stylo.db.rollback()
+		stylo.log_error(title=method_name)
+		stylo.db.commit()
+		print(stylo.get_traceback())
 		raise
 
 	else:
-		frappe.db.commit()
+		stylo.db.commit()
 		return retval
 
 	finally:
-		if not hasattr(frappe.local, "site"):
-			frappe.init(site)
-			frappe.connect()
-		for after_job_task in frappe.get_hooks("after_job"):
-			frappe.call(after_job_task, method=method_name, kwargs=kwargs, result=retval)
+		if not hasattr(stylo.local, "site"):
+			stylo.init(site)
+			stylo.connect()
+		for after_job_task in stylo.get_hooks("after_job"):
+			stylo.call(after_job_task, method=method_name, kwargs=kwargs, result=retval)
 
 		if is_async:
-			frappe.destroy()
+			stylo.destroy()
 
 
 def start_worker(
@@ -241,11 +241,11 @@ def start_worker(
 	"""Wrapper to start rq worker. Connects to redis and monitors these queues."""
 	DEQUEUE_STRATEGIES = {"round_robin": RoundRobinWorker, "random": RandomWorker}
 
-	if frappe._tune_gc:
+	if stylo._tune_gc:
 		gc.collect()
 		gc.freeze()
 
-	with frappe.init_site():
+	with stylo.init_site():
 		# empty init is required to get redis_queue from common_site_config.json
 		redis_connection = get_redis_conn(username=rq_username, password=rq_password)
 
@@ -352,7 +352,7 @@ def validate_queue(queue, default_queue_list=None):
 		default_queue_list = list(get_queues_timeout())
 
 	if queue not in default_queue_list:
-		frappe.throw(_("Queue should be one of {0}").format(", ".join(default_queue_list)))
+		stylo.throw(_("Queue should be one of {0}").format(", ".join(default_queue_list)))
 
 
 @retry(
@@ -361,22 +361,22 @@ def validate_queue(queue, default_queue_list=None):
 	wait=wait_fixed(1),
 )
 def get_redis_conn(username=None, password=None):
-	if not hasattr(frappe.local, "conf"):
-		raise Exception("You need to call frappe.init")
+	if not hasattr(stylo.local, "conf"):
+		raise Exception("You need to call stylo.init")
 
-	elif not frappe.local.conf.redis_queue:
+	elif not stylo.local.conf.redis_queue:
 		raise Exception("redis_queue missing in common_site_config.json")
 
 	global _redis_queue_conn
 
-	cred = frappe._dict()
-	if frappe.conf.get("use_rq_auth"):
+	cred = stylo._dict()
+	if stylo.conf.get("use_rq_auth"):
 		if username:
 			cred["username"] = username
 			cred["password"] = password
 		else:
-			cred["username"] = frappe.get_site_config().rq_username or get_forge_id()
-			cred["password"] = frappe.get_site_config().rq_password
+			cred["username"] = stylo.get_site_config().rq_username or get_forge_id()
+			cred["password"] = stylo.get_site_config().rq_password
 
 	elif os.environ.get("RQ_ADMIN_PASWORD"):
 		cred["username"] = "default"
@@ -398,7 +398,7 @@ def get_redis_conn(username=None, password=None):
 		raise
 	except Exception as e:
 		log(
-			f"Please make sure that Redis Queue runs @ {frappe.get_conf().redis_queue}. Redis reported error: {e!s}",
+			f"Please make sure that Redis Queue runs @ {stylo.get_conf().redis_queue}. Redis reported error: {e!s}",
 			colour="red",
 		)
 		raise
@@ -427,7 +427,7 @@ def is_queue_accessible(qobj: Queue) -> bool:
 
 
 def enqueue_test_job():
-	enqueue("frappe.utils.background_jobs.test_job", s=100)
+	enqueue("stylo.utils.background_jobs.test_job", s=100)
 
 
 def test_job(s):
@@ -439,7 +439,7 @@ def test_job(s):
 
 def create_job_id(job_id: str) -> str:
 	"""Generate unique job id for deduplication"""
-	return f"{frappe.local.site}::{job_id}"
+	return f"{stylo.local.site}::{job_id}"
 
 
 def is_job_enqueued(job_id: str) -> str:
@@ -463,7 +463,7 @@ def set_niceness():
 	Note: This function should be called only once in process' lifetime.
 	"""
 
-	conf = frappe.get_conf()
+	conf = stylo.get_conf()
 	nice_increment = BACKGROUND_PROCESS_NICENESS
 
 	configured_niceness = conf.get("background_process_niceness")
@@ -476,9 +476,9 @@ def set_niceness():
 
 def truncate_failed_registry(job, connection, type, value, traceback):
 	"""Ensures that number of failed jobs don't exceed specified limits."""
-	from frappe.utils import create_batch
+	from stylo.utils import create_batch
 
-	conf = frappe.conf if frappe.conf else frappe.get_conf(site=job.kwargs.get("site"))
+	conf = stylo.conf if stylo.conf else stylo.get_conf(site=job.kwargs.get("site"))
 	limit = (conf.get("rq_failed_jobs_limit") or RQ_FAILED_JOBS_LIMIT) - 1
 
 	for queue in get_queues(connection=connection):

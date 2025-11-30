@@ -1,6 +1,6 @@
-frappe.ui.form.on("Web Form", {
+stylo.ui.form.on("Web Form", {
 	setup: function () {
-		frappe.meta.docfield_map["Web Form Field"].fieldtype.formatter = (value) => {
+		stylo.meta.docfield_map["Web Form Field"].fieldtype.formatter = (value) => {
 			const prefix = {
 				"Page Break": "--red-600",
 				"Section Break": "--blue-600",
@@ -12,21 +12,21 @@ frappe.ui.form.on("Web Form", {
 			return value;
 		};
 
-		frappe.meta.docfield_map["Web Form Field"].fieldname.formatter = (value) => {
+		stylo.meta.docfield_map["Web Form Field"].fieldname.formatter = (value) => {
 			if (!value) return;
-			return frappe.unscrub(value);
+			return stylo.unscrub(value);
 		};
 
-		frappe.meta.docfield_map["Web Form List Column"].fieldname.formatter = (value) => {
+		stylo.meta.docfield_map["Web Form List Column"].fieldname.formatter = (value) => {
 			if (!value) return;
-			return frappe.unscrub(value);
+			return stylo.unscrub(value);
 		};
 	},
 
 	refresh: function (frm) {
-		if (frm.doc.is_standard && !frappe.boot.developer_mode) {
+		if (frm.doc.is_standard && !stylo.boot.developer_mode) {
 			frm.disable_form();
-			frappe.show_alert(
+			stylo.show_alert(
 				__("Standard Web Forms can not be modified, duplicate the Web Form instead.")
 			);
 		}
@@ -60,7 +60,7 @@ frappe.ui.form.on("Web Form", {
 
 		if (!frm.doc.web_form_fields) {
 			frm.scroll_to_field("web_form_fields");
-			frappe.throw(__("Atleast one field is required in Web Form Fields Table"));
+			stylo.throw(__("Atleast one field is required in Web Form Fields Table"));
 		}
 
 		let page_break_count = frm.doc.web_form_fields.filter(
@@ -68,7 +68,7 @@ frappe.ui.form.on("Web Form", {
 		).length;
 
 		if (page_break_count >= 10) {
-			frappe.throw(__("There can be only 9 Page Break fields in a Web Form"));
+			stylo.throw(__("There can be only 9 Page Break fields in a Web Form"));
 		}
 	},
 
@@ -81,7 +81,7 @@ frappe.ui.form.on("Web Form", {
 
 	add_get_fields_button(frm) {
 		frm.add_custom_button(__("Get Fields"), () => {
-			let webform_fieldtypes = frappe.meta
+			let webform_fieldtypes = stylo.meta
 				.get_field("Web Form Field", "fieldtype")
 				.options.split("\n");
 
@@ -133,7 +133,7 @@ frappe.ui.form.on("Web Form", {
 				fields
 					.filter(
 						(df) =>
-							!frappe.model.no_value_type.includes(df.fieldtype) &&
+							!stylo.model.no_value_type.includes(df.fieldtype) &&
 							df.is_virtual !== 1
 					)
 					.map(as_select_option)
@@ -263,7 +263,7 @@ frappe.ui.form.on("Web Form", {
 		}
 
 		table.on("click", () => {
-			let dialog = new frappe.ui.Dialog({
+			let dialog = new stylo.ui.Dialog({
 				title: __("Set Filters"),
 				fields: fields,
 				primary_action: function () {
@@ -278,7 +278,7 @@ frappe.ui.form.on("Web Form", {
 				primary_action_label: "Set",
 			});
 
-			frm.filter_group = new frappe.ui.FilterGroup({
+			frm.filter_group = new stylo.ui.FilterGroup({
 				parent: dialog.get_field("filter_area").$wrapper,
 				doctype: frm.doc.doc_type,
 				on_change: () => {},
@@ -292,10 +292,10 @@ frappe.ui.form.on("Web Form", {
 	},
 });
 
-frappe.ui.form.on("Web Form List Column", {
+stylo.ui.form.on("Web Form List Column", {
 	fieldname: function (frm, doctype, name) {
-		let doc = frappe.get_doc(doctype, name);
-		let df = frappe.meta.get_docfield(frm.doc.doc_type, doc.fieldname);
+		let doc = stylo.get_doc(doctype, name);
+		let df = stylo.meta.get_docfield(frm.doc.doc_type, doc.fieldname);
 		if (!df) return;
 		doc.fieldtype = df.fieldtype;
 		doc.label = df.label;
@@ -303,16 +303,16 @@ frappe.ui.form.on("Web Form List Column", {
 	},
 });
 
-frappe.ui.form.on("Web Form Field", {
+stylo.ui.form.on("Web Form Field", {
 	fieldtype: function (frm, doctype, name) {
-		let doc = frappe.get_doc(doctype, name);
+		let doc = stylo.get_doc(doctype, name);
 
 		if (doc.fieldtype == "Page Break") {
 			let page_break_count = frm.doc.web_form_fields.filter(
 				(f) => f.fieldtype == "Page Break"
 			).length;
 			page_break_count >= 10 &&
-				frappe.throw(__("There can be only 9 Page Break fields in a Web Form"));
+				stylo.throw(__("There can be only 9 Page Break fields in a Web Form"));
 		}
 
 		if (["Section Break", "Column Break", "Page Break"].includes(doc.fieldtype)) {
@@ -323,8 +323,8 @@ frappe.ui.form.on("Web Form Field", {
 		}
 	},
 	fieldname: function (frm, doctype, name) {
-		let doc = frappe.get_doc(doctype, name);
-		let df = frappe.meta.get_docfield(frm.doc.doc_type, doc.fieldname);
+		let doc = stylo.get_doc(doctype, name);
+		let df = stylo.meta.get_docfield(frm.doc.doc_type, doc.fieldname);
 		if (!df) return;
 
 		doc.label = df.label;
@@ -342,10 +342,10 @@ frappe.ui.form.on("Web Form Field", {
 });
 
 function get_fields_for_doctype(doctype) {
-	return new Promise((resolve) => frappe.model.with_doctype(doctype, resolve)).then(() => {
-		return frappe.meta.get_docfields(doctype).filter((df) => {
+	return new Promise((resolve) => stylo.model.with_doctype(doctype, resolve)).then(() => {
+		return stylo.meta.get_docfields(doctype).filter((df) => {
 			return (
-				(frappe.model.is_value_type(df.fieldtype) &&
+				(stylo.model.is_value_type(df.fieldtype) &&
 					!["lft", "rgt"].includes(df.fieldname)) ||
 				["Table", "Table Multiselect"].includes(df.fieldtype)
 			);

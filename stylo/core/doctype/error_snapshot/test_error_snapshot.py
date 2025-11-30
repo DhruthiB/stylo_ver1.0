@@ -1,9 +1,9 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.logger import sanitized_dict
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.logger import sanitized_dict
 
-# test_records = frappe.get_test_records('Error Snapshot')
+# test_records = stylo.get_test_records('Error Snapshot')
 
 
 class TestErrorSnapshot(StyloTestCase):

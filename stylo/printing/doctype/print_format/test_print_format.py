@@ -2,15 +2,15 @@
 # License: MIT. See LICENSE
 import re
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
-test_records = frappe.get_test_records("Print Format")
+test_records = stylo.get_test_records("Print Format")
 
 
 class TestPrintFormat(StyloTestCase):
 	def test_print_user(self, style=None):
-		print_html = frappe.get_print("User", "Administrator", style=style)
+		print_html = stylo.get_print("User", "Administrator", style=style)
 		self.assertTrue("<label>First Name: </label>" in print_html)
 		self.assertTrue(re.findall(r'<div class="col-xs-[^"]*">[\s]*administrator[\s]*</div>', print_html))
 		return print_html

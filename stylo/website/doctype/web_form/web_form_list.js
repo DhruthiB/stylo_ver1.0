@@ -1,4 +1,4 @@
-frappe.listview_settings["Web Form"] = {
+stylo.listview_settings["Web Form"] = {
 	add_fields: ["title", "published"],
 	get_indicator: function (doc) {
 		if (doc.published) {

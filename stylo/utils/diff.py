@@ -1,12 +1,12 @@
 import json
 from difflib import unified_diff
 
-import frappe
-from frappe.utils import pretty_date
-from frappe.utils.data import cstr
+import stylo
+from stylo.utils import pretty_date
+from stylo.utils.data import cstr
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_version_diff(from_version: int | str, to_version: int | str, fieldname: str = "script") -> list[str]:
 	before, before_timestamp = _get_value_from_version(from_version, fieldname)
 	after, after_timestamp = _get_value_from_version(to_version, fieldname)
@@ -29,7 +29,7 @@ def get_version_diff(from_version: int | str, to_version: int | str, fieldname: 
 
 
 def _get_value_from_version(version_name: int | str, fieldname: str):
-	version = frappe.get_list("Version", fields=["data", "modified"], filters={"name": version_name})
+	version = stylo.get_list("Version", fields=["data", "modified"], filters={"name": version_name})
 	if version:
 		data = json.loads(version[0].data)
 		changed_fields = data.get("changed", [])
@@ -42,8 +42,8 @@ def _get_value_from_version(version_name: int | str, fieldname: str):
 	return None, None
 
 
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
+@stylo.whitelist()
+@stylo.validate_and_sanitize_search_inputs
 def version_query(doctype, txt, searchfield, start, page_len, filters):
 	version_filters = {
 		"docname": filters["docname"],
@@ -54,7 +54,7 @@ def version_query(doctype, txt, searchfield, start, page_len, filters):
 		# This helps filter version logs which contain changes to the field.
 		version_filters["data"] = ("LIKE", f'%"{fieldname}"%')
 
-	results = frappe.get_list(
+	results = stylo.get_list(
 		"Version",
 		fields=["name", "modified", "owner"],
 		filters=version_filters,

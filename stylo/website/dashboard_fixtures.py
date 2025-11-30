@@ -1,8 +1,8 @@
-import frappe
+import stylo
 
 
 def get_data():
-	return frappe._dict(
+	return stylo._dict(
 		{
 			"dashboards": get_dashboards(),
 			"charts": get_charts(),

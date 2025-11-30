@@ -12,24 +12,24 @@ from urllib.parse import unquote
 
 import redis
 
-import frappe
-import frappe.defaults
-import frappe.model.meta
-import frappe.translate
-import frappe.utils
-from frappe import _
-from frappe.cache_manager import clear_user_cache
-from frappe.query_builder import Order
-from frappe.utils import cint, cstr, get_assets_json
-from frappe.utils.data import add_to_date
+import stylo
+import stylo.defaults
+import stylo.model.meta
+import stylo.translate
+import stylo.utils
+from stylo import _
+from stylo.cache_manager import clear_user_cache
+from stylo.query_builder import Order
+from stylo.utils import cint, cstr, get_assets_json
+from stylo.utils.data import add_to_date
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def clear():
-	frappe.local.session_obj.update(force=True)
-	frappe.local.db.commit()
-	clear_user_cache(frappe.session.user)
-	frappe.response["message"] = _("Cache Cleared")
+	stylo.local.session_obj.update(force=True)
+	stylo.local.db.commit()
+	clear_user_cache(stylo.session.user)
+	stylo.response["message"] = _("Cache Cleared")
 
 
 def clear_sessions(user=None, keep_current=False, device=None, force=False):
@@ -58,7 +58,7 @@ def get_sessions_to_clear(user=None, keep_current=False, device=None, force=Fals
 	:param force: ignore simultaneous sessions count, log the user out of all except current (default: false)
 	"""
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
 	if not device:
 		device = ("desktop", "mobile")
@@ -67,16 +67,16 @@ def get_sessions_to_clear(user=None, keep_current=False, device=None, force=Fals
 		device = (device,)
 
 	offset = 0
-	if not force and user == frappe.session.user:
-		simultaneous_sessions = frappe.db.get_value("User", user, "simultaneous_sessions") or 1
+	if not force and user == stylo.session.user:
+		simultaneous_sessions = stylo.db.get_value("User", user, "simultaneous_sessions") or 1
 		offset = simultaneous_sessions
 
-	session = frappe.qb.DocType("Sessions")
-	session_id = frappe.qb.from_(session).where((session.user == user) & (session.device.isin(device)))
+	session = stylo.qb.DocType("Sessions")
+	session_id = stylo.qb.from_(session).where((session.user == user) & (session.device.isin(device)))
 	if keep_current:
 		if not force:
 			offset = max(0, offset - 1)
-		session_id = session_id.where(session.sid != frappe.session.sid)
+		session_id = session_id.where(session.sid != stylo.session.sid)
 
 	query = (
 		session_id.select(session.sid).offset(offset).limit(100).orderby(session.lastupdate, order=Order.desc)
@@ -86,43 +86,43 @@ def get_sessions_to_clear(user=None, keep_current=False, device=None, force=Fals
 
 
 def delete_session(sid=None, user=None, reason="Session Expired"):
-	from frappe.core.doctype.activity_log.feed import logout_feed
+	from stylo.core.doctype.activity_log.feed import logout_feed
 
-	if frappe.flags.read_only:
+	if stylo.flags.read_only:
 		# This isn't manually initiated logout, most likely user's cookies were expired in such case
 		# we should just ignore it till database is back up again.
 		return
 
-	frappe.cache().hdel("session", sid)
-	frappe.cache().hdel("last_db_session_update", sid)
+	stylo.cache().hdel("session", sid)
+	stylo.cache().hdel("last_db_session_update", sid)
 	if sid and not user:
-		table = frappe.qb.DocType("Sessions")
-		user_details = frappe.qb.from_(table).where(table.sid == sid).select(table.user).run(as_dict=True)
+		table = stylo.qb.DocType("Sessions")
+		user_details = stylo.qb.from_(table).where(table.sid == sid).select(table.user).run(as_dict=True)
 		if user_details:
 			user = user_details[0].get("user")
 
 	logout_feed(user, reason)
-	frappe.db.delete("Sessions", {"sid": sid})
-	frappe.db.commit()
+	stylo.db.delete("Sessions", {"sid": sid})
+	stylo.db.commit()
 
 
 def clear_all_sessions(reason=None):
 	"""This effectively logs out all users"""
-	frappe.only_for("Administrator")
+	stylo.only_for("Administrator")
 	if not reason:
 		reason = "Deleted All Active Session"
-	for sid in frappe.qb.from_("Sessions").select("sid").run(pluck=True):
+	for sid in stylo.qb.from_("Sessions").select("sid").run(pluck=True):
 		delete_session(sid, reason=reason)
 
 
 def get_expired_sessions():
 	"""Returns list of expired sessions"""
-	sessions = frappe.qb.DocType("Sessions")
+	sessions = stylo.qb.DocType("Sessions")
 	expired = []
 	for device in ("desktop", "mobile"):
 		expired.extend(
 			(
-				frappe.qb.from_(sessions)
+				stylo.qb.from_(sessions)
 				.select(sessions.sid)
 				.where((sessions.lastupdate < get_expired_threshold(device)) & (sessions.device == device))
 			).run(pluck=True)
@@ -139,23 +139,23 @@ def clear_expired_sessions():
 
 def get():
 	"""get session boot info"""
-	from frappe.boot import get_bootinfo, get_unseen_notes
-	from frappe.utils.change_log import get_change_log
+	from stylo.boot import get_bootinfo, get_unseen_notes
+	from stylo.utils.change_log import get_change_log
 
 	bootinfo = None
-	if not getattr(frappe.conf, "disable_session_cache", None):
+	if not getattr(stylo.conf, "disable_session_cache", None):
 		# check if cache exists
-		bootinfo = frappe.cache().hget("bootinfo", frappe.session.user)
+		bootinfo = stylo.cache().hget("bootinfo", stylo.session.user)
 		if bootinfo:
 			bootinfo["from_cache"] = 1
-			bootinfo["user"]["recent"] = json.dumps(frappe.cache().hget("user_recent", frappe.session.user))
+			bootinfo["user"]["recent"] = json.dumps(stylo.cache().hget("user_recent", stylo.session.user))
 
 	if not bootinfo:
 		# if not create it
 		bootinfo = get_bootinfo()
-		frappe.cache().hset("bootinfo", frappe.session.user, bootinfo)
+		stylo.cache().hset("bootinfo", stylo.session.user, bootinfo)
 		try:
-			frappe.cache().ping()
+			stylo.cache().ping()
 		except redis.exceptions.ConnectionError:
 			message = _("Redis cache server not running. Please contact Administrator / Tech support")
 			if "messages" in bootinfo:
@@ -164,46 +164,46 @@ def get():
 				bootinfo["messages"] = [message]
 
 		# check only when clear cache is done, and don't cache this
-		if frappe.local.request:
+		if stylo.local.request:
 			bootinfo["change_log"] = get_change_log()
 
-	bootinfo["metadata_version"] = frappe.cache().get_value("metadata_version")
+	bootinfo["metadata_version"] = stylo.cache().get_value("metadata_version")
 	if not bootinfo["metadata_version"]:
-		bootinfo["metadata_version"] = frappe.reset_metadata_version()
+		bootinfo["metadata_version"] = stylo.reset_metadata_version()
 
 	bootinfo.notes = get_unseen_notes()
 	bootinfo.assets_json = get_assets_json()
-	bootinfo.read_only = bool(frappe.flags.read_only)
+	bootinfo.read_only = bool(stylo.flags.read_only)
 
-	for hook in frappe.get_hooks("extend_bootinfo"):
-		frappe.get_attr(hook)(bootinfo=bootinfo)
+	for hook in stylo.get_hooks("extend_bootinfo"):
+		stylo.get_attr(hook)(bootinfo=bootinfo)
 
-	bootinfo["lang"] = frappe.translate.get_user_lang()
-	bootinfo["disable_async"] = frappe.conf.disable_async
+	bootinfo["lang"] = stylo.translate.get_user_lang()
+	bootinfo["disable_async"] = stylo.conf.disable_async
 
-	bootinfo["setup_complete"] = cint(frappe.get_system_settings("setup_complete"))
+	bootinfo["setup_complete"] = cint(stylo.get_system_settings("setup_complete"))
 
-	bootinfo["desk_theme"] = frappe.db.get_value("User", frappe.session.user, "desk_theme") or "Light"
+	bootinfo["desk_theme"] = stylo.db.get_value("User", stylo.session.user, "desk_theme") or "Light"
 
 	return bootinfo
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_boot_assets_json():
 	return get_assets_json()
 
 
 def get_csrf_token():
-	if not frappe.local.session.data.csrf_token:
+	if not stylo.local.session.data.csrf_token:
 		generate_csrf_token()
 
-	return frappe.local.session.data.csrf_token
+	return stylo.local.session.data.csrf_token
 
 
 def generate_csrf_token():
-	frappe.local.session.data.csrf_token = frappe.generate_hash()
-	if not frappe.flags.in_test:
-		frappe.local.session_obj.update(force=True)
+	stylo.local.session.data.csrf_token = stylo.generate_hash()
+	if not stylo.flags.in_test:
+		stylo.local.session_obj.update(force=True)
 
 
 class Session:
@@ -218,16 +218,16 @@ class Session:
 		session_end: str | None = None,
 		audit_user: str | None = None,
 	):
-		self.sid = cstr(frappe.form_dict.get("sid") or unquote(frappe.request.cookies.get("sid", "Guest")))
+		self.sid = cstr(stylo.form_dict.get("sid") or unquote(stylo.request.cookies.get("sid", "Guest")))
 		self.user = user
-		self.device = frappe.form_dict.get("device") or "desktop"
+		self.device = stylo.form_dict.get("device") or "desktop"
 		self.user_type = user_type
 		self.full_name = full_name
-		self.data = frappe._dict({"data": frappe._dict({})})
+		self.data = stylo._dict({"data": stylo._dict({})})
 		self.time_diff = None
 
 		# set local session
-		frappe.local.session = self.data
+		stylo.local.session = self.data
 
 		if resume:
 			self.resume()
@@ -238,10 +238,10 @@ class Session:
 				self.start(session_end, audit_user)
 
 	def validate_user(self):
-		if not frappe.get_cached_value("User", self.user, "enabled"):
-			frappe.throw(
+		if not stylo.get_cached_value("User", self.user, "enabled"):
+			stylo.throw(
 				_("User {0} is disabled. Please contact your System Manager.").format(self.user),
-				frappe.ValidationError,
+				stylo.ValidationError,
 			)
 
 	def start(self, session_end: str | None = None, audit_user: str | None = None):
@@ -250,12 +250,12 @@ class Session:
 		if self.user == "Guest":
 			sid = "Guest"
 		else:
-			sid = frappe.generate_hash()
+			sid = stylo.generate_hash()
 
 		self.data.user = self.user
 		self.sid = self.data.sid = sid
 		self.data.data.user = self.user
-		self.data.data.session_ip = frappe.local.request_ip
+		self.data.data.session_ip = stylo.local.request_ip
 
 		if session_end:
 			self.data.data.session_end = session_end
@@ -266,9 +266,9 @@ class Session:
 		if self.user != "Guest":
 			self.data.data.update(
 				{
-					"last_updated": frappe.utils.now(),
+					"last_updated": stylo.utils.now(),
 					"session_expiry": get_expiry_period(self.device),
-					"creation": frappe.utils.now(),
+					"creation": stylo.utils.now(),
 					"full_name": self.full_name,
 					"user_type": self.user_type,
 					"device": self.device,
@@ -280,26 +280,26 @@ class Session:
 			self.insert_session_record()
 
 			# update user
-			user = frappe.get_doc("User", self.data["user"])
-			user_doctype = frappe.qb.DocType("User")
+			user = stylo.get_doc("User", self.data["user"])
+			user_doctype = stylo.qb.DocType("User")
 			(
-				frappe.qb.update(user_doctype)
-				.set(user_doctype.last_login, frappe.utils.now())
-				.set(user_doctype.last_ip, frappe.local.request_ip)
-				.set(user_doctype.last_active, frappe.utils.now())
+				stylo.qb.update(user_doctype)
+				.set(user_doctype.last_login, stylo.utils.now())
+				.set(user_doctype.last_ip, stylo.local.request_ip)
+				.set(user_doctype.last_active, stylo.utils.now())
 				.where(user_doctype.name == self.data["user"])
 			).run()
 
 			user.run_notifications("before_change")
 			user.run_notifications("on_update")
-			frappe.db.commit()
+			stylo.db.commit()
 
 	def insert_session_record(self):
-		Sessions = frappe.qb.DocType("Sessions")
-		now = frappe.utils.now()
+		Sessions = stylo.qb.DocType("Sessions")
+		now = stylo.utils.now()
 
 		(
-			frappe.qb.into(Sessions)
+			stylo.qb.into(Sessions)
 			.columns(
 				Sessions.sessiondata,
 				Sessions.user,
@@ -310,12 +310,12 @@ class Session:
 			)
 			.insert((str(self.data["data"]), self.data["user"], now, self.data["sid"], "Active", self.device))
 		).run()
-		frappe.cache().hset("session", self.data.sid, self.data)
+		stylo.cache().hset("session", self.data.sid, self.data)
 
 	def resume(self):
 		"""non-login request: load a session"""
-		import frappe
-		from frappe.auth import validate_ip_address
+		import stylo
+		from stylo.auth import validate_ip_address
 
 		data = self.get_session_record()
 
@@ -329,17 +329,17 @@ class Session:
 			self.start_as_guest()
 
 		if self.sid != "Guest":
-			frappe.local.user_lang = frappe.translate.get_user_lang(self.data.user)
-			frappe.local.lang = frappe.local.user_lang
+			stylo.local.user_lang = stylo.translate.get_user_lang(self.data.user)
+			stylo.local.lang = stylo.local.user_lang
 
 	def get_session_record(self):
 		"""get session record, or return the standard Guest Record"""
-		from frappe.auth import clear_cookies
+		from stylo.auth import clear_cookies
 
 		r = self.get_session_data()
 
 		if not r:
-			frappe.response["session_expired"] = 1
+			stylo.response["session_expired"] = 1
 			clear_cookies()
 			self.sid = "Guest"
 			r = self.get_session_data()
@@ -348,7 +348,7 @@ class Session:
 
 	def get_session_data(self):
 		if self.sid == "Guest":
-			return frappe._dict({"user": "Guest"})
+			return stylo._dict({"user": "Guest"})
 
 		data = self.get_session_data_from_cache()
 		if not data:
@@ -356,14 +356,14 @@ class Session:
 		return data
 
 	def get_session_data_from_cache(self):
-		data = frappe.cache().hget("session", self.sid)
+		data = stylo.cache().hget("session", self.sid)
 		if data:
-			data = frappe._dict(data)
+			data = stylo._dict(data)
 			session_data = data.get("data", {})
 
 			# set user for correct timezone
-			self.time_diff = frappe.utils.time_diff_in_seconds(
-				frappe.utils.now(), session_data.get("last_updated")
+			self.time_diff = stylo.utils.time_diff_in_seconds(
+				stylo.utils.now(), session_data.get("last_updated")
 			)
 			expiry = get_expiry_in_seconds(session_data.get("session_expiry"))
 
@@ -377,10 +377,10 @@ class Session:
 		return data and data.data
 
 	def get_session_data_from_db(self):
-		sessions = frappe.qb.DocType("Sessions")
+		sessions = stylo.qb.DocType("Sessions")
 
 		self.device = (
-			frappe.db.get_value(
+			stylo.db.get_value(
 				sessions,
 				filters=sessions.sid == self.sid,
 				fieldname="device",
@@ -390,14 +390,14 @@ class Session:
 		)
 
 		record = (
-			frappe.qb.from_(sessions)
+			stylo.qb.from_(sessions)
 			.select(sessions.user, sessions.sessiondata)
 			.where(sessions.sid == self.sid)
 			.where(sessions.lastupdate > get_expired_threshold(self.device))
 		).run()
 
 		if record:
-			data = frappe._dict(frappe.safe_eval(record and record[0][1] or "{}"))
+			data = stylo._dict(stylo.safe_eval(record and record[0][1] or "{}"))
 			data.user = record[0][0]
 		else:
 			self._delete_session()
@@ -415,45 +415,45 @@ class Session:
 
 	def update(self, force=False):
 		"""extend session expiry"""
-		if frappe.session["user"] == "Guest" or frappe.form_dict.cmd == "logout":
+		if stylo.session["user"] == "Guest" or stylo.form_dict.cmd == "logout":
 			return
 
-		now = frappe.utils.now()
+		now = stylo.utils.now()
 
-		Sessions = frappe.qb.DocType("Sessions")
+		Sessions = stylo.qb.DocType("Sessions")
 
 		self.data["data"]["last_updated"] = now
-		self.data["data"]["lang"] = str(frappe.lang)
+		self.data["data"]["lang"] = str(stylo.lang)
 
 		# update session in db
-		last_updated = frappe.cache().hget("last_db_session_update", self.sid)
-		time_diff = frappe.utils.time_diff_in_seconds(now, last_updated) if last_updated else None
+		last_updated = stylo.cache().hget("last_db_session_update", self.sid)
+		time_diff = stylo.utils.time_diff_in_seconds(now, last_updated) if last_updated else None
 
 		# database persistence is secondary, don't update it too often
 		updated_in_db = False
-		if (force or (time_diff is None) or (time_diff > 600)) and not frappe.flags.read_only:
+		if (force or (time_diff is None) or (time_diff > 600)) and not stylo.flags.read_only:
 			# update sessions table
 			(
-				frappe.qb.update(Sessions)
+				stylo.qb.update(Sessions)
 				.where(Sessions.sid == self.data["sid"])
 				.set(Sessions.sessiondata, str(self.data["data"]))
 				.set(Sessions.lastupdate, now)
 			).run()
 
-			frappe.db.set_value("User", frappe.session.user, "last_active", now, update_modified=False)
+			stylo.db.set_value("User", stylo.session.user, "last_active", now, update_modified=False)
 
-			frappe.db.commit()
-			frappe.cache().hset("last_db_session_update", self.sid, now)
+			stylo.db.commit()
+			stylo.cache().hset("last_db_session_update", self.sid, now)
 
 			updated_in_db = True
 
-		frappe.cache().hset("session", self.sid, self.data)
+		stylo.cache().hset("session", self.sid, self.data)
 
 		return updated_in_db
 
 
 def get_expiry_period_for_query(device=None):
-	if frappe.db.db_type == "postgres":
+	if stylo.db.db_type == "postgres":
 		return get_expiry_period(device)
 	else:
 		return get_expiry_in_seconds(device=device)
@@ -469,7 +469,7 @@ def get_expiry_in_seconds(expiry=None, device=None):
 def get_expired_threshold(device):
 	"""Get cutoff time before which all sessions are considered expired."""
 
-	now = frappe.utils.now()
+	now = stylo.utils.now()
 	expiry_in_seconds = get_expiry_in_seconds(device=device)
 
 	return add_to_date(now, seconds=-expiry_in_seconds, as_string=True)
@@ -483,7 +483,7 @@ def get_expiry_period(device="desktop"):
 		key = "session_expiry"
 		default = "06:00:00"
 
-	exp_sec = frappe.defaults.get_global_default(key) or default
+	exp_sec = stylo.defaults.get_global_default(key) or default
 
 	# incase seconds is missing
 	if len(exp_sec.split(":")) == 2:
@@ -500,7 +500,7 @@ def get_geo_from_ip(ip_addr):
 			reader = f.reader()
 			data = reader.get(ip_addr)
 
-			return frappe._dict(data)
+			return stylo._dict(data)
 	except ImportError:
 		return
 	except ValueError:

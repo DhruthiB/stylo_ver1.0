@@ -6,10 +6,10 @@ from os.path import exists as path_exists
 from os.path import join as join_path
 from typing import Optional
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import get_path
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import get_path
 
 
 class WebsiteTheme(Document):
@@ -20,8 +20,8 @@ class WebsiteTheme(Document):
 	def on_update(self):
 		if (
 			not self.custom
-			and frappe.local.conf.get("developer_mode")
-			and not (frappe.flags.in_import or frappe.flags.in_test)
+			and stylo.local.conf.get("developer_mode")
+			and not (stylo.flags.in_import or stylo.flags.in_test)
 		):
 			self.export_doc()
 
@@ -30,86 +30,86 @@ class WebsiteTheme(Document):
 	def is_standard_and_not_valid_user(self):
 		return (
 			not self.custom
-			and not frappe.local.conf.get("developer_mode")
-			and not (frappe.flags.in_import or frappe.flags.in_test or frappe.flags.in_migrate)
+			and not stylo.local.conf.get("developer_mode")
+			and not (stylo.flags.in_import or stylo.flags.in_test or stylo.flags.in_migrate)
 		)
 
 	def on_trash(self):
 		if self.is_standard_and_not_valid_user():
-			frappe.throw(_("You are not allowed to delete a standard Website Theme"), frappe.PermissionError)
+			stylo.throw(_("You are not allowed to delete a standard Website Theme"), stylo.PermissionError)
 
 	def validate_if_customizable(self):
 		if self.is_standard_and_not_valid_user():
-			frappe.throw(_("Please Duplicate this Website Theme to customize."))
+			stylo.throw(_("Please Duplicate this Website Theme to customize."))
 
 	def export_doc(self):
 		"""Export to standard folder `[module]/website_theme/[name]/[name].json`."""
-		from frappe.modules.export_file import export_to_files
+		from stylo.modules.export_file import export_to_files
 
 		export_to_files(record_list=[["Website Theme", self.name]], create_init=True)
 
 	def clear_cache_if_current_theme(self):
-		if frappe.flags.in_install == "frappe":
+		if stylo.flags.in_install == "stylo":
 			return
-		website_settings = frappe.get_doc("Website Settings", "Website Settings")
+		website_settings = stylo.get_doc("Website Settings", "Website Settings")
 		if getattr(website_settings, "website_theme", None) == self.name:
 			website_settings.clear_cache()
 
 	def generate_bootstrap_theme(self):
 		from subprocess import PIPE, Popen
 
-		self.theme_scss = frappe.render_template(
-			"frappe/website/doctype/website_theme/website_theme_template.scss", self.as_dict()
+		self.theme_scss = stylo.render_template(
+			"stylo/website/doctype/website_theme/website_theme_template.scss", self.as_dict()
 		)
 
 		# create theme file in site public files folder
-		folder_path = abspath(frappe.utils.get_files_path("website_theme", is_private=False))
+		folder_path = abspath(stylo.utils.get_files_path("website_theme", is_private=False))
 		# create folder if not exist
-		frappe.create_folder(folder_path)
+		stylo.create_folder(folder_path)
 
 		if self.custom:
 			self.delete_old_theme_files(folder_path)
 
 		# add a random suffix
-		suffix = frappe.generate_hash(length=8) if self.custom else "style"
-		file_name = frappe.scrub(self.name) + "_" + suffix + ".css"
+		suffix = stylo.generate_hash(length=8) if self.custom else "style"
+		file_name = stylo.scrub(self.name) + "_" + suffix + ".css"
 		output_path = join_path(folder_path, file_name)
 
 		self.theme_scss = content = get_scss(self)
 		content = content.replace("\n", "\\n")
 		command = ["node", "generate_bootstrap_theme.js", output_path, content]
 
-		process = Popen(command, cwd=frappe.get_app_path("frappe", ".."), stdout=PIPE, stderr=PIPE)
+		process = Popen(command, cwd=stylo.get_app_path("stylo", ".."), stdout=PIPE, stderr=PIPE)
 
 		stderr = process.communicate()[1]
 
 		if stderr:
-			stderr = frappe.safe_decode(stderr)
+			stderr = stylo.safe_decode(stderr)
 			stderr = stderr.replace("\n", "<br>")
-			frappe.throw(f'<div style="font-family: monospace;">{stderr}</div>')
+			stylo.throw(f'<div style="font-family: monospace;">{stderr}</div>')
 		else:
 			self.theme_url = "/files/website_theme/" + file_name
 
-		frappe.msgprint(_("Compiled Successfully"), alert=True)
+		stylo.msgprint(_("Compiled Successfully"), alert=True)
 
 	def delete_old_theme_files(self, folder_path):
 		import os
 
 		for fname in os.listdir(folder_path):
-			if fname.startswith(frappe.scrub(self.name) + "_") and fname.endswith(".css"):
+			if fname.startswith(stylo.scrub(self.name) + "_") and fname.endswith(".css"):
 				os.remove(os.path.join(folder_path, fname))
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def set_as_default(self):
 		self.save()
-		website_settings = frappe.get_doc("Website Settings")
+		website_settings = stylo.get_doc("Website Settings")
 		website_settings.website_theme = self.name
 		website_settings.ignore_validate = True
 		website_settings.save()
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def get_apps(self):
-		from frappe.utils.change_log import get_versions
+		from stylo.utils.change_log import get_versions
 
 		apps = get_versions()
 		out = []
@@ -119,11 +119,11 @@ class WebsiteTheme(Document):
 
 
 def get_active_theme() -> Optional["WebsiteTheme"]:
-	if website_theme := frappe.get_website_settings("website_theme"):
+	if website_theme := stylo.get_website_settings("website_theme"):
 		try:
-			return frappe.get_cached_doc("Website Theme", website_theme)
-		except frappe.DoesNotExistError:
-			frappe.clear_last_message()
+			return stylo.get_cached_doc("Website Theme", website_theme)
+		except stylo.DoesNotExistError:
+			stylo.clear_last_message()
 			pass
 
 
@@ -139,21 +139,21 @@ def get_scss(website_theme):
 	imports_to_include = [d for d in available_imports if not d.startswith(apps_to_ignore)]
 	context = website_theme.as_dict()
 	context["website_theme_scss"] = imports_to_include
-	return frappe.render_template("frappe/website/doctype/website_theme/website_theme_template.scss", context)
+	return stylo.render_template("stylo/website/doctype/website_theme/website_theme_template.scss", context)
 
 
 def get_scss_paths():
 	"""
 	Return a set of SCSS import paths from all apps that provide `website.scss`.
 
-	If `$BENCH_PATH/apps/frappe/frappe/public/scss/website[.bundle].scss` exists, the
-	returned set will contain 'frappe/public/scss/website[.bundle]'.
+	If `$BENCH_PATH/apps/stylo/stylo/public/scss/website[.bundle].scss` exists, the
+	returned set will contain 'stylo/public/scss/website[.bundle]'.
 	"""
 	import_path_list = []
-	forge_path = frappe.utils.get_forge_path()
+	forge_path = stylo.utils.get_forge_path()
 
 	scss_files = ["public/scss/website.scss", "public/scss/website.bundle.scss"]
-	for app in frappe.get_installed_apps():
+	for app in stylo.get_installed_apps():
 		for scss_file in scss_files:
 			relative_path = join_path(app, scss_file)
 			full_path = get_path("apps", app, relative_path, base=forge_path)
@@ -171,9 +171,9 @@ def after_migrate():
 	Necessary to reflect possible changes in the imported SCSS files. Called at
 	the end of every `forge migrate`.
 	"""
-	website_theme = frappe.db.get_single_value("Website Settings", "website_theme")
+	website_theme = stylo.db.get_single_value("Website Settings", "website_theme")
 	if not website_theme or website_theme == "Standard":
 		return
 
-	doc = frappe.get_doc("Website Theme", website_theme)
+	doc = stylo.get_doc("Website Theme", website_theme)
 	doc.save()  # Just re-saving re-generates the theme.

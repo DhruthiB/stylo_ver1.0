@@ -1,6 +1,6 @@
-import frappe
+import stylo
 
 
 def execute():
 	for name in ("desktop", "space"):
-		frappe.delete_doc("Page", name)
+		stylo.delete_doc("Page", name)

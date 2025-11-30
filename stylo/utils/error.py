@@ -11,14 +11,14 @@ import os
 import sys
 import traceback
 
-import frappe
-from frappe.utils import cstr, encode
+import stylo
+from stylo.utils import cstr, encode
 
 EXCLUDE_EXCEPTIONS = (
-	frappe.AuthenticationError,
-	frappe.CSRFTokenError,  # CSRF covers OAuth too
-	frappe.SecurityException,
-	frappe.InReadOnlyMode,
+	stylo.AuthenticationError,
+	stylo.CSRFTokenError,  # CSRF covers OAuth too
+	stylo.SecurityException,
+	stylo.InReadOnlyMode,
 )
 
 LDAP_BASE_EXCEPTION = "LDAPException"
@@ -39,28 +39,28 @@ def _is_ldap_exception(e):
 
 
 def make_error_snapshot(exception):
-	if frappe.conf.disable_error_snapshot:
+	if stylo.conf.disable_error_snapshot:
 		return
 
 	if isinstance(exception, EXCLUDE_EXCEPTIONS) or _is_ldap_exception(exception):
 		return
 
-	logger = frappe.logger(with_more_info=True)
+	logger = stylo.logger(with_more_info=True)
 
 	try:
 		error_id = "{timestamp:s}-{ip:s}-{hash:s}".format(
 			timestamp=cstr(datetime.datetime.now()),
-			ip=frappe.local.request_ip or "127.0.0.1",
-			hash=frappe.generate_hash(length=3),
+			ip=stylo.local.request_ip or "127.0.0.1",
+			hash=stylo.generate_hash(length=3),
 		)
 		snapshot_folder = get_error_snapshot_path()
-		frappe.create_folder(snapshot_folder)
+		stylo.create_folder(snapshot_folder)
 
 		snapshot_file_path = os.path.join(snapshot_folder, f"{error_id}.json")
 		snapshot = get_snapshot(exception)
 
 		with open(encode(snapshot_file_path), "wb") as error_file:
-			error_file.write(encode(frappe.as_json(snapshot)))
+			error_file.write(encode(stylo.as_json(snapshot)))
 
 		logger.error(f"New Exception collected with id: {error_id}")
 
@@ -162,7 +162,7 @@ def get_snapshot(exception, context=10):
 
 def collect_error_snapshots():
 	"""Scheduled task to collect error snapshots from files and push into Error Snapshot table"""
-	if frappe.conf.disable_error_snapshot:
+	if stylo.conf.disable_error_snapshot:
 		return
 
 	try:
@@ -183,13 +183,13 @@ def collect_error_snapshots():
 				continue
 
 			for field in ["locals", "exception", "frames"]:
-				data[field] = frappe.as_json(data[field])
+				data[field] = stylo.as_json(data[field])
 
-			doc = frappe.new_doc("Error Snapshot")
+			doc = stylo.new_doc("Error Snapshot")
 			doc.update(data)
 			doc.save()
 
-			frappe.db.commit()
+			stylo.db.commit()
 
 			os.remove(fullpath)
 
@@ -204,11 +204,11 @@ def collect_error_snapshots():
 
 def clear_old_snapshots():
 	"""Clear snapshots that are older than a month"""
-	from frappe.query_builder import DocType, Interval
-	from frappe.query_builder.functions import Now
+	from stylo.query_builder import DocType, Interval
+	from stylo.query_builder.functions import Now
 
 	ErrorSnapshot = DocType("Error Snapshot")
-	frappe.db.delete(ErrorSnapshot, filters=(ErrorSnapshot.creation < (Now() - Interval(months=1))))
+	stylo.db.delete(ErrorSnapshot, filters=(ErrorSnapshot.creation < (Now() - Interval(months=1))))
 
 	path = get_error_snapshot_path()
 	today = datetime.datetime.now()
@@ -221,7 +221,7 @@ def clear_old_snapshots():
 
 
 def get_error_snapshot_path():
-	return frappe.get_site_path("error-snapshots")
+	return stylo.get_site_path("error-snapshots")
 
 
 def get_default_args(func):
@@ -261,7 +261,7 @@ def raise_error_on_no_output(error_message, error_type=None, keep_quiet=None):
 			raise_error = kwargs.get("_raise_error") if "_raise_error" in kwargs else default_raise_error
 
 			if (not response) and raise_error:
-				frappe.throw(error_message, error_type or Exception)
+				stylo.throw(error_message, error_type or Exception)
 			return response
 
 		return wrapper_raise_error_on_no_output

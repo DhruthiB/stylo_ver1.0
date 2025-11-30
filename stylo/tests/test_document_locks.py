@@ -1,28 +1,28 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.data import add_to_date, today
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.data import add_to_date, today
 
 
 class TestDocumentLocks(StyloTestCase):
 	def test_locking(self):
-		todo = frappe.get_doc(dict(doctype="ToDo", description="test")).insert()
-		todo_1 = frappe.get_doc("ToDo", todo.name)
+		todo = stylo.get_doc(dict(doctype="ToDo", description="test")).insert()
+		todo_1 = stylo.get_doc("ToDo", todo.name)
 
 		todo.lock()
-		self.assertRaises(frappe.DocumentLockedError, todo_1.lock)
+		self.assertRaises(stylo.DocumentLockedError, todo_1.lock)
 		todo.unlock()
 
 		todo_1.lock()
-		self.assertRaises(frappe.DocumentLockedError, todo.lock)
+		self.assertRaises(stylo.DocumentLockedError, todo.lock)
 		todo_1.unlock()
 
 	def test_locks_auto_expiry(self):
-		todo = frappe.get_doc(dict(doctype="ToDo", description=frappe.generate_hash())).insert()
+		todo = stylo.get_doc(dict(doctype="ToDo", description=stylo.generate_hash())).insert()
 		todo.lock()
 
-		self.assertRaises(frappe.DocumentLockedError, todo.lock)
+		self.assertRaises(stylo.DocumentLockedError, todo.lock)
 
 		with self.freeze_time(add_to_date(today(), days=3)):
 			todo.lock()

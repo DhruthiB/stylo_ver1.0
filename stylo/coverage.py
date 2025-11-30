@@ -24,7 +24,7 @@ STANDARD_EXCLUSIONS = [
 	"*/patches/*",
 ]
 
-FRAPPE_EXCLUSIONS = [
+Stylo_EXCLUSIONS = [
 	"*/tests/*",
 	"*/commands/*",
 	"*/stylo/change_log/*",
@@ -54,7 +54,7 @@ class CodeCoverage:
 			omit = STANDARD_EXCLUSIONS[:]
 
 			if self.app == "stylo":
-				omit.extend(FRAPPE_EXCLUSIONS)
+				omit.extend(Stylo_EXCLUSIONS)
 
 			self.coverage = Coverage(source=[source_path], omit=omit, include=STANDARD_INCLUSIONS)
 			self.coverage.start()

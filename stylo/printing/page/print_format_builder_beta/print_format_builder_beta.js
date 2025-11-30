@@ -1,36 +1,36 @@
-frappe.pages["print-format-builder-beta"].on_page_load = function (wrapper) {
-	frappe.ui.make_app_page({
+stylo.pages["print-format-builder-beta"].on_page_load = function (wrapper) {
+	stylo.ui.make_app_page({
 		parent: wrapper,
 		title: __("Print Format Builder"),
 		single_column: true,
 	});
 
 	// hot reload in development
-	if (frappe.boot.developer_mode) {
-		frappe.hot_update = frappe.hot_update || [];
-		frappe.hot_update.push(() => load_print_format_builder_beta(wrapper));
+	if (stylo.boot.developer_mode) {
+		stylo.hot_update = stylo.hot_update || [];
+		stylo.hot_update.push(() => load_print_format_builder_beta(wrapper));
 	}
 };
 
-frappe.pages["print-format-builder-beta"].on_page_show = function (wrapper) {
+stylo.pages["print-format-builder-beta"].on_page_show = function (wrapper) {
 	load_print_format_builder_beta(wrapper);
 };
 
 function load_print_format_builder_beta(wrapper) {
-	let route = frappe.get_route();
+	let route = stylo.get_route();
 	let $parent = $(wrapper).find(".layout-main-section");
 	$parent.empty();
 
 	if (route.length > 1) {
-		frappe.require("print_format_builder.bundle.js").then(() => {
-			frappe.print_format_builder = new frappe.ui.PrintFormatBuilder({
+		stylo.require("print_format_builder.bundle.js").then(() => {
+			stylo.print_format_builder = new stylo.ui.PrintFormatBuilder({
 				wrapper: $parent,
 				page: wrapper.page,
 				print_format: route[1],
 			});
 		});
 	} else {
-		let d = new frappe.ui.Dialog({
+		let d = new stylo.ui.Dialog({
 			title: __("Create or Edit Print Format"),
 			fields: [
 				{
@@ -55,7 +55,7 @@ function load_print_format_builder_beta(wrapper) {
 						istable: 0,
 					},
 					reqd: 1,
-					default: frappe.route_options ? frappe.route_options.doctype : null,
+					default: stylo.route_options ? stylo.route_options.doctype : null,
 				},
 				{
 					label: __("Print Format Name"),
@@ -85,10 +85,10 @@ function load_print_format_builder_beta(wrapper) {
 			primary_action_label: __("Edit"),
 			primary_action({ action, doctype, print_format, print_format_name }) {
 				if (action === "Edit") {
-					frappe.set_route("print-format-builder-beta", print_format);
+					stylo.set_route("print-format-builder-beta", print_format);
 				} else if (action === "Create") {
 					d.get_primary_btn().prop("disabled", true);
-					frappe.db
+					stylo.db
 						.insert({
 							doctype: "Print Format",
 							name: print_format_name,
@@ -96,7 +96,7 @@ function load_print_format_builder_beta(wrapper) {
 							print_format_builder_beta: 1,
 						})
 						.then((doc) => {
-							frappe.set_route("print-format-builder-beta", doc.name);
+							stylo.set_route("print-format-builder-beta", doc.name);
 						})
 						.finally(() => {
 							d.get_primary_btn().prop("disabled", false);

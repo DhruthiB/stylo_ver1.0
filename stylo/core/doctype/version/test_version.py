@@ -2,17 +2,17 @@
 # License: MIT. See LICENSE
 import copy
 
-import frappe
-from frappe.core.doctype.version.version import get_diff
-from frappe.test_runner import make_test_objects
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.version.version import get_diff
+from stylo.test_runner import make_test_objects
+from stylo.tests.utils import StyloTestCase
 
 
 class TestVersion(StyloTestCase):
 	def test_get_diff(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		test_records = make_test_objects("Event", reset=True)
-		old_doc = frappe.get_doc("Event", test_records[0])
+		old_doc = stylo.get_doc("Event", test_records[0])
 		new_doc = copy.deepcopy(old_doc)
 
 		old_doc.color = None
@@ -33,14 +33,14 @@ class TestVersion(StyloTestCase):
 		self.assertEqual(get_new_values(diff)[1], "07-20-2017 00:00:00")
 
 	def test_no_version_on_new_doc(self):
-		from frappe.desk.form.load import get_versions
+		from stylo.desk.form.load import get_versions
 
-		t = frappe.get_doc(doctype="ToDo", description="something")
+		t = stylo.get_doc(doctype="ToDo", description="something")
 		t.save(ignore_version=False)
 
 		self.assertFalse(get_versions(t))
 
-		t = frappe.get_doc(t.doctype, t.name)
+		t = stylo.get_doc(t.doctype, t.name)
 		t.description = "changed"
 		t.save(ignore_version=False)
 		self.assertTrue(get_versions(t))

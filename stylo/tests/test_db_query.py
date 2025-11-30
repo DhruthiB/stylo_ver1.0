@@ -4,32 +4,32 @@ import datetime
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
-import frappe
-from frappe.core.doctype.doctype.test_doctype import new_doctype
-from frappe.core.page.permission_manager.permission_manager import add, reset, update
-from frappe.custom.doctype.property_setter.property_setter import make_property_setter
-from frappe.database.utils import DefaultOrderBy
-from frappe.desk.reportview import get_filters_cond
-from frappe.handler import execute_cmd
-from frappe.model.db_query import DatabaseQuery, get_between_date_filter
-from frappe.permissions import add_user_permission, clear_user_permissions_for_doctype
-from frappe.query_builder import Column
-from frappe.tests.test_query_builder import db_type_is, run_only_if
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.testutils import add_custom_field, clear_custom_fields
+import stylo
+from stylo.core.doctype.doctype.test_doctype import new_doctype
+from stylo.core.page.permission_manager.permission_manager import add, reset, update
+from stylo.custom.doctype.property_setter.property_setter import make_property_setter
+from stylo.database.utils import DefaultOrderBy
+from stylo.desk.reportview import get_filters_cond
+from stylo.handler import execute_cmd
+from stylo.model.db_query import DatabaseQuery, get_between_date_filter
+from stylo.permissions import add_user_permission, clear_user_permissions_for_doctype
+from stylo.query_builder import Column
+from stylo.tests.test_query_builder import db_type_is, run_only_if
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.testutils import add_custom_field, clear_custom_fields
 
 test_dependencies = ["User", "Blog Post", "Blog Category", "Blogger"]
 
 
 @contextmanager
 def setup_test_user(set_user=False):
-	test_user = frappe.get_doc("User", "test@example.com")
-	user_roles = frappe.get_roles()
+	test_user = stylo.get_doc("User", "test@example.com")
+	user_roles = stylo.get_roles()
 	test_user.remove_roles(*user_roles)
 	test_user.add_roles("Blogger")
 
 	if set_user:
-		frappe.set_user(test_user.name)
+		stylo.set_user(test_user.name)
 
 	yield test_user
 
@@ -49,14 +49,14 @@ def setup_patched_blog_post():
 
 @contextmanager
 def enable_permlevel_restrictions():
-	frappe.db.set_single_value("System Settings", "apply_perm_level_on_api_calls", 1)
+	stylo.db.set_single_value("System Settings", "apply_perm_level_on_api_calls", 1)
 	yield
-	frappe.db.set_single_value("System Settings", "apply_perm_level_on_api_calls", 0)
+	stylo.db.set_single_value("System Settings", "apply_perm_level_on_api_calls", 0)
 
 
 class TestReportview(StyloTestCase):
 	def setUp(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		return super().setUp()
 
 	def test_basic(self):
@@ -75,13 +75,13 @@ class TestReportview(StyloTestCase):
 		clear_custom_fields("DocType")
 
 	def test_child_table_field_syntax(self):
-		note = frappe.get_doc(
+		note = stylo.get_doc(
 			doctype="Note",
-			title=f"Test {frappe.utils.random_string(8)}",
+			title=f"Test {stylo.utils.random_string(8)}",
 			content="test",
 			seen_by=[{"user": "Administrator"}],
 		).insert()
-		result = frappe.get_all(
+		result = stylo.get_all(
 			"Note",
 			filters={"name": note.name},
 			fields=["name", "seen_by.user as seen_by"],
@@ -91,11 +91,11 @@ class TestReportview(StyloTestCase):
 		note.delete()
 
 	def test_child_table_join(self):
-		frappe.delete_doc_if_exists("DocType", "Parent DocType 1")
-		frappe.delete_doc_if_exists("DocType", "Parent DocType 2")
-		frappe.delete_doc_if_exists("DocType", "Child DocType")
+		stylo.delete_doc_if_exists("DocType", "Parent DocType 1")
+		stylo.delete_doc_if_exists("DocType", "Parent DocType 2")
+		stylo.delete_doc_if_exists("DocType", "Child DocType")
 		# child table
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": "Child DocType",
@@ -108,7 +108,7 @@ class TestReportview(StyloTestCase):
 			}
 		).insert()
 		# doctype 1
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": "Parent DocType 1",
@@ -127,7 +127,7 @@ class TestReportview(StyloTestCase):
 			}
 		).insert()
 		# doctype 2
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": "Parent DocType 2",
@@ -147,18 +147,18 @@ class TestReportview(StyloTestCase):
 		).insert()
 
 		# clear records
-		frappe.db.delete("Parent DocType 1")
-		frappe.db.delete("Parent DocType 2")
-		frappe.db.delete("Child DocType")
+		stylo.db.delete("Parent DocType 1")
+		stylo.db.delete("Parent DocType 2")
+		stylo.db.delete("Child DocType")
 
 		# insert records
-		frappe.get_doc(
+		stylo.get_doc(
 			doctype="Parent DocType 1",
 			title="test",
 			child=[{"title": "parent 1 child record 1"}, {"title": "parent 1 child record 2"}],
 			__newname="test_parent",
 		).insert(ignore_if_duplicate=True)
-		frappe.get_doc(
+		stylo.get_doc(
 			doctype="Parent DocType 2",
 			title="test",
 			child=[{"title": "parent 2 child record 1"}],
@@ -166,8 +166,8 @@ class TestReportview(StyloTestCase):
 		).insert(ignore_if_duplicate=True)
 
 		# test query
-		results1 = frappe.get_all("Parent DocType 1", fields=["name", "child.title as child_title"])
-		results2 = frappe.get_all("Parent DocType 2", fields=["name", "child.title as child_title"])
+		results1 = stylo.get_all("Parent DocType 1", fields=["name", "child.title as child_title"])
+		results2 = stylo.get_all("Parent DocType 2", fields=["name", "child.title as child_title"])
 		# check both parents have same name
 		self.assertEqual(results1[0].name, results2[0].name)
 		# check both parents have different number of child records
@@ -179,8 +179,8 @@ class TestReportview(StyloTestCase):
 		self.assertEqual(results2[0].child_title, "parent 2 child record 1")
 
 	def test_link_field_syntax(self):
-		todo = frappe.get_doc(doctype="ToDo", description="Test ToDo", allocated_to="Administrator").insert()
-		result = frappe.get_all(
+		todo = stylo.get_doc(doctype="ToDo", description="Test ToDo", allocated_to="Administrator").insert()
+		result = stylo.get_all(
 			"ToDo",
 			filters={"name": todo.name},
 			fields=["name", "allocated_to.email as allocated_user_email"],
@@ -192,9 +192,9 @@ class TestReportview(StyloTestCase):
 	def test_build_match_conditions(self):
 		clear_user_permissions_for_doctype("Blog Post", "test2@example.com")
 
-		test2user = frappe.get_doc("User", "test2@example.com")
+		test2user = stylo.get_doc("User", "test2@example.com")
 		test2user.add_roles("Blogger")
-		frappe.set_user("test2@example.com")
+		stylo.set_user("test2@example.com")
 
 		# this will get match conditions for Blog Post
 		build_match_conditions = DatabaseQuery("Blog Post").build_match_conditions
@@ -215,7 +215,7 @@ class TestReportview(StyloTestCase):
 			in build_match_conditions(as_condition=False)
 		)
 		# get as conditions
-		if frappe.db.db_type == "mariadb":
+		if stylo.db.db_type == "mariadb":
 			assertion_string = """(((ifnull(`tabBlog Post`.`name`, '')='' or `tabBlog Post`.`name` in ('-test-blog-post-1', '-test-blog-post'))))"""
 		else:
 			assertion_string = """(((ifnull(cast(`tabBlog Post`.`name` as varchar), '')='' or cast(`tabBlog Post`.`name` as varchar) in ('-test-blog-post-1', '-test-blog-post'))))"""
@@ -266,7 +266,7 @@ class TestReportview(StyloTestCase):
 			)
 
 	def test_none_filter(self):
-		query = frappe.qb.get_query("DocType", fields="name", filters={"restrict_to_domain": None})
+		query = stylo.qb.get_query("DocType", fields="name", filters={"restrict_to_domain": None})
 		sql = str(query).replace("`", "").replace('"', "")
 		condition = "restrict_to_domain IS NULL"
 		self.assertIn(condition, sql)
@@ -284,7 +284,7 @@ class TestReportview(StyloTestCase):
 
 	def test_between_filters(self):
 		"""test case to check between filter for date fields"""
-		frappe.db.delete("Event")
+		stylo.db.delete("Event")
 
 		# create events to test the between operator filter
 		todays_event = create_event()
@@ -325,9 +325,9 @@ class TestReportview(StyloTestCase):
 		)
 
 	def test_between_filters_date_bounds(self):
-		date_df = frappe._dict(fieldtype="Date")
-		datetime_df = frappe._dict(fieldtype="Datetime")
-		today = frappe.utils.nowdate()
+		date_df = stylo._dict(fieldtype="Date")
+		datetime_df = stylo._dict(fieldtype="Datetime")
+		today = stylo.utils.nowdate()
 
 		# No filters -> assumes today
 		cond = get_between_date_filter("", date_df)
@@ -356,13 +356,13 @@ class TestReportview(StyloTestCase):
 		self.assertQueryEqual(cond, f"'{start}.000000' AND '{end}.000000'")
 
 	def test_ignore_permissions_for_get_filters_cond(self):
-		frappe.set_user("test2@example.com")
-		self.assertRaises(frappe.PermissionError, get_filters_cond, "DocType", dict(istable=1), [])
+		stylo.set_user("test2@example.com")
+		self.assertRaises(stylo.PermissionError, get_filters_cond, "DocType", dict(istable=1), [])
 		self.assertTrue(get_filters_cond("DocType", dict(istable=1), [], ignore_permissions=True))
 
 	def test_query_fields_sanitizer(self):
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle, version()"],
 			limit_start=0,
@@ -370,7 +370,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle, IF(issingle=1, (select name from tabUser), count(name))"],
 			limit_start=0,
@@ -378,7 +378,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle, (select count(*) from tabSessions)"],
 			limit_start=0,
@@ -386,7 +386,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle, SELECT LOCATE('', `tabUser`.`user`) AS user;"],
 			limit_start=0,
@@ -394,7 +394,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle, IF(issingle=1, (SELECT name from tabUser), count(*))"],
 			limit_start=0,
@@ -402,7 +402,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle ''"],
 			limit_start=0,
@@ -410,7 +410,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle,'"],
 			limit_start=0,
@@ -418,7 +418,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "select * from tabSessions"],
 			limit_start=0,
@@ -426,7 +426,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle from --"],
 			limit_start=0,
@@ -434,7 +434,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle from tabDocType order by 2 --"],
 			limit_start=0,
@@ -442,7 +442,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "1' UNION SELECT * FROM __Auth --"],
 			limit_start=0,
@@ -450,7 +450,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["@@version"],
 			limit_start=0,
@@ -479,7 +479,7 @@ class TestReportview(StyloTestCase):
 
 		# Test that subqueries with other DML are blocked
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name", "issingle", "(insert into tabUser values (1))"],
 			limit_start=0,
@@ -491,7 +491,7 @@ class TestReportview(StyloTestCase):
 		)
 		self.assertTrue("creation" in data[0])
 
-		if frappe.db.db_type != "postgres":
+		if stylo.db.db_type != "postgres":
 			# datediff function does not exist in postgres
 			data = DatabaseQuery("DocType").execute(
 				fields=["name", "issingle", "datediff(modified, creation) as date_diff"],
@@ -500,21 +500,21 @@ class TestReportview(StyloTestCase):
 			)
 			self.assertTrue("date_diff" in data[0])
 
-		with self.assertRaises(frappe.DataError):
+		with self.assertRaises(stylo.DataError):
 			DatabaseQuery("DocType").execute(
 				fields=["name", "issingle", "if (issingle=1, (select name from tabUser), count(name))"],
 				limit_start=0,
 				limit_page_length=1,
 			)
 
-		with self.assertRaises(frappe.DataError):
+		with self.assertRaises(stylo.DataError):
 			DatabaseQuery("DocType").execute(
 				fields=["name", "issingle", "if(issingle=1, (select name from tabUser), count(name))"],
 				limit_start=0,
 				limit_page_length=1,
 			)
 
-		with self.assertRaises(frappe.DataError):
+		with self.assertRaises(stylo.DataError):
 			DatabaseQuery("DocType").execute(
 				fields=[
 					"name",
@@ -526,7 +526,7 @@ class TestReportview(StyloTestCase):
 				ignore_permissions=True,
 			)
 
-		with self.assertRaises(frappe.DataError):
+		with self.assertRaises(stylo.DataError):
 			DatabaseQuery("DocType").execute(
 				fields=[
 					"name",
@@ -545,12 +545,12 @@ class TestReportview(StyloTestCase):
 		# user permission for only one root folder
 		add_user_permission("Nested DocType", "Level 1 A", "test2@example.com")
 
-		from frappe.core.page.permission_manager.permission_manager import update
+		from stylo.core.page.permission_manager.permission_manager import update
 
 		# to avoid if_owner filter
 		update("Nested DocType", "All", 0, "if_owner", 0)
 
-		frappe.set_user("test2@example.com")
+		stylo.set_user("test2@example.com")
 		data = DatabaseQuery("Nested DocType").execute()
 
 		# children of root folder (for which we added user permission) should be accessible
@@ -564,7 +564,7 @@ class TestReportview(StyloTestCase):
 
 	def test_filter_sanitizer(self):
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name"],
 			filters={"istable,": 1},
@@ -573,7 +573,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name"],
 			filters={"editable_grid,": 1},
@@ -583,7 +583,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name"],
 			filters={"editable_grid,": 1},
@@ -593,7 +593,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			DatabaseQuery("DocType").execute,
 			fields=["name"],
 			filters={"editable_grid,": 1},
@@ -632,21 +632,21 @@ class TestReportview(StyloTestCase):
 
 	def test_order_by_group_by_sanitizer(self):
 		# order by with blacklisted function
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(stylo.ValidationError):
 			DatabaseQuery("DocType").execute(
 				fields=["name"],
 				order_by="sleep (1) asc",
 			)
 
 		# group by with blacklisted function
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(stylo.ValidationError):
 			DatabaseQuery("DocType").execute(
 				fields=["name"],
 				group_by="SLEEP(0)",
 			)
 
 		# sub query in order by
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(stylo.ValidationError):
 			DatabaseQuery("DocType").execute(
 				fields=["name"],
 				order_by="(select rank from tabRankedDocTypes where tabRankedDocTypes.name = tabDocType.name) asc",
@@ -664,7 +664,7 @@ class TestReportview(StyloTestCase):
 		)
 
 		# check mariadb specific syntax
-		if frappe.db.db_type == "mariadb":
+		if stylo.db.db_type == "mariadb":
 			DatabaseQuery("DocType").execute(
 				fields=["name"],
 				order_by="timestamp(modified)",
@@ -674,10 +674,10 @@ class TestReportview(StyloTestCase):
 		clear_user_permissions_for_doctype("Nested DocType")
 
 		# in descendants filter
-		data = frappe.get_all("Nested DocType", {"name": ("descendants of", "Level 2 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("descendants of", "Level 2 A")})
 		self.assertTrue({"name": "Level 3 A"} in data)
 
-		data = frappe.get_all("Nested DocType", {"name": ("descendants of", "Level 1 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("descendants of", "Level 1 A")})
 		self.assertTrue({"name": "Level 3 A"} in data)
 		self.assertTrue({"name": "Level 2 A"} in data)
 		self.assertFalse({"name": "Level 2 B"} in data)
@@ -686,7 +686,7 @@ class TestReportview(StyloTestCase):
 		self.assertFalse({"name": "Root"} in data)
 
 		# in ancestors of filter
-		data = frappe.get_all("Nested DocType", {"name": ("ancestors of", "Level 2 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("ancestors of", "Level 2 A")})
 		self.assertFalse({"name": "Level 3 A"} in data)
 		self.assertFalse({"name": "Level 2 A"} in data)
 		self.assertFalse({"name": "Level 2 B"} in data)
@@ -694,7 +694,7 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Level 1 A"} in data)
 		self.assertTrue({"name": "Root"} in data)
 
-		data = frappe.get_all("Nested DocType", {"name": ("ancestors of", "Level 1 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("ancestors of", "Level 1 A")})
 		self.assertFalse({"name": "Level 3 A"} in data)
 		self.assertFalse({"name": "Level 2 A"} in data)
 		self.assertFalse({"name": "Level 2 B"} in data)
@@ -703,14 +703,14 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Root"} in data)
 
 		# not descendants filter
-		data = frappe.get_all("Nested DocType", {"name": ("not descendants of", "Level 2 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("not descendants of", "Level 2 A")})
 		self.assertFalse({"name": "Level 3 A"} in data)
 		self.assertTrue({"name": "Level 2 A"} in data)
 		self.assertTrue({"name": "Level 2 B"} in data)
 		self.assertTrue({"name": "Level 1 A"} in data)
 		self.assertTrue({"name": "Root"} in data)
 
-		data = frappe.get_all("Nested DocType", {"name": ("not descendants of", "Level 1 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("not descendants of", "Level 1 A")})
 		self.assertFalse({"name": "Level 3 A"} in data)
 		self.assertFalse({"name": "Level 2 A"} in data)
 		self.assertTrue({"name": "Level 2 B"} in data)
@@ -719,7 +719,7 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Root"} in data)
 
 		# not ancestors of filter
-		data = frappe.get_all("Nested DocType", {"name": ("not ancestors of", "Level 2 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("not ancestors of", "Level 2 A")})
 		self.assertTrue({"name": "Level 3 A"} in data)
 		self.assertTrue({"name": "Level 2 A"} in data)
 		self.assertTrue({"name": "Level 2 B"} in data)
@@ -727,7 +727,7 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Level 1 A"} not in data)
 		self.assertTrue({"name": "Root"} not in data)
 
-		data = frappe.get_all("Nested DocType", {"name": ("not ancestors of", "Level 1 A")})
+		data = stylo.get_all("Nested DocType", {"name": ("not ancestors of", "Level 1 A")})
 		self.assertTrue({"name": "Level 3 A"} in data)
 		self.assertTrue({"name": "Level 2 A"} in data)
 		self.assertTrue({"name": "Level 2 B"} in data)
@@ -735,11 +735,11 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Level 1 A"} in data)
 		self.assertFalse({"name": "Root"} in data)
 
-		data = frappe.get_all("Nested DocType", {"name": ("ancestors of", "Root")})
+		data = stylo.get_all("Nested DocType", {"name": ("ancestors of", "Root")})
 		self.assertTrue(len(data) == 0)
 		self.assertTrue(
-			len(frappe.get_all("Nested DocType", {"name": ("not ancestors of", "Root")}))
-			== len(frappe.get_all("Nested DocType"))
+			len(stylo.get_all("Nested DocType", {"name": ("not ancestors of", "Root")}))
+			== len(stylo.get_all("Nested DocType"))
 		)
 
 	def test_is_set_is_not_set(self):
@@ -753,7 +753,7 @@ class TestReportview(StyloTestCase):
 		self.assertTrue({"name": "Prepared Report"} in res)
 		self.assertFalse({"name": "Property Setter"} in res)
 
-		frappe.db.set_value("DocType", "Property Setter", "autoname", None, update_modified=False)
+		stylo.db.set_value("DocType", "Property Setter", "autoname", None, update_modified=False)
 
 		res = DatabaseQuery("DocType").execute(filters={"autoname": ["is", "set"]})
 		self.assertFalse({"name": "Property Setter"} in res)
@@ -761,7 +761,7 @@ class TestReportview(StyloTestCase):
 	def test_set_field_tables(self):
 		# Tests _in_standard_sql_methods method in test_set_field_tables
 		# The following query will break if the above method is broken
-		frappe.db.get_list(
+		stylo.db.get_list(
 			"Web Form",
 			filters=[["Web Form Field", "reqd", "=", 1]],
 			fields=["count(*) as count"],
@@ -771,10 +771,10 @@ class TestReportview(StyloTestCase):
 
 	def test_virtual_field_get_list(self):
 		try:
-			frappe.get_list("Prepared Report", ["*"])
-			frappe.get_list("Scheduled Job Type", ["*"])
+			stylo.get_list("Prepared Report", ["*"])
+			stylo.get_list("Scheduled Job Type", ["*"])
 		except Exception:
-			print(frappe.get_traceback())
+			print(stylo.get_traceback())
 			self.fail("get_list not working with virtual field")
 
 	def test_pluck_name(self):
@@ -786,9 +786,9 @@ class TestReportview(StyloTestCase):
 		self.assertEqual(owners, ["Administrator"])
 
 	def test_prepare_select_args(self):
-		# frappe.get_all inserts modified field into order_by clause
+		# stylo.get_all inserts modified field into order_by clause
 		# test to make sure this is inserted into select field when postgres
-		doctypes = frappe.get_all(
+		doctypes = stylo.get_all(
 			"DocType",
 			filters={"docstatus": 0, "document_type": ("!=", "")},
 			group_by="document_type",
@@ -796,7 +796,7 @@ class TestReportview(StyloTestCase):
 			limit=1,
 			as_list=True,
 		)
-		if frappe.conf.db_type == "mariadb":
+		if stylo.conf.db_type == "mariadb":
 			self.assertTrue(len(doctypes[0]) == 2)
 		else:
 			self.assertTrue(len(doctypes[0]) == 3)
@@ -804,13 +804,13 @@ class TestReportview(StyloTestCase):
 
 	def test_column_comparison(self):
 		"""Test DatabaseQuery.execute to test column comparison"""
-		users_unedited = frappe.get_all(
+		users_unedited = stylo.get_all(
 			"User",
 			filters={"creation": Column("modified")},
 			fields=["name", "creation", "modified"],
 			limit=1,
 		)
-		users_edited = frappe.get_all(
+		users_edited = stylo.get_all(
 			"User",
 			filters={"creation": ("!=", Column("modified"))},
 			fields=["name", "creation", "modified"],
@@ -822,28 +822,28 @@ class TestReportview(StyloTestCase):
 
 	def test_permlevel_fields(self):
 		with enable_permlevel_restrictions(), setup_patched_blog_post(), setup_test_user(set_user=True):
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "published"], limit=1
 			)
 			self.assertFalse("published" in data[0])
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "`published`"], limit=1
 			)
 			self.assertFalse("published" in data[0])
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "`tabBlog Post`.`published`"], limit=1
 			)
 			self.assertFalse("published" in data[0])
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post",
 				filters={"published": 1},
 				fields=["name", "`tabTest Child`.`test_field`"],
@@ -853,19 +853,19 @@ class TestReportview(StyloTestCase):
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "MAX(`published`)"], limit=1
 			)
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "LAST(published)"], limit=1
 			)
 			self.assertTrue("name" in data[0])
 			self.assertEqual(len(data[0]), 1)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post",
 				filters={"published": 1},
 				fields=["name", "MAX(`modified`)"],
@@ -875,18 +875,18 @@ class TestReportview(StyloTestCase):
 			)
 			self.assertEqual(len(data[0]), 2)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post", filters={"published": 1}, fields=["name", "now() abhi"], limit=1
 			)
 			self.assertIsInstance(data[0]["abhi"], datetime.datetime)
 			self.assertEqual(len(data[0]), 2)
 
-			data = frappe.get_list("Blog Post", filters={"published": 1}, fields=["name", "'LABEL'"], limit=1)
+			data = stylo.get_list("Blog Post", filters={"published": 1}, fields=["name", "'LABEL'"], limit=1)
 			self.assertTrue("name" in data[0])
 			self.assertTrue("LABEL" in data[0].values())
 			self.assertEqual(len(data[0]), 2)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post",
 				filters={"published": 1},
 				fields=["name", "COUNT(*) as count"],
@@ -897,7 +897,7 @@ class TestReportview(StyloTestCase):
 			self.assertTrue("count" in data[0])
 			self.assertEqual(len(data[0]), 2)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post",
 				filters={"published": 1},
 				fields=["name", "COUNT(*) count"],
@@ -908,7 +908,7 @@ class TestReportview(StyloTestCase):
 			self.assertTrue("count" in data[0])
 			self.assertEqual(len(data[0]), 2)
 
-			data = frappe.get_list(
+			data = stylo.get_list(
 				"Blog Post",
 				fields=["name", "blogger.full_name as blogger_full_name", "blog_category.description"],
 				limit=1,
@@ -919,9 +919,9 @@ class TestReportview(StyloTestCase):
 
 	def test_reportview_get_permlevel_system_users(self):
 		with setup_patched_blog_post(), setup_test_user(set_user=True):
-			frappe.local.request = frappe._dict()
-			frappe.local.request.method = "POST"
-			frappe.local.form_dict = frappe._dict(
+			stylo.local.request = stylo._dict()
+			stylo.local.request.method = "POST"
+			stylo.local.form_dict = stylo._dict(
 				{
 					"doctype": "Blog Post",
 					"fields": ["published", "title", "`tabTest Child`.`test_field`"],
@@ -929,36 +929,36 @@ class TestReportview(StyloTestCase):
 			)
 
 			# even if * is passed, fields which are not accessible should be filtered out
-			response = execute_cmd("frappe.desk.reportview.get")
+			response = execute_cmd("stylo.desk.reportview.get")
 			self.assertListEqual(response["keys"], ["title"])
-			frappe.local.form_dict = frappe._dict(
+			stylo.local.form_dict = stylo._dict(
 				{
 					"doctype": "Blog Post",
 					"fields": ["*"],
 				}
 			)
 
-			response = execute_cmd("frappe.desk.reportview.get")
+			response = execute_cmd("stylo.desk.reportview.get")
 			self.assertNotIn("published", response["keys"])
 
 	def test_reportview_get_admin(self):
 		# Admin should be able to see access all fields
 		with setup_patched_blog_post():
-			frappe.local.request = frappe._dict()
-			frappe.local.request.method = "POST"
-			frappe.local.form_dict = frappe._dict(
+			stylo.local.request = stylo._dict()
+			stylo.local.request.method = "POST"
+			stylo.local.form_dict = stylo._dict(
 				{
 					"doctype": "Blog Post",
 					"fields": ["published", "title", "`tabTest Child`.`test_field`"],
 				}
 			)
-			response = execute_cmd("frappe.desk.reportview.get")
+			response = execute_cmd("stylo.desk.reportview.get")
 			self.assertListEqual(response["keys"], ["published", "title", "test_field"])
 
 	def test_cast_name(self):
-		from frappe.core.doctype.doctype.test_doctype import new_doctype
+		from stylo.core.doctype.doctype.test_doctype import new_doctype
 
-		frappe.delete_doc_if_exists("DocType", "autoinc_dt_test")
+		stylo.delete_doc_if_exists("DocType", "autoinc_dt_test")
 		dt = new_doctype("autoinc_dt_test", autoname="autoincrement").insert(ignore_permissions=True)
 
 		query = DatabaseQuery("autoinc_dt_test").execute(
@@ -967,7 +967,7 @@ class TestReportview(StyloTestCase):
 			run=False,
 		)
 
-		if frappe.db.db_type == "postgres":
+		if stylo.db.db_type == "postgres":
 			self.assertTrue('strpos( cast("tabautoinc_dt_test"."name" as varchar), \'1\')' in query)
 			self.assertTrue("strpos( cast(name as varchar), '1')" in query)
 			self.assertTrue('where cast("tabautoinc_dt_test"."name" as varchar) = \'1\'' in query)
@@ -979,10 +979,10 @@ class TestReportview(StyloTestCase):
 		dt.delete(ignore_permissions=True)
 
 	def test_fieldname_starting_with_int(self):
-		from frappe.core.doctype.doctype.test_doctype import new_doctype
+		from stylo.core.doctype.doctype.test_doctype import new_doctype
 
-		frappe.delete_doc_if_exists("DocType", "dt_with_int_named_fieldname")
-		frappe.delete_doc_if_exists("DocType", "table_dt")
+		stylo.delete_doc_if_exists("DocType", "dt_with_int_named_fieldname")
+		stylo.delete_doc_if_exists("DocType", "table_dt")
 
 		table_dt = new_doctype(
 			"table_dt", istable=1, fields=[{"label": "1field", "fieldname": "2field", "fieldtype": "Data"}]
@@ -1001,7 +1001,7 @@ class TestReportview(StyloTestCase):
 			],
 		).insert(ignore_permissions=True)
 
-		dt_data = frappe.get_doc({"doctype": "dt_with_int_named_fieldname", "1field": "10"}).insert(
+		dt_data = stylo.get_doc({"doctype": "dt_with_int_named_fieldname", "1field": "10"}).insert(
 			ignore_permissions=True
 		)
 
@@ -1013,7 +1013,7 @@ class TestReportview(StyloTestCase):
 		self.assertFalse(query.execute(filters={"1field": ["not like", "1%"]}))
 		self.assertTrue(query.execute(filters=[["table_dt", "2field", "is", "not set"]]))
 
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": table_dt.name,
 				"2field": "10",
@@ -1030,7 +1030,7 @@ class TestReportview(StyloTestCase):
 		table_dt.delete()
 
 	def test_permission_query_condition(self):
-		from frappe.desk.doctype.dashboard_settings.dashboard_settings import create_dashboard_settings
+		from stylo.desk.doctype.dashboard_settings.dashboard_settings import create_dashboard_settings
 
 		self.doctype = "Dashboard Settings"
 		self.user = "test'5@example.com"
@@ -1039,7 +1039,7 @@ class TestReportview(StyloTestCase):
 
 		create_dashboard_settings(self.user)
 
-		dashboard_settings = frappe.db.sql(
+		dashboard_settings = stylo.db.sql(
 			f"""
 				SELECT name
 				FROM `tabDashboard Settings`
@@ -1062,10 +1062,10 @@ class TestReportview(StyloTestCase):
 			def get_list(args):
 				...
 
-		with patch("frappe.controllers", new={frappe.local.site: {"Virtual DocType": VirtualDocType}}):
+		with patch("stylo.controllers", new={stylo.local.site: {"Virtual DocType": VirtualDocType}}):
 			VirtualDocType.get_list = MagicMock()
 
-			frappe.get_all("Virtual DocType", filters={"name": "test"}, fields=["name"], limit=1)
+			stylo.get_all("Virtual DocType", filters={"name": "test"}, fields=["name"], limit=1)
 
 			call_args = VirtualDocType.get_list.call_args[0][0]
 			VirtualDocType.get_list.assert_called_once()
@@ -1078,34 +1078,34 @@ class TestReportview(StyloTestCase):
 			self.assertEqual(call_args["order_by"], DefaultOrderBy)
 
 	def test_coalesce_with_in_ops(self):
-		self.assertNotIn("ifnull", frappe.get_all("User", {"first_name": ("in", ["a", "b"])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("in", ["a", None])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("in", ["a", ""])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("in", [])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("not in", ["a"])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("not in", [])}, run=0))
-		self.assertIn("ifnull", frappe.get_all("User", {"first_name": ("not in", [""])}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"first_name": ("in", ["a", "b"])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("in", ["a", None])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("in", ["a", ""])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("in", [])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("not in", ["a"])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("not in", [])}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"first_name": ("not in", [""])}, run=0))
 
 		# primary key is never nullable
-		self.assertNotIn("ifnull", frappe.get_all("User", {"name": ("in", ["a", None])}, run=0))
-		self.assertNotIn("ifnull", frappe.get_all("User", {"name": ("in", ["a", ""])}, run=0))
-		self.assertNotIn("ifnull", frappe.get_all("User", {"name": ("in", (""))}, run=0))
-		self.assertNotIn("ifnull", frappe.get_all("User", {"name": ("in", ())}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"name": ("in", ["a", None])}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"name": ("in", ["a", ""])}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"name": ("in", (""))}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"name": ("in", ())}, run=0))
 
 	def test_coalesce_with_datetime_ops(self):
-		self.assertNotIn("ifnull", frappe.get_all("User", {"last_active": (">", "2022-01-01")}, run=0))
-		self.assertNotIn("ifnull", frappe.get_all("User", {"creation": ("<", "2022-01-01")}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"last_active": (">", "2022-01-01")}, run=0))
+		self.assertNotIn("ifnull", stylo.get_all("User", {"creation": ("<", "2022-01-01")}, run=0))
 		self.assertNotIn(
 			"ifnull",
-			frappe.get_all("User", {"last_active": ("between", ("2022-01-01", "2023-01-01"))}, run=0),
+			stylo.get_all("User", {"last_active": ("between", ("2022-01-01", "2023-01-01"))}, run=0),
 		)
-		self.assertIn("ifnull", frappe.get_all("User", {"last_active": ("<", "2022-01-01")}, run=0))
+		self.assertIn("ifnull", stylo.get_all("User", {"last_active": ("<", "2022-01-01")}, run=0))
 
 	def test_ambiguous_linked_tables(self):
-		from frappe.desk.reportview import get
+		from stylo.desk.reportview import get
 
-		if not frappe.db.exists("DocType", "Related Todos"):
-			frappe.get_doc(
+		if not stylo.db.exists("DocType", "Related Todos"):
+			stylo.get_doc(
 				{
 					"doctype": "DocType",
 					"custom": 1,
@@ -1132,23 +1132,23 @@ class TestReportview(StyloTestCase):
 				}
 			).insert()
 		else:
-			frappe.db.delete("Related Todos")
+			stylo.db.delete("Related Todos")
 
-		todo_one = frappe.get_doc(
+		todo_one = stylo.get_doc(
 			{
 				"doctype": "ToDo",
 				"description": "Todo One",
 			}
 		).insert()
 
-		todo_two = frappe.get_doc(
+		todo_two = stylo.get_doc(
 			{
 				"doctype": "ToDo",
 				"description": "Todo Two",
 			}
 		).insert()
 
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "Related Todos",
 				"todo_one": todo_one.name,
@@ -1156,8 +1156,8 @@ class TestReportview(StyloTestCase):
 			}
 		).insert()
 
-		frappe.form_dict.doctype = "Related Todos"
-		frappe.form_dict.fields = [
+		stylo.form_dict.doctype = "Related Todos"
+		stylo.form_dict.fields = [
 			"`tabRelated Todos`.`name`",
 			"`tabRelated Todos`.`todo_one`",
 			"`tabRelated Todos`.`todo_two`",
@@ -1171,24 +1171,24 @@ class TestReportview(StyloTestCase):
 		self.assertEqual(len(data["values"]), 1)
 
 	def test_ifnull_none(self):
-		query = frappe.get_all("DocField", {"fieldname": None}, run=0)
+		query = stylo.get_all("DocField", {"fieldname": None}, run=0)
 		self.assertIn("''", query)
 		self.assertNotIn("\\'", query)
-		self.assertFalse(frappe.get_all("DocField", {"name": None}))
+		self.assertFalse(stylo.get_all("DocField", {"name": None}))
 
 
 class TestReportView(StyloTestCase):
 	def setUp(self) -> None:
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		return super().setUp()
 
 	@run_only_if(db_type_is.MARIADB)  # TODO: postgres name casting is messed up
 	def test_get_count(self):
-		frappe.local.request = frappe._dict()
-		frappe.local.request.method = "GET"
+		stylo.local.request = stylo._dict()
+		stylo.local.request.method = "GET"
 
 		# test with data check field
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "DocType",
 				"filters": [["DocType", "show_title_field_in_link", "=", 1]],
@@ -1196,16 +1196,16 @@ class TestReportView(StyloTestCase):
 				"distinct": "false",
 			}
 		)
-		count = execute_cmd("frappe.desk.reportview.get_count")
-		frappe.local.form_dict = frappe._dict(
+		count = execute_cmd("stylo.desk.reportview.get_count")
+		stylo.local.form_dict = stylo._dict(
 			{"doctype": "DocType", "filters": {"show_title_field_in_link": 1}, "distinct": "true"}
 		)
-		dict_filter_response = execute_cmd("frappe.desk.reportview.get_count")
+		dict_filter_response = execute_cmd("stylo.desk.reportview.get_count")
 		self.assertIsInstance(count, int)
 		self.assertEqual(count, dict_filter_response)
 
 		# test with child table filter
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "DocType",
 				"filters": [["DocField", "fieldtype", "=", "Data"]],
@@ -1213,8 +1213,8 @@ class TestReportView(StyloTestCase):
 				"distinct": "true",
 			}
 		)
-		child_filter_response = execute_cmd("frappe.desk.reportview.get_count")
-		current_value = frappe.db.sql(
+		child_filter_response = execute_cmd("stylo.desk.reportview.get_count")
+		current_value = stylo.db.sql(
 			# the below query is equivalent to the one in reportview.get_count
 			"select distinct count(distinct `tabDocType`.name) as total_count"
 			" from `tabDocType` left join `tabDocField`"
@@ -1225,7 +1225,7 @@ class TestReportView(StyloTestCase):
 
 		# test with limit
 		limit = 2
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "DocType",
 				"filters": [["DocType", "is_virtual", "=", 1]],
@@ -1234,13 +1234,13 @@ class TestReportView(StyloTestCase):
 				"limit": limit,
 			}
 		)
-		count = execute_cmd("frappe.desk.reportview.get_count")
+		count = execute_cmd("stylo.desk.reportview.get_count")
 		self.assertIsInstance(count, int)
 		self.assertLessEqual(count, limit)
 
 		# test with distinct
 		limit = 2
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "DocType",
 				"fields": [],
@@ -1248,13 +1248,13 @@ class TestReportView(StyloTestCase):
 				"limit": limit,
 			}
 		)
-		count = execute_cmd("frappe.desk.reportview.get_count")
+		count = execute_cmd("stylo.desk.reportview.get_count")
 		self.assertIsInstance(count, int)
 		self.assertLessEqual(count, limit)
 
 		# doctype with space in name
 		limit = 2
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "Role Profile",
 				"fields": [],
@@ -1262,15 +1262,15 @@ class TestReportView(StyloTestCase):
 				"limit": limit,
 			}
 		)
-		count = execute_cmd("frappe.desk.reportview.get_count")
+		count = execute_cmd("stylo.desk.reportview.get_count")
 		self.assertIsInstance(count, int)
 		self.assertLessEqual(count, limit)
 
 	def test_reportview_get(self):
-		user = frappe.get_doc("User", "test@example.com")
+		user = stylo.get_doc("User", "test@example.com")
 		add_child_table_to_blog_post()
 
-		user_roles = frappe.get_roles()
+		user_roles = stylo.get_roles()
 		user.remove_roles(*user_roles)
 		user.add_roles("Blogger")
 
@@ -1279,12 +1279,12 @@ class TestReportView(StyloTestCase):
 		add("Blog Post", "Website Manager", 1)
 		update("Blog Post", "Website Manager", 1, "write", 1)
 
-		frappe.set_user(user.name)
+		stylo.set_user(user.name)
 
-		frappe.local.request = frappe._dict()
-		frappe.local.request.method = "POST"
+		stylo.local.request = stylo._dict()
+		stylo.local.request.method = "POST"
 
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "Blog Post",
 				"fields": ["published", "title", "`tabTest Child`.`test_field`"],
@@ -1292,30 +1292,30 @@ class TestReportView(StyloTestCase):
 		)
 
 		# even if * is passed, fields which are not accessible should be filtered out
-		response = execute_cmd("frappe.desk.reportview.get")
+		response = execute_cmd("stylo.desk.reportview.get")
 		self.assertListEqual(response["keys"], ["title"])
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "Blog Post",
 				"fields": ["*"],
 			}
 		)
 
-		response = execute_cmd("frappe.desk.reportview.get")
+		response = execute_cmd("stylo.desk.reportview.get")
 		self.assertNotIn("published", response["keys"])
 
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		user.add_roles("Website Manager")
 
 		# Admin should be able to see access all fields
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "Blog Post",
 				"fields": ["published", "title", "`tabTest Child`.`test_field`"],
 			}
 		)
 
-		response = execute_cmd("frappe.desk.reportview.get")
+		response = execute_cmd("stylo.desk.reportview.get")
 		self.assertListEqual(response["keys"], ["published", "title", "test_field"])
 
 		# reset user roles
@@ -1324,8 +1324,8 @@ class TestReportView(StyloTestCase):
 
 	def test_reportview_get_aggregation(self):
 		# test aggregation based on child table field
-		frappe.local.request = frappe._dict(method="GET")
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.request = stylo._dict(method="GET")
+		stylo.local.form_dict = stylo._dict(
 			{
 				"doctype": "DocType",
 				"fields": """["`tabDocField`.`label` as field_label","`tabDocField`.`name` as field_name"]""",
@@ -1342,26 +1342,26 @@ class TestReportView(StyloTestCase):
 			}
 		)
 
-		response = execute_cmd("frappe.desk.reportview.get")
+		response = execute_cmd("stylo.desk.reportview.get")
 		self.assertListEqual(response["keys"], ["field_label", "field_name", "_aggregate_column"])
 
 	def test_db_filter_not_set(self):
 		"""
 		Test if the 'not set' filter always translates correctly with/without qb under the hood.
 		"""
-		frappe.get_doc({"doctype": "ToDo", "description": "filter test"}).insert()
-		frappe.get_doc({"doctype": "ToDo", "description": "filter test", "reference_name": ""}).insert()
+		stylo.get_doc({"doctype": "ToDo", "description": "filter test"}).insert()
+		stylo.get_doc({"doctype": "ToDo", "description": "filter test", "reference_name": ""}).insert()
 
 		# `get_all` does not use QueryBuilder while `count` does. Both should return the same result.
 		# `not set` must consider empty strings and NULL values both.
 		self.assertEqual(
-			len(frappe.get_all("ToDo", filters={"reference_name": ["is", "not set"]})),
-			frappe.db.count("ToDo", {"reference_name": ["is", "not set"]}),
+			len(stylo.get_all("ToDo", filters={"reference_name": ["is", "not set"]})),
+			stylo.db.count("ToDo", {"reference_name": ["is", "not set"]}),
 		)
 
 
 def add_child_table_to_blog_post():
-	child_table = frappe.get_doc(
+	child_table = stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"istable": 1,
@@ -1381,9 +1381,9 @@ def add_child_table_to_blog_post():
 def create_event(subject="_Test Event", starts_on=None):
 	"""create a test event"""
 
-	from frappe.utils import get_datetime
+	from stylo.utils import get_datetime
 
-	return frappe.get_doc(
+	return stylo.get_doc(
 		{
 			"doctype": "Event",
 			"subject": subject,
@@ -1394,10 +1394,10 @@ def create_event(subject="_Test Event", starts_on=None):
 
 
 def create_nested_doctype():
-	if frappe.db.exists("DocType", "Nested DocType"):
+	if stylo.db.exists("DocType", "Nested DocType"):
 		return
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Nested DocType",
@@ -1431,6 +1431,6 @@ def create_nested_doctype_records():
 	]
 
 	for r in records:
-		d = frappe.new_doc("Nested DocType")
+		d = stylo.new_doc("Nested DocType")
 		d.update(r)
 		d.insert(ignore_permissions=True, ignore_if_duplicate=True)

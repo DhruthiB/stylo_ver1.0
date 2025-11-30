@@ -10,9 +10,9 @@ from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.child import INVALID_TITLE_REGEX
 
-import frappe
-from frappe import _
-from frappe.utils.html_utils import unescape_html
+import stylo
+from stylo import _
+from stylo.utils.html_utils import unescape_html
 
 ILLEGAL_CHARACTERS_RE = re.compile(
 	r"[\000-\010]|[\013-\014]|[\016-\037]|\uFEFF|\uFFFE|\uFFFF|[\uD800-\uDFFF]"
@@ -57,10 +57,10 @@ def make_xlsx(data, sheet_name, wb=None, column_widths=None):
 
 
 def handle_html(data):
-	from frappe.core.utils import html2text
+	from stylo.core.utils import html2text
 
 	# return if no html tags found
-	data = frappe.as_unicode(data)
+	data = stylo.as_unicode(data)
 
 	if "<" not in data or ">" not in data:
 		return data
@@ -82,7 +82,7 @@ def handle_html(data):
 
 def read_xlsx_file_from_attached_file(file_url=None, fcontent=None, filepath=None):
 	if file_url:
-		_file = frappe.get_doc("File", {"file_url": file_url})
+		_file = stylo.get_doc("File", {"file_url": file_url})
 		filename = _file.get_full_path()
 	elif fcontent:
 		filename = BytesIO(fcontent)
@@ -113,6 +113,6 @@ def read_xls_file_from_attached_file(content):
 
 
 def build_xlsx_response(data, filename):
-	from frappe.desk.utils import provide_binary_file
+	from stylo.desk.utils import provide_binary_file
 
 	provide_binary_file(filename, "xlsx", make_xlsx(data, filename).getvalue())

@@ -1,4 +1,4 @@
-from frappe import _
+from stylo import _
 
 
 def get_data():

@@ -2,16 +2,16 @@
 # License: MIT. See LICENSE
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
-import frappe
-from frappe.model.document import Document
-from frappe.utils import cstr
+import stylo
+from stylo.model.document import Document
+from stylo.utils import cstr
 
 
 class AccessLog(Document):
 	pass
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def make_access_log(
 	doctype=None,
 	document=None,
@@ -34,8 +34,8 @@ def make_access_log(
 	)
 
 
-@frappe.write_only()
-@retry(stop=stop_after_attempt(3), retry=retry_if_exception_type(frappe.DuplicateEntryError))
+@stylo.write_only()
+@retry(stop=stop_after_attempt(3), retry=retry_if_exception_type(stylo.DuplicateEntryError))
 def _make_access_log(
 	doctype=None,
 	document=None,
@@ -46,10 +46,10 @@ def _make_access_log(
 	page=None,
 	columns=None,
 ):
-	user = frappe.session.user
-	in_request = frappe.request and frappe.request.method == "GET"
+	user = stylo.session.user
+	in_request = stylo.request and stylo.request.method == "GET"
 
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "Access Log",
 			"user": user,
@@ -64,8 +64,8 @@ def _make_access_log(
 		}
 	).db_insert()
 
-	# `frappe.db.commit` added because insert doesnt `commit` when called in GET requests like `printview`
+	# `stylo.db.commit` added because insert doesnt `commit` when called in GET requests like `printview`
 	# dont commit in test mode. It must be tempting to put this block along with the in_request in the
 	# whitelisted method...yeah, don't do it. That part would be executed possibly on a read only DB conn
-	if not frappe.flags.in_test or in_request:
-		frappe.db.commit()
+	if not stylo.flags.in_test or in_request:
+		stylo.db.commit()

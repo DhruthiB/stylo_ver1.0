@@ -5,34 +5,34 @@ import json
 import os
 import textwrap
 
-import frappe
-from frappe.core.doctype.user_permission.test_user_permission import create_user
-from frappe.custom.doctype.customize_form.customize_form import reset_customization
-from frappe.desk.query_report import add_total_row, run, save_report
-from frappe.desk.reportview import delete_report
-from frappe.desk.reportview import save_report as _save_report
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.user_permission.test_user_permission import create_user
+from stylo.custom.doctype.customize_form.customize_form import reset_customization
+from stylo.desk.query_report import add_total_row, run, save_report
+from stylo.desk.reportview import delete_report
+from stylo.desk.reportview import save_report as _save_report
+from stylo.tests.utils import StyloTestCase
 
-test_records = frappe.get_test_records("Report")
+test_records = stylo.get_test_records("Report")
 test_dependencies = ["User"]
 
 
 class TestReport(StyloTestCase):
 	def test_report_builder(self):
-		if frappe.db.exists("Report", "User Activity Report"):
-			frappe.delete_doc("Report", "User Activity Report")
+		if stylo.db.exists("Report", "User Activity Report"):
+			stylo.delete_doc("Report", "User Activity Report")
 
 		with open(os.path.join(os.path.dirname(__file__), "user_activity_report.json")) as f:
-			frappe.get_doc(json.loads(f.read())).insert()
+			stylo.get_doc(json.loads(f.read())).insert()
 
-		report = frappe.get_doc("Report", "User Activity Report")
+		report = stylo.get_doc("Report", "User Activity Report")
 		columns, data = report.get_data()
 		self.assertEqual(columns[0].get("label"), "ID")
 		self.assertEqual(columns[1].get("label"), "User Type")
 		self.assertTrue("Administrator" in [d[0] for d in data])
 
 	def test_query_report(self):
-		report = frappe.get_doc("Report", "Permitted Documents For User")
+		report = stylo.get_doc("Report", "Permitted Documents For User")
 		columns, data = report.get_data(filters={"user": "Administrator", "doctype": "DocType"})
 		self.assertEqual(columns[0].get("label"), "Name")
 		self.assertEqual(columns[1].get("label"), "Module")
@@ -42,7 +42,7 @@ class TestReport(StyloTestCase):
 		"""Test for validations when editing / deleting report of type Report Builder"""
 
 		try:
-			report = frappe.get_doc(
+			report = stylo.get_doc(
 				{
 					"doctype": "Report",
 					"ref_doctype": "User",
@@ -54,21 +54,21 @@ class TestReport(StyloTestCase):
 
 			# Check for PermissionError
 			create_user("test_report_owner@example.com", "Website Manager")
-			frappe.set_user("test_report_owner@example.com")
-			self.assertRaises(frappe.PermissionError, delete_report, report.name)
+			stylo.set_user("test_report_owner@example.com")
+			self.assertRaises(stylo.PermissionError, delete_report, report.name)
 
 			# Check for Report Type
-			frappe.set_user("Administrator")
+			stylo.set_user("Administrator")
 			report.db_set("report_type", "Custom Report")
 			self.assertRaisesRegex(
-				frappe.ValidationError,
+				stylo.ValidationError,
 				"Only reports of type Report Builder can be deleted",
 				delete_report,
 				report.name,
 			)
 
 			# Check if creating and deleting works with proper validations
-			frappe.set_user("test@example.com")
+			stylo.set_user("test@example.com")
 			report_name = _save_report(
 				"Dummy Report",
 				"User",
@@ -90,12 +90,12 @@ class TestReport(StyloTestCase):
 				),
 			)
 
-			doc = frappe.get_doc("Report", report_name)
+			doc = stylo.get_doc("Report", report_name)
 			delete_report(doc.name)
 
 		finally:
-			frappe.set_user("Administrator")
-			frappe.db.rollback()
+			stylo.set_user("Administrator")
+			stylo.db.rollback()
 
 	def test_custom_report(self):
 		reset_customization("User")
@@ -120,11 +120,11 @@ class TestReport(StyloTestCase):
 			),
 			json.dumps({"user": "Administrator", "doctype": "User"}),
 		)
-		custom_report = frappe.get_doc("Report", custom_report_name)
-		columns, result = custom_report.run_query_report(user=frappe.session.user)
+		custom_report = stylo.get_doc("Report", custom_report_name)
+		columns, result = custom_report.run_query_report(user=stylo.session.user)
 
 		self.assertListEqual(["email"], [column.get("fieldname") for column in columns])
-		admin_dict = frappe.core.utils.find(result, lambda d: d["name"] == "Administrator")
+		admin_dict = stylo.core.utils.find(result, lambda d: d["name"] == "Administrator")
 		self.assertDictEqual(
 			{"name": "Administrator", "user_type": "System User", "email": "admin@example.com"}, admin_dict
 		)
@@ -152,20 +152,20 @@ class TestReport(StyloTestCase):
 		result = response.get("result")
 		columns = response.get("columns")
 		self.assertListEqual(["name", "email", "user_type"], [column.get("fieldname") for column in columns])
-		admin_dict = frappe.core.utils.find(result, lambda d: d["name"] == "Administrator")
+		admin_dict = stylo.core.utils.find(result, lambda d: d["name"] == "Administrator")
 		self.assertDictEqual(
 			{"name": "Administrator", "user_type": "System User", "email": "admin@example.com"}, admin_dict
 		)
 
 	def test_report_permissions(self):
-		frappe.set_user("test@example.com")
-		frappe.db.delete("Has Role", {"parent": frappe.session.user, "role": "Test Has Role"})
-		frappe.db.commit()
-		if not frappe.db.exists("Role", "Test Has Role"):
-			frappe.get_doc({"doctype": "Role", "role_name": "Test Has Role"}).insert(ignore_permissions=True)
+		stylo.set_user("test@example.com")
+		stylo.db.delete("Has Role", {"parent": stylo.session.user, "role": "Test Has Role"})
+		stylo.db.commit()
+		if not stylo.db.exists("Role", "Test Has Role"):
+			stylo.get_doc({"doctype": "Role", "role_name": "Test Has Role"}).insert(ignore_permissions=True)
 
-		if not frappe.db.exists("Report", "Test Report"):
-			report = frappe.get_doc(
+		if not stylo.db.exists("Report", "Test Report"):
+			report = stylo.get_doc(
 				{
 					"doctype": "Report",
 					"ref_doctype": "User",
@@ -176,17 +176,17 @@ class TestReport(StyloTestCase):
 				}
 			).insert(ignore_permissions=True)
 		else:
-			report = frappe.get_doc("Report", "Test Report")
+			report = stylo.get_doc("Report", "Test Report")
 
 		self.assertNotEqual(report.is_permitted(), True)
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 	def test_report_custom_permissions(self):
-		frappe.set_user("test@example.com")
-		frappe.db.delete("Custom Role", {"report": "Test Custom Role Report"})
-		frappe.db.commit()  # nosemgrep
-		if not frappe.db.exists("Report", "Test Custom Role Report"):
-			report = frappe.get_doc(
+		stylo.set_user("test@example.com")
+		stylo.db.delete("Custom Role", {"report": "Test Custom Role Report"})
+		stylo.db.commit()  # nosemgrep
+		if not stylo.db.exists("Report", "Test Custom Role Report"):
+			report = stylo.get_doc(
 				{
 					"doctype": "Report",
 					"ref_doctype": "User",
@@ -197,11 +197,11 @@ class TestReport(StyloTestCase):
 				}
 			).insert(ignore_permissions=True)
 		else:
-			report = frappe.get_doc("Report", "Test Custom Role Report")
+			report = stylo.get_doc("Report", "Test Custom Role Report")
 
 		self.assertEqual(report.is_permitted(), True)
 
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "Custom Role",
 				"report": "Test Custom Role Report",
@@ -211,27 +211,27 @@ class TestReport(StyloTestCase):
 		).insert(ignore_permissions=True)
 
 		self.assertNotEqual(report.is_permitted(), True)
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 	# test for the `_format` method if report data doesn't have sort_by parameter
 	def test_format_method(self):
-		if frappe.db.exists("Report", "User Activity Report Without Sort"):
-			frappe.delete_doc("Report", "User Activity Report Without Sort")
+		if stylo.db.exists("Report", "User Activity Report Without Sort"):
+			stylo.delete_doc("Report", "User Activity Report Without Sort")
 		with open(os.path.join(os.path.dirname(__file__), "user_activity_report_without_sort.json")) as f:
-			frappe.get_doc(json.loads(f.read())).insert()
+			stylo.get_doc(json.loads(f.read())).insert()
 
-		report = frappe.get_doc("Report", "User Activity Report Without Sort")
+		report = stylo.get_doc("Report", "User Activity Report Without Sort")
 		columns, data = report.get_data()
 
 		self.assertEqual(columns[0].get("label"), "ID")
 		self.assertEqual(columns[1].get("label"), "User Type")
 		self.assertTrue("Administrator" in [d[0] for d in data])
-		frappe.delete_doc("Report", "User Activity Report Without Sort")
+		stylo.delete_doc("Report", "User Activity Report Without Sort")
 
 	def test_non_standard_script_report(self):
 		report_name = "Test Non Standard Script Report"
-		if not frappe.db.exists("Report", report_name):
-			report = frappe.get_doc(
+		if not stylo.db.exists("Report", report_name):
+			report = stylo.get_doc(
 				{
 					"doctype": "Report",
 					"ref_doctype": "User",
@@ -241,11 +241,11 @@ class TestReport(StyloTestCase):
 				}
 			).insert(ignore_permissions=True)
 		else:
-			report = frappe.get_doc("Report", report_name)
+			report = stylo.get_doc("Report", report_name)
 
 		report.report_script = """
 totals = {}
-for user in frappe.get_all('User', fields = ['name', 'user_type', 'creation']):
+for user in stylo.get_all('User', fields = ['name', 'user_type', 'creation']):
 	if not user.user_type in totals:
 		totals[user.user_type] = 0
 	totals[user.user_type] = totals[user.user_type] + 1
@@ -272,10 +272,10 @@ data = [
 	def test_script_report_with_columns(self):
 		report_name = "Test Script Report With Columns"
 
-		if frappe.db.exists("Report", report_name):
-			frappe.delete_doc("Report", report_name)
+		if stylo.db.exists("Report", report_name):
+			stylo.delete_doc("Report", report_name)
 
-		report = frappe.get_doc(
+		report = stylo.get_doc(
 			{
 				"doctype": "Report",
 				"ref_doctype": "User",
@@ -291,7 +291,7 @@ data = [
 
 		report.report_script = """
 totals = {}
-for user in frappe.get_all('User', fields = ['name', 'user_type', 'creation']):
+for user in stylo.get_all('User', fields = ['name', 'user_type', 'creation']):
 	if not user.user_type in totals:
 		totals[user.user_type] = 0
 	totals[user.user_type] = totals[user.user_type] + 1
@@ -313,25 +313,25 @@ result = [
 	def test_toggle_disabled(self):
 		"""Make sure that authorization is respected."""
 		# Assuming that there will be reports in the system.
-		reports = frappe.get_all(doctype="Report", limit=1)
+		reports = stylo.get_all(doctype="Report", limit=1)
 		report_name = reports[0]["name"]
-		doc = frappe.get_doc("Report", report_name)
+		doc = stylo.get_doc("Report", report_name)
 		status = doc.disabled
 
 		# User has write permission on reports and should pass through
-		frappe.set_user("test@example.com")
+		stylo.set_user("test@example.com")
 		doc.toggle_disable(not status)
 		doc.reload()
 		self.assertNotEqual(status, doc.disabled)
 
 		# User has no write permission on reports, permission error is expected.
-		frappe.set_user("test1@example.com")
-		doc = frappe.get_doc("Report", report_name)
-		with self.assertRaises(frappe.exceptions.ValidationError):
+		stylo.set_user("test1@example.com")
+		doc = stylo.get_doc("Report", report_name)
+		with self.assertRaises(stylo.exceptions.ValidationError):
 			doc.toggle_disable(1)
 
 		# Set user back to administrator
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 	def test_add_total_row_for_tree_reports(self):
 		report_settings = {"tree": True, "parent_field": "parent_value"}
@@ -371,7 +371,7 @@ result = [
 		"""
 		)
 
-		report = frappe.get_doc(
+		report = stylo.get_doc(
 			{
 				"doctype": "Report",
 				"ref_doctype": "User",
@@ -382,9 +382,9 @@ result = [
 			}
 		).insert()
 
-		if frappe.db.db_type == "mariadb":
+		if stylo.db.db_type == "mariadb":
 			col, rows = report.execute_query_report(filters={})
 			self.assertEqual(col[0], "name")
 			self.assertGreaterEqual(len(rows), 1)
-		elif frappe.db.db_type == "postgres":
-			self.assertRaises(frappe.PermissionError, report.execute_query_report, filters={})
+		elif stylo.db.db_type == "postgres":
+			self.assertRaises(stylo.PermissionError, report.execute_query_report, filters={})

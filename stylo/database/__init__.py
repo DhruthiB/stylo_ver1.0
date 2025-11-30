@@ -4,58 +4,58 @@
 # Database Module
 # --------------------
 
-from frappe.database.database import savepoint
+from stylo.database.database import savepoint
 
 
 def setup_database(force, source_sql=None, verbose=None, no_mariadb_socket=False):
-	import frappe
+	import stylo
 
-	if frappe.conf.db_type == "postgres":
-		import frappe.database.postgres.setup_db
+	if stylo.conf.db_type == "postgres":
+		import stylo.database.postgres.setup_db
 
-		return frappe.database.postgres.setup_db.setup_database(force, source_sql, verbose)
+		return stylo.database.postgres.setup_db.setup_database(force, source_sql, verbose)
 	else:
-		import frappe.database.mariadb.setup_db
+		import stylo.database.mariadb.setup_db
 
-		return frappe.database.mariadb.setup_db.setup_database(
+		return stylo.database.mariadb.setup_db.setup_database(
 			force, source_sql, verbose, no_mariadb_socket=no_mariadb_socket
 		)
 
 
 def drop_user_and_database(db_name, root_login=None, root_password=None):
-	import frappe
+	import stylo
 
-	if frappe.conf.db_type == "postgres":
-		import frappe.database.postgres.setup_db
+	if stylo.conf.db_type == "postgres":
+		import stylo.database.postgres.setup_db
 
-		return frappe.database.postgres.setup_db.drop_user_and_database(db_name, root_login, root_password)
+		return stylo.database.postgres.setup_db.drop_user_and_database(db_name, root_login, root_password)
 	else:
-		import frappe.database.mariadb.setup_db
+		import stylo.database.mariadb.setup_db
 
-		return frappe.database.mariadb.setup_db.drop_user_and_database(db_name, root_login, root_password)
+		return stylo.database.mariadb.setup_db.drop_user_and_database(db_name, root_login, root_password)
 
 
 def get_db(host=None, user=None, password=None, port=None):
-	import frappe
+	import stylo
 
-	if frappe.conf.db_type == "postgres":
-		import frappe.database.postgres.database
+	if stylo.conf.db_type == "postgres":
+		import stylo.database.postgres.database
 
-		return frappe.database.postgres.database.PostgresDatabase(host, user, password, port=port)
+		return stylo.database.postgres.database.PostgresDatabase(host, user, password, port=port)
 	else:
-		import frappe.database.mariadb.database
+		import stylo.database.mariadb.database
 
-		return frappe.database.mariadb.database.MariaDBDatabase(host, user, password, port=port)
+		return stylo.database.mariadb.database.MariaDBDatabase(host, user, password, port=port)
 
 
 def setup_help_database(help_db_name):
-	import frappe
+	import stylo
 
-	if frappe.conf.db_type == "postgres":
-		import frappe.database.postgres.setup_db
+	if stylo.conf.db_type == "postgres":
+		import stylo.database.postgres.setup_db
 
-		return frappe.database.postgres.setup_db.setup_help_database(help_db_name)
+		return stylo.database.postgres.setup_db.setup_help_database(help_db_name)
 	else:
-		import frappe.database.mariadb.setup_db
+		import stylo.database.mariadb.setup_db
 
-		return frappe.database.mariadb.setup_db.setup_help_database(help_db_name)
+		return stylo.database.mariadb.setup_db.setup_help_database(help_db_name)

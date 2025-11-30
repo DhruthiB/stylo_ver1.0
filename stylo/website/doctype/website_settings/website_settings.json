@@ -1,7 +1,7 @@
 {
  "actions": [
   {
-   "action": "frappe.sessions.clear",
+   "action": "stylo.sessions.clear",
    "action_type": "Server Action",
    "label": "Clear Cache"
   }

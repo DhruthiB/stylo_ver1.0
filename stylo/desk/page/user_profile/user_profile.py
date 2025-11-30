@@ -1,22 +1,22 @@
 from datetime import datetime
 
-import frappe
-from frappe.query_builder import Interval, Order
-from frappe.query_builder.functions import Date, Sum, UnixTimestamp
-from frappe.utils import getdate
+import stylo
+from stylo.query_builder import Interval, Order
+from stylo.query_builder.functions import Date, Sum, UnixTimestamp
+from stylo.utils import getdate
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_energy_points_heatmap_data(user: str, date: str | None):
 	try:
 		date = getdate(date)
 	except Exception:
 		date = getdate()
 
-	eps_log = frappe.qb.DocType("Energy Point Log")
+	eps_log = stylo.qb.DocType("Energy Point Log")
 
 	return dict(
-		frappe.qb.from_(eps_log)
+		stylo.qb.from_(eps_log)
 		.select(UnixTimestamp(Date(eps_log.creation)), Sum(eps_log.points))
 		.where(eps_log.user == user)
 		.where(eps_log["type"] != "Review")
@@ -28,12 +28,12 @@ def get_energy_points_heatmap_data(user: str, date: str | None):
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_energy_points_percentage_chart_data(user: str, field: str):
 	if field not in ("type", "reference_doctype", "rule"):
-		frappe.throw(frappe._("Invalid field for grouping"))
+		stylo.throw(stylo._("Invalid field for grouping"))
 
-	result = frappe.get_all(
+	result = stylo.get_all(
 		"Energy Point Log",
 		filters={"user": user, "type": ["!=", "Review"]},
 		group_by=field,
@@ -48,10 +48,10 @@ def get_energy_points_percentage_chart_data(user: str, field: str):
 	}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_user_rank(user: str):
 	month_start = datetime.today().replace(day=1)
-	monthly_rank = frappe.get_all(
+	monthly_rank = stylo.get_all(
 		"Energy Point Log",
 		group_by="`tabEnergy Point Log`.`user`",
 		filters={"creation": [">", month_start], "type": ["!=", "Review"]},
@@ -60,7 +60,7 @@ def get_user_rank(user: str):
 		as_list=True,
 	)
 
-	all_time_rank = frappe.get_all(
+	all_time_rank = stylo.get_all(
 		"Energy Point Log",
 		group_by="`tabEnergy Point Log`.`user`",
 		filters={"type": ["!=", "Review"]},
@@ -75,24 +75,24 @@ def get_user_rank(user: str):
 	}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_profile_info(profile_info):
-	profile_info = frappe.parse_json(profile_info)
+	profile_info = stylo.parse_json(profile_info)
 	keys = ("location", "interest", "user_image", "bio")
 
 	for key in list(profile_info.keys()):
 		if key not in keys:
 			del profile_info[key]
 
-	user = frappe.get_doc("User", frappe.session.user)
+	user = stylo.get_doc("User", stylo.session.user)
 	user.update(profile_info)
 	user.save()
 	return user
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_energy_points_list(start: int, limit: int, user: str):
-	return frappe.db.get_list(
+	return stylo.db.get_list(
 		"Energy Point Log",
 		filters={"user": user, "type": ["!=", "Review"]},
 		fields=[

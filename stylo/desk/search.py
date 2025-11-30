@@ -5,13 +5,13 @@ import functools
 import json
 import re
 
-import frappe
+import stylo
 
 # Backward compatbility
-from frappe import _, is_whitelisted, validate_and_sanitize_search_inputs
-from frappe.database.schema import SPECIAL_CHAR_PATTERN
-from frappe.permissions import has_permission
-from frappe.utils import cint, cstr, unique
+from stylo import _, is_whitelisted, validate_and_sanitize_search_inputs
+from stylo.database.schema import SPECIAL_CHAR_PATTERN
+from stylo.permissions import has_permission
+from stylo.utils import cint, cstr, unique
 
 
 def sanitize_searchfield(searchfield):
@@ -19,11 +19,11 @@ def sanitize_searchfield(searchfield):
 		return
 
 	if SPECIAL_CHAR_PATTERN.search(searchfield):
-		frappe.throw(_("Invalid Search Field {0}").format(searchfield), frappe.DataError)
+		stylo.throw(_("Invalid Search Field {0}").format(searchfield), stylo.DataError)
 
 
 # this is called by the Link Field
-@frappe.whitelist()
+@stylo.whitelist()
 def search_link(
 	doctype,
 	txt,
@@ -45,12 +45,12 @@ def search_link(
 		ignore_user_permissions=ignore_user_permissions,
 	)
 
-	frappe.response["results"] = build_for_autosuggest(frappe.response["values"], doctype=doctype)
-	del frappe.response["values"]
+	stylo.response["results"] = build_for_autosuggest(stylo.response["values"], doctype=doctype)
+	del stylo.response["values"]
 
 
 # this is called by the search box
-@frappe.whitelist()
+@stylo.whitelist()
 def search_widget(
 	doctype,
 	txt,
@@ -75,13 +75,13 @@ def search_widget(
 	if not searchfield:
 		searchfield = "name"
 
-	standard_queries = frappe.get_hooks().standard_queries or {}
+	standard_queries = stylo.get_hooks().standard_queries or {}
 
 	if query and query.split(maxsplit=1)[0].lower() != "select":
 		# by method
 		try:
-			is_whitelisted(frappe.get_attr(query))
-			frappe.response["values"] = frappe.call(
+			is_whitelisted(stylo.get_attr(query))
+			stylo.response["values"] = stylo.call(
 				query,
 				doctype,
 				txt,
@@ -92,11 +92,11 @@ def search_widget(
 				as_dict=as_dict,
 				reference_doctype=reference_doctype,
 			)
-		except frappe.exceptions.PermissionError as e:
-			if frappe.local.conf.developer_mode:
+		except stylo.exceptions.PermissionError as e:
+			if stylo.local.conf.developer_mode:
 				raise e
 			else:
-				frappe.respond_as_web_page(
+				stylo.respond_as_web_page(
 					title="Invalid Method",
 					html="Method not found",
 					indicator_color="red",
@@ -121,12 +121,12 @@ def search_widget(
 			ignore_user_permissions=ignore_user_permissions,
 		)
 	else:
-		meta = frappe.get_meta(doctype)
+		meta = stylo.get_meta(doctype)
 
 		if query:
-			frappe.throw(_("This query style is discontinued"))
+			stylo.throw(_("This query style is discontinued"))
 			# custom query
-			# frappe.response["values"] = frappe.db.sql(scrub_custom_query(query, searchfield, txt))
+			# stylo.response["values"] = stylo.db.sql(scrub_custom_query(query, searchfield, txt))
 		else:
 			if isinstance(filters, dict):
 				filters_items = filters.items()
@@ -183,20 +183,20 @@ def search_widget(
 				formatted_fields.insert(1, f"`tab{meta.name}`.{meta.title_field} as `label`")
 
 			# In order_by, `idx` gets second priority, because it stores link count
-			from frappe.model.db_query import get_order_by
+			from stylo.model.db_query import get_order_by
 
 			order_by_based_on_meta = get_order_by(doctype, meta)
 			# 2 is the index of _relevance column
 			order_by = f"`tab{doctype}`.idx desc, {order_by_based_on_meta}"
 
 			if not meta.translated_doctype:
-				_txt = frappe.db.escape((txt or "").replace("%", "").replace("@", ""))
+				_txt = stylo.db.escape((txt or "").replace("%", "").replace("@", ""))
 				_relevance = f"(1 / nullif(locate({_txt}, `tab{doctype}`.`name`), 0))"
 				formatted_fields.append(f"""{_relevance} as `_relevance`""")
 				# Since we are sorting by alias postgres needs to know number of column we are sorting
-				if frappe.db.db_type == "mariadb":
+				if stylo.db.db_type == "mariadb":
 					order_by = f"ifnull(_relevance, -9999) desc, {order_by}"
-				elif frappe.db.db_type == "postgres":
+				elif stylo.db.db_type == "postgres":
 					# Since we are sorting by alias postgres needs to know number of column we are sorting
 					order_by = f"{len(formatted_fields)} desc nulls last, {order_by}"
 
@@ -207,13 +207,13 @@ def search_widget(
 					cint(ignore_user_permissions)
 					and has_permission(
 						doctype,
-						ptype="select" if frappe.only_has_select_perm(doctype) else "read",
+						ptype="select" if stylo.only_has_select_perm(doctype) else "read",
 						parent_doctype=reference_doctype,
 					)
 				)
 			)
 
-			values = frappe.get_list(
+			values = stylo.get_list(
 				doctype,
 				filters=filters,
 				fields=formatted_fields,
@@ -251,7 +251,7 @@ def search_widget(
 				else:
 					values = [r[:-1] for r in values]
 
-			frappe.response["values"] = values
+			stylo.response["values"] = values
 
 
 def get_std_fields_list(meta, key):
@@ -279,7 +279,7 @@ def build_for_autosuggest(res: list[tuple], doctype: str) -> list[dict]:
 		)
 
 	results = []
-	meta = frappe.get_meta(doctype)
+	meta = stylo.get_meta(doctype)
 	if meta.show_title_field_in_link:
 		for item in res:
 			item = list(item)
@@ -310,17 +310,17 @@ def relevance_sorter(key, query, as_dict):
 	return (cstr(value).lower().startswith(query.lower()) is not True, value)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_names_for_mentions(search_term):
-	users_for_mentions = frappe.cache().get_value("users_for_mentions", get_users_for_mentions)
-	user_groups = frappe.cache().get_value("user_groups", get_user_groups)
+	users_for_mentions = stylo.cache().get_value("users_for_mentions", get_users_for_mentions)
+	user_groups = stylo.cache().get_value("user_groups", get_user_groups)
 
 	filtered_mentions = []
 	for mention_data in users_for_mentions + user_groups:
 		if search_term.lower() not in mention_data.value.lower():
 			continue
 
-		mention_data["link"] = frappe.utils.get_url_to_form(
+		mention_data["link"] = stylo.utils.get_url_to_form(
 			"User Group" if mention_data.get("is_group") else "User Profile", mention_data["id"]
 		)
 
@@ -330,7 +330,7 @@ def get_names_for_mentions(search_term):
 
 
 def get_users_for_mentions():
-	return frappe.get_all(
+	return stylo.get_all(
 		"User",
 		fields=["name as id", "full_name as value"],
 		filters={
@@ -343,14 +343,14 @@ def get_users_for_mentions():
 
 
 def get_user_groups():
-	return frappe.get_all("User Group", fields=["name as id", "name as value"], update={"is_group": True})
+	return stylo.get_all("User Group", fields=["name as id", "name as value"], update={"is_group": True})
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_link_title(doctype, docname):
-	meta = frappe.get_meta(doctype)
+	meta = stylo.get_meta(doctype)
 
 	if meta.show_title_field_in_link:
-		return frappe.db.get_value(doctype, docname, meta.title_field)
+		return stylo.db.get_value(doctype, docname, meta.title_field)
 
 	return docname

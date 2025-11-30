@@ -2,15 +2,15 @@
 # License: MIT. See LICENSE
 from bs4 import BeautifulSoup
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.serve import get_response
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.serve import get_response
 
 
 class TestWebTemplate(StyloTestCase):
 	def test_render_web_template_with_values(self):
-		doc = frappe.get_doc("Web Template", "Hero with Right Image")
+		doc = stylo.get_doc("Web Template", "Hero with Right Image")
 		values = {
 			"title": "Test Hero",
 			"subtitle": "Test subtitle content",
@@ -38,7 +38,7 @@ class TestWebTemplate(StyloTestCase):
 
 		self.assertEqual(response.status_code, 200)
 
-		html = frappe.safe_decode(response.get_data())
+		html = stylo.safe_decode(response.get_data())
 
 		soup = BeautifulSoup(html, "html.parser")
 		sections = soup.find("main").find_all("section")
@@ -53,23 +53,23 @@ class TestWebTemplate(StyloTestCase):
 		theme = self.create_website_theme()
 		theme.set_as_default()
 
-		frappe.conf.developer_mode = 1
+		stylo.conf.developer_mode = 1
 
 		set_request(method="GET", path="test-web-template")
 		response = get_response()
 		self.assertEqual(response.status_code, 200)
-		html = frappe.safe_decode(response.get_data())
+		html = stylo.safe_decode(response.get_data())
 
 		soup = BeautifulSoup(html, "html.parser")
 		stylesheet = soup.select_one('link[rel="stylesheet"]')
 
 		self.assertEqual(stylesheet.attrs["href"], theme.theme_url)
 
-		frappe.get_doc("Website Theme", "Standard").set_as_default()
+		stylo.get_doc("Website Theme", "Standard").set_as_default()
 
 	def create_web_page(self):
-		if not frappe.db.exists("Web Page", "test-web-template"):
-			frappe.get_doc(
+		if not stylo.db.exists("Web Page", "test-web-template"):
+			stylo.get_doc(
 				{
 					"doctype": "Web Page",
 					"title": "test-web-template",
@@ -80,13 +80,13 @@ class TestWebTemplate(StyloTestCase):
 					"page_blocks": [
 						{
 							"web_template": "Section with Image",
-							"web_template_values": frappe.as_json(
+							"web_template_values": stylo.as_json(
 								{"title": "Test Title", "subtitle": "test lorem ipsum"}
 							),
 						},
 						{
 							"web_template": "Section with Cards",
-							"web_template_values": frappe.as_json(
+							"web_template_values": stylo.as_json(
 								{
 									"title": "Test Title",
 									"subtitle": "test lorem ipsum",
@@ -108,8 +108,8 @@ class TestWebTemplate(StyloTestCase):
 			).insert()
 
 	def create_website_theme(self):
-		if not frappe.db.exists("Website Theme", "Custom"):
-			theme = frappe.get_doc({"doctype": "Website Theme", "theme": "Custom"}).insert()
+		if not stylo.db.exists("Website Theme", "Custom"):
+			theme = stylo.get_doc({"doctype": "Website Theme", "theme": "Custom"}).insert()
 		else:
-			theme = frappe.get_doc("Website Theme", "Custom")
+			theme = stylo.get_doc("Website Theme", "Custom")
 		return theme

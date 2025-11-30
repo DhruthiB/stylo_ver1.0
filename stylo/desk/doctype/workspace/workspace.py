@@ -4,14 +4,14 @@
 from collections import defaultdict
 from json import loads
 
-import frappe
-from frappe import _
-from frappe.desk.desktop import save_new_widget
-from frappe.desk.utils import validate_route_conflict
-from frappe.model.document import Document
-from frappe.model.rename_doc import rename_doc
-from frappe.modules.export_file import delete_folder, export_to_files
-from frappe.utils import strip_html
+import stylo
+from stylo import _
+from stylo.desk.desktop import save_new_widget
+from stylo.desk.utils import validate_route_conflict
+from stylo.model.document import Document
+from stylo.model.rename_doc import rename_doc
+from stylo.modules.export_file import delete_folder, export_to_files
+from stylo.utils import strip_html
 
 
 class Workspace(Document):
@@ -19,7 +19,7 @@ class Workspace(Document):
 		self.title = strip_html(self.title)
 
 		if self.public and not is_workspace_manager() and not disable_saving_as_public():
-			frappe.throw(_("You need to be Workspace Manager to edit this document"))
+			stylo.throw(_("You need to be Workspace Manager to edit this document"))
 		if self.has_value_changed("title"):
 			validate_route_conflict(self.doctype, self.title)
 		else:
@@ -29,20 +29,20 @@ class Workspace(Document):
 			if not isinstance(loads(self.content), list):
 				raise
 		except Exception:
-			frappe.throw(_("Content data shoud be a list"))
+			stylo.throw(_("Content data shoud be a list"))
 
 	def clear_cache(self):
 		super().clear_cache()
 		if self.for_user:
-			frappe.cache().hdel("bootinfo", self.for_user)
+			stylo.cache().hdel("bootinfo", self.for_user)
 		else:
-			frappe.cache().delete_key("bootinfo")
+			stylo.cache().delete_key("bootinfo")
 
 	def on_update(self):
 		if disable_saving_as_public():
 			return
 
-		if frappe.conf.developer_mode and self.public:
+		if stylo.conf.developer_mode and self.public:
 			if self.module:
 				export_to_files(record_list=[["Workspace", self.name]], record_module=self.module)
 
@@ -59,12 +59,12 @@ class Workspace(Document):
 		if disable_saving_as_public():
 			return
 
-		if self.module and frappe.conf.developer_mode:
+		if self.module and stylo.conf.developer_mode:
 			delete_folder(self.module, "Workspace", self.title)
 
 	@staticmethod
 	def get_module_wise_workspaces():
-		workspaces = frappe.get_all(
+		workspaces = stylo.get_all(
 			"Workspace",
 			fields=["name", "module"],
 			filters={"for_user": "", "public": 1},
@@ -82,7 +82,7 @@ class Workspace(Document):
 
 	def get_link_groups(self):
 		cards = []
-		current_card = frappe._dict(
+		current_card = stylo._dict(
 			{
 				"label": "Link",
 				"type": "Card Break",
@@ -98,7 +98,7 @@ class Workspace(Document):
 			if link.type == "Card Break":
 				if card_links and (
 					not current_card.get("only_for")
-					or current_card.get("only_for") == frappe.get_system_settings("country")
+					or current_card.get("only_for") == stylo.get_system_settings("country")
 				):
 					current_card["links"] = card_links
 					cards.append(current_card)
@@ -160,12 +160,12 @@ class Workspace(Document):
 
 def disable_saving_as_public():
 	return (
-		frappe.flags.in_install
-		or frappe.flags.in_uninstall
-		or frappe.flags.in_patch
-		or frappe.flags.in_test
-		or frappe.flags.in_fixtures
-		or frappe.flags.in_migrate
+		stylo.flags.in_install
+		or stylo.flags.in_uninstall
+		or stylo.flags.in_patch
+		or stylo.flags.in_test
+		or stylo.flags.in_fixtures
+		or stylo.flags.in_migrate
 	)
 
 
@@ -181,11 +181,11 @@ def get_link_type(key):
 
 
 def get_report_type(report):
-	report_type = frappe.get_value("Report", report, "report_type")
+	report_type = stylo.get_value("Report", report, "report_type")
 	return report_type in ["Query Report", "Script Report", "Custom Report"]
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def new_page(new_page):
 	if not loads(new_page):
 		return
@@ -195,11 +195,11 @@ def new_page(new_page):
 	if page.get("public") and not is_workspace_manager():
 		return
 	elif (
-		not page.get("public") and page.get("for_user") != frappe.session.user and not is_workspace_manager()
+		not page.get("public") and page.get("for_user") != stylo.session.user and not is_workspace_manager()
 	):
-		frappe.throw(_("Cannot create private workspace of other users"), frappe.PermissionError)
+		stylo.throw(_("Cannot create private workspace of other users"), stylo.PermissionError)
 
-	doc = frappe.new_doc("Workspace")
+	doc = stylo.new_doc("Workspace")
 	doc.title = page.get("title")
 	doc.icon = page.get("icon")
 	doc.content = page.get("content")
@@ -213,19 +213,19 @@ def new_page(new_page):
 	return doc
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def save_page(title, public, new_widgets, blocks):
-	public = frappe.parse_json(public)
+	public = stylo.parse_json(public)
 
 	filters = {"public": public, "label": title}
 
 	if not public:
-		filters = {"for_user": frappe.session.user, "label": title + "-" + frappe.session.user}
-	pages = frappe.get_all("Workspace", filters=filters)
+		filters = {"for_user": stylo.session.user, "label": title + "-" + stylo.session.user}
+	pages = stylo.get_all("Workspace", filters=filters)
 	if pages:
-		doc = frappe.get_doc("Workspace", pages[0])
+		doc = stylo.get_doc("Workspace", pages[0])
 	else:
-		frappe.throw(_("Workspace not found"), frappe.DoesNotExistError)
+		stylo.throw(_("Workspace not found"), stylo.DoesNotExistError)
 
 	doc.content = blocks
 	doc.save(ignore_permissions=True)
@@ -235,26 +235,26 @@ def save_page(title, public, new_widgets, blocks):
 	return {"name": title, "public": public, "label": doc.label}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_page(name, title, icon, parent, public):
-	public = frappe.parse_json(public)
-	doc = frappe.get_doc("Workspace", name)
+	public = stylo.parse_json(public)
+	doc = stylo.get_doc("Workspace", name)
 
-	if not doc.get("public") and doc.get("for_user") != frappe.session.user and not is_workspace_manager():
-		frappe.throw(
+	if not doc.get("public") and doc.get("for_user") != stylo.session.user and not is_workspace_manager():
+		stylo.throw(
 			_("Need Workspace Manager role to edit private workspace of other users"),
-			frappe.PermissionError,
+			stylo.PermissionError,
 		)
 
 	if doc:
-		child_docs = frappe.get_all("Workspace", filters={"parent_page": doc.title, "public": doc.public})
+		child_docs = stylo.get_all("Workspace", filters={"parent_page": doc.title, "public": doc.public})
 		doc.title = title
 		doc.icon = icon
 		doc.parent_page = parent
 		if doc.public != public:
-			doc.sequence_id = frappe.db.count("Workspace", {"public": public}, cache=True)
+			doc.sequence_id = stylo.db.count("Workspace", {"public": public}, cache=True)
 			doc.public = public
-		doc.for_user = "" if public else doc.for_user or frappe.session.user
+		doc.for_user = "" if public else doc.for_user or stylo.session.user
 		doc.label = new_name = f"{title}-{doc.for_user}" if doc.for_user else title
 		doc.save(ignore_permissions=True)
 
@@ -264,11 +264,11 @@ def update_page(name, title, icon, parent, public):
 		# update new name and public in child pages
 		if child_docs:
 			for child in child_docs:
-				child_doc = frappe.get_doc("Workspace", child.name)
+				child_doc = stylo.get_doc("Workspace", child.name)
 				child_doc.parent_page = doc.title
 				if child_doc.public != public:
 					child_doc.public = public
-				child_doc.for_user = "" if public else child_doc.for_user or frappe.session.user
+				child_doc.for_user = "" if public else child_doc.for_user or stylo.session.user
 				child_doc.label = new_child_name = (
 					f"{child_doc.title}-{child_doc.for_user}" if child_doc.for_user else child_doc.title
 				)
@@ -281,32 +281,32 @@ def update_page(name, title, icon, parent, public):
 
 
 def hide_unhide_page(page_name: str, is_hidden: bool):
-	page = frappe.get_doc("Workspace", page_name)
+	page = stylo.get_doc("Workspace", page_name)
 
 	if page.get("public") and not is_workspace_manager():
-		frappe.throw(
-			_("Need Workspace Manager role to hide/unhide public workspaces"), frappe.PermissionError
+		stylo.throw(
+			_("Need Workspace Manager role to hide/unhide public workspaces"), stylo.PermissionError
 		)
 
-	if not page.get("public") and page.get("for_user") != frappe.session.user and not is_workspace_manager():
-		frappe.throw(_("Cannot update private workspace of other users"), frappe.PermissionError)
+	if not page.get("public") and page.get("for_user") != stylo.session.user and not is_workspace_manager():
+		stylo.throw(_("Cannot update private workspace of other users"), stylo.PermissionError)
 
 	page.is_hidden = int(is_hidden)
 	page.save(ignore_permissions=True)
 	return True
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def hide_page(page_name: str):
 	return hide_unhide_page(page_name, 1)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def unhide_page(page_name: str):
 	return hide_unhide_page(page_name, 0)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def duplicate_page(page_name, new_page):
 	if not loads(new_page):
 		return
@@ -316,8 +316,8 @@ def duplicate_page(page_name, new_page):
 	if new_page.get("is_public") and not is_workspace_manager():
 		return
 
-	old_doc = frappe.get_doc("Workspace", page_name)
-	doc = frappe.copy_doc(old_doc)
+	old_doc = stylo.get_doc("Workspace", page_name)
+	doc = stylo.copy_doc(old_doc)
 	doc.title = new_page.get("title")
 	doc.icon = new_page.get("icon")
 	doc.parent_page = new_page.get("parent") or ""
@@ -326,7 +326,7 @@ def duplicate_page(page_name, new_page):
 	doc.label = doc.title
 	doc.module = ""
 	if not doc.public:
-		doc.for_user = doc.for_user or frappe.session.user
+		doc.for_user = doc.for_user or stylo.session.user
 		doc.label = f"{doc.title}-{doc.for_user}"
 	doc.name = doc.label
 	if old_doc.public == doc.public:
@@ -338,7 +338,7 @@ def duplicate_page(page_name, new_page):
 	return doc
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def delete_page(page):
 	if not loads(page):
 		return
@@ -346,25 +346,25 @@ def delete_page(page):
 	page = loads(page)
 
 	if page.get("public") and not is_workspace_manager():
-		frappe.throw(
+		stylo.throw(
 			_("Cannot delete public workspace without Workspace Manager role"),
-			frappe.PermissionError,
+			stylo.PermissionError,
 		)
 	elif not page.get("public") and not is_workspace_manager():
-		workspace_owner = frappe.get_value("Workspace", page.get("name"), "for_user")
-		if workspace_owner != frappe.session.user:
-			frappe.throw(
+		workspace_owner = stylo.get_value("Workspace", page.get("name"), "for_user")
+		if workspace_owner != stylo.session.user:
+			stylo.throw(
 				_("Cannot delete private workspace of other users"),
-				frappe.PermissionError,
+				stylo.PermissionError,
 			)
 
-	if frappe.db.exists("Workspace", page.get("name")):
-		frappe.get_doc("Workspace", page.get("name")).delete(ignore_permissions=True)
+	if stylo.db.exists("Workspace", page.get("name")):
+		stylo.get_doc("Workspace", page.get("name")).delete(ignore_permissions=True)
 
 	return {"name": page.get("name"), "public": page.get("public"), "title": page.get("title")}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def sort_pages(sb_public_items, sb_private_items):
 	if not loads(sb_public_items) and not loads(sb_private_items):
 		return
@@ -373,7 +373,7 @@ def sort_pages(sb_public_items, sb_private_items):
 	sb_private_items = loads(sb_private_items)
 
 	workspace_public_pages = get_page_list(["name", "title"], {"public": 1})
-	workspace_private_pages = get_page_list(["name", "title"], {"for_user": frappe.session.user})
+	workspace_private_pages = get_page_list(["name", "title"], {"for_user": stylo.session.user})
 
 	if sb_private_items:
 		return sort_page(workspace_private_pages, sb_private_items)
@@ -388,7 +388,7 @@ def sort_page(workspace_pages, pages):
 	for seq, d in enumerate(pages):
 		for page in workspace_pages:
 			if page.title == d.get("title"):
-				doc = frappe.get_doc("Workspace", page.name)
+				doc = stylo.get_doc("Workspace", page.name)
 				doc.sequence_id = seq + 1
 				doc.parent_page = d.get("parent_page") or ""
 				doc.flags.ignore_links = True
@@ -399,12 +399,12 @@ def sort_page(workspace_pages, pages):
 
 
 def last_sequence_id(doc):
-	doc_exists = frappe.db.exists({"doctype": "Workspace", "public": doc.public, "for_user": doc.for_user})
+	doc_exists = stylo.db.exists({"doctype": "Workspace", "public": doc.public, "for_user": doc.for_user})
 
 	if not doc_exists:
 		return 0
 
-	return frappe.get_all(
+	return stylo.get_all(
 		"Workspace",
 		fields=["sequence_id"],
 		filters={"public": doc.public, "for_user": doc.for_user},
@@ -413,8 +413,8 @@ def last_sequence_id(doc):
 
 
 def get_page_list(fields, filters):
-	return frappe.get_all("Workspace", fields=fields, filters=filters, order_by="sequence_id asc")
+	return stylo.get_all("Workspace", fields=fields, filters=filters, order_by="sequence_id asc")
 
 
 def is_workspace_manager():
-	return "Workspace Manager" in frappe.get_roles()
+	return "Workspace Manager" in stylo.get_roles()

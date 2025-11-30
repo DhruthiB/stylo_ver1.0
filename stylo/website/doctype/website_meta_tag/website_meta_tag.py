@@ -1,8 +1,8 @@
 # Copyright (c) 2019, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class WebsiteMetaTag(Document):
@@ -14,6 +14,6 @@ class WebsiteMetaTag(Document):
 		return {self.key: self.get_content()}
 
 	def set_in_context(self, context):
-		context.setdefault("metatags", frappe._dict({}))
+		context.setdefault("metatags", stylo._dict({}))
 		context.metatags[self.key] = self.get_content()
 		return context

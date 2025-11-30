@@ -16,9 +16,9 @@ import time
 from croniter import CroniterBadCronError
 
 # imports - module imports
-import frappe
-from frappe.utils import cint, get_datetime, get_sites, now_datetime
-from frappe.utils.background_jobs import get_jobs, set_niceness
+import stylo
+from stylo.utils import cint, get_datetime, get_sites, now_datetime
+from stylo.utils.background_jobs import get_jobs, set_niceness
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -51,7 +51,7 @@ def enqueue_events_for_all_sites():
 		# Don't add task to queue if webserver is in restart mode
 		return
 
-	with frappe.init_site():
+	with stylo.init_site():
 		sites = get_sites()
 
 	# Sites are sorted in alphabetical order, shuffle to randomize priorities
@@ -66,54 +66,54 @@ def enqueue_events_for_all_sites():
 
 def enqueue_events_for_site(site):
 	def log_and_raise():
-		error_message = f"Exception in Enqueue Events for Site {site}\n{frappe.get_traceback()}"
-		frappe.logger("scheduler").error(error_message)
+		error_message = f"Exception in Enqueue Events for Site {site}\n{stylo.get_traceback()}"
+		stylo.logger("scheduler").error(error_message)
 
 	try:
-		frappe.init(site=site)
-		frappe.connect()
+		stylo.init(site=site)
+		stylo.connect()
 		if is_scheduler_inactive():
 			return
 
 		enqueue_events(site=site)
 
-		frappe.logger("scheduler").debug(f"Queued events for site {site}")
-	except frappe.db.OperationalError as e:
-		if frappe.db.is_access_denied(e):
-			frappe.logger("scheduler").debug(f"Access denied for site {site}")
+		stylo.logger("scheduler").debug(f"Queued events for site {site}")
+	except stylo.db.OperationalError as e:
+		if stylo.db.is_access_denied(e):
+			stylo.logger("scheduler").debug(f"Access denied for site {site}")
 		else:
 			log_and_raise()
 	except Exception:
 		log_and_raise()
 
 	finally:
-		frappe.destroy()
+		stylo.destroy()
 
 
 def enqueue_events(site):
 	if schedule_jobs_based_on_activity():
-		frappe.flags.enqueued_jobs = []
+		stylo.flags.enqueued_jobs = []
 		queued_jobs = get_jobs(site=site, key="job_type").get(site) or []
-		for job_type in frappe.get_all("Scheduled Job Type", ("name", "method"), dict(stopped=0)):
+		for job_type in stylo.get_all("Scheduled Job Type", ("name", "method"), dict(stopped=0)):
 			if job_type.method not in queued_jobs:
 				# don't add it to queue if still pending
 				try:
-					frappe.get_doc("Scheduled Job Type", job_type.name).enqueue()
+					stylo.get_doc("Scheduled Job Type", job_type.name).enqueue()
 				except CroniterBadCronError:
-					frappe.logger("scheduler").error(
-						f"Invalid Job on {frappe.local.site} - {job_type.name}", exc_info=True
+					stylo.logger("scheduler").error(
+						f"Invalid Job on {stylo.local.site} - {job_type.name}", exc_info=True
 					)
 
 
 def is_scheduler_inactive(verbose=True) -> bool:
-	if frappe.local.conf.maintenance_mode:
+	if stylo.local.conf.maintenance_mode:
 		if verbose:
-			cprint(f"{frappe.local.site}: Maintenance mode is ON")
+			cprint(f"{stylo.local.site}: Maintenance mode is ON")
 		return True
 
-	if frappe.local.conf.pause_scheduler:
+	if stylo.local.conf.pause_scheduler:
 		if verbose:
-			cprint(f"{frappe.local.site}: frappe.conf.pause_scheduler is SET")
+			cprint(f"{stylo.local.site}: stylo.conf.pause_scheduler is SET")
 		return True
 
 	if is_scheduler_disabled(verbose=verbose):
@@ -123,22 +123,22 @@ def is_scheduler_inactive(verbose=True) -> bool:
 
 
 def is_scheduler_disabled(verbose=True) -> bool:
-	if frappe.conf.disable_scheduler:
+	if stylo.conf.disable_scheduler:
 		if verbose:
-			cprint(f"{frappe.local.site}: frappe.conf.disable_scheduler is SET")
+			cprint(f"{stylo.local.site}: stylo.conf.disable_scheduler is SET")
 		return True
 
-	scheduler_disabled = not frappe.utils.cint(
-		frappe.db.get_single_value("System Settings", "enable_scheduler")
+	scheduler_disabled = not stylo.utils.cint(
+		stylo.db.get_single_value("System Settings", "enable_scheduler")
 	)
 	if scheduler_disabled:
 		if verbose:
-			cprint(f"{frappe.local.site}: SystemSettings.enable_scheduler is UNSET")
+			cprint(f"{stylo.local.site}: SystemSettings.enable_scheduler is UNSET")
 	return scheduler_disabled
 
 
 def toggle_scheduler(enable):
-	frappe.db.set_single_value("System Settings", "enable_scheduler", int(enable))
+	stylo.db.set_single_value("System Settings", "enable_scheduler", int(enable))
 
 
 def enable_scheduler():
@@ -171,10 +171,10 @@ def schedule_jobs_based_on_activity(check_time=None):
 
 def is_dormant(check_time=None):
 	# Assume never dormant if developer_mode is enabled
-	if frappe.conf.developer_mode:
+	if stylo.conf.developer_mode:
 		return False
 	last_activity_log_timestamp = _get_last_modified_timestamp("Activity Log")
-	since = (frappe.get_system_settings("dormant_days") or 4) * 86400
+	since = (stylo.get_system_settings("dormant_days") or 4) * 86400
 	if not last_activity_log_timestamp:
 		return True
 	if ((check_time or now_datetime()) - last_activity_log_timestamp).total_seconds() >= since:
@@ -183,27 +183,27 @@ def is_dormant(check_time=None):
 
 
 def _get_last_modified_timestamp(doctype):
-	timestamp = frappe.db.get_value(doctype, filters={}, fieldname="modified", order_by="modified desc")
+	timestamp = stylo.db.get_value(doctype, filters={}, fieldname="modified", order_by="modified desc")
 	if timestamp:
 		return get_datetime(timestamp)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def activate_scheduler():
-	from frappe.installer import update_site_config
+	from stylo.installer import update_site_config
 
-	frappe.only_for("Administrator")
+	stylo.only_for("Administrator")
 
-	if frappe.local.conf.maintenance_mode:
-		frappe.throw(frappe._("Scheduler can not be re-enabled when maintenance mode is active."))
+	if stylo.local.conf.maintenance_mode:
+		stylo.throw(stylo._("Scheduler can not be re-enabled when maintenance mode is active."))
 
 	if is_scheduler_disabled():
 		enable_scheduler()
-	if frappe.conf.pause_scheduler:
+	if stylo.conf.pause_scheduler:
 		update_site_config("pause_scheduler", 0)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_scheduler_status():
 	if is_scheduler_inactive():
 		return {"status": "inactive"}
@@ -211,4 +211,4 @@ def get_scheduler_status():
 
 
 def get_scheduler_tick() -> int:
-	return cint(frappe.get_conf().scheduler_tick_interval) or 60
+	return cint(stylo.get_conf().scheduler_tick_interval) or 60

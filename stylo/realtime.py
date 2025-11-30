@@ -6,8 +6,8 @@ from contextlib import suppress
 
 import redis
 
-import frappe
-from frappe.utils.data import cstr
+import stylo
+from stylo.utils.data import cstr
 
 redis_server = None
 
@@ -16,7 +16,7 @@ def publish_progress(percent, title=None, doctype=None, docname=None, descriptio
 	publish_realtime(
 		"progress",
 		{"percent": percent, "title": title, "description": description},
-		user=None if doctype and docname else frappe.session.user,
+		user=None if doctype and docname else stylo.session.user,
 		doctype=doctype,
 		docname=docname,
 	)
@@ -45,17 +45,17 @@ def publish_realtime(
 		message = {}
 
 	if event is None:
-		event = "task_progress" if frappe.local.task_id else "global"
+		event = "task_progress" if stylo.local.task_id else "global"
 	elif event == "msgprint" and not user:
-		user = frappe.session.user
+		user = stylo.session.user
 	elif event == "list_update":
 		doctype = doctype or message.get("doctype")
 		room = get_doctype_room(doctype)
 	elif event == "docinfo_update":
 		room = get_doc_room(doctype, docname)
 
-	if not task_id and hasattr(frappe.local, "task_id"):
-		task_id = frappe.local.task_id
+	if not task_id and hasattr(stylo.local, "task_id"):
+		task_id = stylo.local.task_id
 
 	if not room:
 		if task_id:
@@ -74,8 +74,8 @@ def publish_realtime(
 
 	if after_commit:
 		params = [event, message, room]
-		if params not in frappe.local.realtime_log:
-			frappe.local.realtime_log.append(params)
+		if params not in stylo.local.realtime_log:
+			stylo.local.realtime_log.append(params)
 	else:
 		emit_via_redis(event, message, room)
 
@@ -89,7 +89,7 @@ def emit_via_redis(event, message, room):
 
 	with suppress(redis.exceptions.ConnectionError):
 		r = get_redis_server()
-		r.publish("events", frappe.as_json({"event": event, "message": message, "room": room}))
+		r.publish("events", stylo.as_json({"event": event, "message": message, "room": room}))
 
 
 def get_redis_server():
@@ -98,56 +98,56 @@ def get_redis_server():
 	if not redis_server:
 		from redis import Redis
 
-		redis_server = Redis.from_url(frappe.conf.redis_socketio or "redis://localhost:12311")
+		redis_server = Redis.from_url(stylo.conf.redis_socketio or "redis://localhost:12311")
 	return redis_server
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def can_subscribe_doc(doctype, docname):
 	if os.environ.get("CI"):
 		return True
 
-	frappe.has_permission(doctype, doc=docname, throw=True)
+	stylo.has_permission(doctype, doc=docname, throw=True)
 	return True
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def can_subscribe_doctype(doctype: str) -> bool:
-	from frappe.exceptions import PermissionError
+	from stylo.exceptions import PermissionError
 
-	if not frappe.has_permission(doctype=doctype, ptype="read"):
+	if not stylo.has_permission(doctype=doctype, ptype="read"):
 		raise PermissionError()
 
 	return True
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def get_user_info():
 	return {
-		"user": frappe.session.user,
-		"user_type": frappe.session.data.user_type,
+		"user": stylo.session.user,
+		"user_type": stylo.session.data.user_type,
 	}
 
 
 def get_doctype_room(doctype):
-	return f"{frappe.local.site}:doctype:{doctype}"
+	return f"{stylo.local.site}:doctype:{doctype}"
 
 
 def get_doc_room(doctype, docname):
-	return f"{frappe.local.site}:doc:{doctype}/{cstr(docname)}"
+	return f"{stylo.local.site}:doc:{doctype}/{cstr(docname)}"
 
 
 def get_user_room(user):
-	return f"{frappe.local.site}:user:{user}"
+	return f"{stylo.local.site}:user:{user}"
 
 
 def get_site_room():
-	return f"{frappe.local.site}:all"
+	return f"{stylo.local.site}:all"
 
 
 def get_task_progress_room(task_id):
-	return f"{frappe.local.site}:task_progress:{task_id}"
+	return f"{stylo.local.site}:task_progress:{task_id}"
 
 
 def get_website_room():
-	return f"{frappe.local.site}:website"
+	return f"{stylo.local.site}:website"

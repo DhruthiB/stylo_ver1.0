@@ -1,8 +1,8 @@
 import types
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.safe_exec import get_safe_globals, safe_exec
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.safe_exec import get_safe_globals, safe_exec
 
 
 class TestSafeExec(StyloTestCase):
@@ -14,7 +14,7 @@ class TestSafeExec(StyloTestCase):
 
 	def test_utils(self):
 		_locals = dict(out=None)
-		safe_exec("""out = frappe.utils.cint("1")""", None, _locals)
+		safe_exec("""out = stylo.utils.cint("1")""", None, _locals)
 		self.assertEqual(_locals["out"], 1)
 
 	def test_safe_eval(self):
@@ -29,61 +29,61 @@ class TestSafeExec(StyloTestCase):
 		}
 
 		for code, result in TEST_CASES.items():
-			self.assertEqual(frappe.safe_eval(code), result)
+			self.assertEqual(stylo.safe_eval(code), result)
 
-		self.assertRaises(AttributeError, frappe.safe_eval, "frappe.utils.os.path", get_safe_globals())
+		self.assertRaises(AttributeError, stylo.safe_eval, "stylo.utils.os.path", get_safe_globals())
 
 		# Doc/dict objects
-		user = frappe.new_doc("User")
+		user = stylo.new_doc("User")
 		user.user_type = "System User"
 		user.enabled = 1
-		self.assertTrue(frappe.safe_eval("user_type == 'System User'", eval_locals=user.as_dict()))
+		self.assertTrue(stylo.safe_eval("user_type == 'System User'", eval_locals=user.as_dict()))
 		self.assertEqual(
-			"System User Test", frappe.safe_eval("user_type + ' Test'", eval_locals=user.as_dict())
+			"System User Test", stylo.safe_eval("user_type + ' Test'", eval_locals=user.as_dict())
 		)
-		self.assertEqual(1, frappe.safe_eval("int(enabled)", eval_locals=user.as_dict()))
+		self.assertEqual(1, stylo.safe_eval("int(enabled)", eval_locals=user.as_dict()))
 
 	def test_safe_eval_wal(self):
-		self.assertRaises(SyntaxError, frappe.safe_eval, "(x := (40+2))")
+		self.assertRaises(SyntaxError, stylo.safe_eval, "(x := (40+2))")
 
 	def test_sql(self):
 		_locals = dict(out=None)
 		safe_exec(
-			"""out = frappe.db.sql("select name from tabDocType where name='DocType'")""", None, _locals
+			"""out = stylo.db.sql("select name from tabDocType where name='DocType'")""", None, _locals
 		)
 		self.assertEqual(_locals["out"][0][0], "DocType")
 
 		self.assertRaises(
-			frappe.PermissionError, safe_exec, 'frappe.db.sql("update tabToDo set description=NULL")'
+			stylo.PermissionError, safe_exec, 'stylo.db.sql("update tabToDo set description=NULL")'
 		)
 
 	def test_query_builder(self):
 		_locals = dict(out=None)
 		safe_exec(
-			script="""out = frappe.qb.from_("User").select(frappe.qb.terms.PseudoColumn("Max(name)")).run()""",
+			script="""out = stylo.qb.from_("User").select(stylo.qb.terms.PseudoColumn("Max(name)")).run()""",
 			_globals=None,
 			_locals=_locals,
 		)
-		self.assertEqual(frappe.db.sql("SELECT Max(name) FROM tabUser"), _locals["out"])
+		self.assertEqual(stylo.db.sql("SELECT Max(name) FROM tabUser"), _locals["out"])
 
 	def test_safe_query_builder(self):
-		self.assertRaises(frappe.PermissionError, safe_exec, """frappe.qb.from_("User").delete().run()""")
+		self.assertRaises(stylo.PermissionError, safe_exec, """stylo.qb.from_("User").delete().run()""")
 
 	def test_call(self):
 		# call non whitelisted method
-		self.assertRaises(frappe.PermissionError, safe_exec, """frappe.call("frappe.get_user")""")
+		self.assertRaises(stylo.PermissionError, safe_exec, """stylo.call("stylo.get_user")""")
 
 		# call whitelisted method
-		safe_exec("""frappe.call("ping")""")
+		safe_exec("""stylo.call("ping")""")
 
 	def test_enqueue(self):
 		# enqueue non whitelisted method
 		self.assertRaises(
-			frappe.PermissionError, safe_exec, """frappe.enqueue("frappe.get_user", now=True)"""
+			stylo.PermissionError, safe_exec, """stylo.enqueue("stylo.get_user", now=True)"""
 		)
 
 		# enqueue whitelisted method
-		safe_exec("""frappe.enqueue("ping", now=True)""")
+		safe_exec("""stylo.enqueue("ping", now=True)""")
 
 	def test_ensure_getattrable_globals(self):
 		def check_safe(objects):
@@ -96,8 +96,8 @@ class TestSafeExec(StyloTestCase):
 		check_safe(get_safe_globals().values())
 
 	def test_unsafe_objects(self):
-		unsafe_global = {"frappe": frappe}
-		self.assertRaises(SyntaxError, safe_exec, """frappe.msgprint("Hello")""", unsafe_global)
+		unsafe_global = {"stylo": stylo}
+		self.assertRaises(SyntaxError, safe_exec, """stylo.msgprint("Hello")""", unsafe_global)
 
 	def test_write_wrapper(self):
 		# Allow modifying _dict instance

@@ -3,11 +3,11 @@ import time
 from unittest import TestCase
 from unittest.mock import patch
 
-import frappe
-from frappe.core.doctype.scheduled_job_type.scheduled_job_type import ScheduledJobType, sync_jobs
-from frappe.utils import add_days, get_datetime
-from frappe.utils.doctor import purge_pending_jobs
-from frappe.utils.scheduler import (
+import stylo
+from stylo.core.doctype.scheduled_job_type.scheduled_job_type import ScheduledJobType, sync_jobs
+from stylo.utils import add_days, get_datetime
+from stylo.utils.doctor import purge_pending_jobs
+from stylo.utils.scheduler import (
 	_get_last_modified_timestamp,
 	enqueue_events,
 	is_dormant,
@@ -25,27 +25,27 @@ def test_method():
 
 class TestScheduler(TestCase):
 	def setUp(self):
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 		if not os.environ.get("CI"):
 			return
 
 		purge_pending_jobs()
-		if not frappe.get_all("Scheduled Job Type", limit=1):
+		if not stylo.get_all("Scheduled Job Type", limit=1):
 			sync_jobs()
 
 	def test_enqueue_jobs(self):
-		frappe.db.sql("update `tabScheduled Job Type` set last_execution = '2010-01-01 00:00:00'")
+		stylo.db.sql("update `tabScheduled Job Type` set last_execution = '2010-01-01 00:00:00'")
 
-		frappe.flags.execute_job = True
-		enqueue_events(site=frappe.local.site)
-		frappe.flags.execute_job = False
+		stylo.flags.execute_job = True
+		enqueue_events(site=stylo.local.site)
+		stylo.flags.execute_job = False
 
-		self.assertTrue("frappe.email.queue.set_expiry_for_email_queue", frappe.flags.enqueued_jobs)
-		self.assertTrue("frappe.utils.change_log.check_for_update", frappe.flags.enqueued_jobs)
+		self.assertTrue("stylo.email.queue.set_expiry_for_email_queue", stylo.flags.enqueued_jobs)
+		self.assertTrue("stylo.utils.change_log.check_for_update", stylo.flags.enqueued_jobs)
 		self.assertTrue(
-			"frappe.email.doctype.auto_email_report.auto_email_report.send_monthly",
-			frappe.flags.enqueued_jobs,
+			"stylo.email.doctype.auto_email_report.auto_email_report.send_monthly",
+			stylo.flags.enqueued_jobs,
 		)
 
 	def test_queue_peeking(self):
@@ -57,22 +57,22 @@ class TestScheduler(TestCase):
 
 	def test_is_dormant(self):
 		self.assertTrue(is_dormant(check_time=get_datetime("2100-01-01 00:00:00")))
-		self.assertTrue(is_dormant(check_time=add_days(frappe.db.get_last_created("Activity Log"), 5)))
-		self.assertFalse(is_dormant(check_time=frappe.db.get_last_created("Activity Log")))
+		self.assertTrue(is_dormant(check_time=add_days(stylo.db.get_last_created("Activity Log"), 5)))
+		self.assertFalse(is_dormant(check_time=stylo.db.get_last_created("Activity Log")))
 
 	def test_once_a_day_for_dormant(self):
-		frappe.db.truncate("Scheduled Job Log")
+		stylo.db.truncate("Scheduled Job Log")
 		self.assertTrue(schedule_jobs_based_on_activity(check_time=get_datetime("2100-01-01 00:00:00")))
 		self.assertTrue(
 			schedule_jobs_based_on_activity(
-				check_time=add_days(frappe.db.get_last_created("Activity Log"), 5)
+				check_time=add_days(stylo.db.get_last_created("Activity Log"), 5)
 			)
 		)
 
 		# create a fake job executed 5 days from now
-		job = get_test_job(method="frappe.tests.test_scheduler.test_method", frequency="Daily")
+		job = get_test_job(method="stylo.tests.test_scheduler.test_method", frequency="Daily")
 		job.execute()
-		job_log = frappe.get_doc("Scheduled Job Log", dict(scheduled_job_type=job.name))
+		job_log = stylo.get_doc("Scheduled Job Log", dict(scheduled_job_type=job.name))
 		job_log.db_set(
 			"modified", add_days(_get_last_modified_timestamp("Activity Log"), 5), update_modified=False
 		)
@@ -92,9 +92,9 @@ class TestScheduler(TestCase):
 		)
 
 
-def get_test_job(method="frappe.tests.test_scheduler.test_timeout_10", frequency="All") -> ScheduledJobType:
-	if not frappe.db.exists("Scheduled Job Type", dict(method=method)):
-		job = frappe.get_doc(
+def get_test_job(method="stylo.tests.test_scheduler.test_timeout_10", frequency="All") -> ScheduledJobType:
+	if not stylo.db.exists("Scheduled Job Type", dict(method=method)):
+		job = stylo.get_doc(
 			dict(
 				doctype="Scheduled Job Type",
 				method=method,
@@ -103,9 +103,9 @@ def get_test_job(method="frappe.tests.test_scheduler.test_timeout_10", frequency
 			)
 		).insert()
 	else:
-		job = frappe.get_doc("Scheduled Job Type", dict(method=method))
+		job = stylo.get_doc("Scheduled Job Type", dict(method=method))
 		job.db_set("last_execution", "2010-01-01 00:00:00")
 		job.db_set("frequency", frequency)
-	frappe.db.commit()
+	stylo.db.commit()
 
 	return job

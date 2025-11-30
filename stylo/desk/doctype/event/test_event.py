@@ -4,48 +4,48 @@
 
 import json
 
-import frappe
-import frappe.defaults
-from frappe.desk.doctype.event.event import get_events
-from frappe.test_runner import make_test_objects
-from frappe.tests.utils import StyloTestCase
+import stylo
+import stylo.defaults
+from stylo.desk.doctype.event.event import get_events
+from stylo.test_runner import make_test_objects
+from stylo.tests.utils import StyloTestCase
 
-test_records = frappe.get_test_records("Event")
+test_records = stylo.get_test_records("Event")
 
 
 class TestEvent(StyloTestCase):
 	def setUp(self):
-		frappe.db.delete("Event")
+		stylo.db.delete("Event")
 		make_test_objects("Event", reset=True)
 
-		self.test_records = frappe.get_test_records("Event")
+		self.test_records = stylo.get_test_records("Event")
 		self.test_user = "test1@example.com"
 
 	def tearDown(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 	def test_allowed_public(self):
-		frappe.set_user(self.test_user)
-		doc = frappe.get_doc("Event", frappe.db.get_value("Event", {"subject": "_Test Event 1"}))
-		self.assertTrue(frappe.has_permission("Event", doc=doc))
+		stylo.set_user(self.test_user)
+		doc = stylo.get_doc("Event", stylo.db.get_value("Event", {"subject": "_Test Event 1"}))
+		self.assertTrue(stylo.has_permission("Event", doc=doc))
 
 	def test_not_allowed_private(self):
-		frappe.set_user(self.test_user)
-		doc = frappe.get_doc("Event", frappe.db.get_value("Event", {"subject": "_Test Event 2"}))
-		self.assertFalse(frappe.has_permission("Event", doc=doc))
+		stylo.set_user(self.test_user)
+		doc = stylo.get_doc("Event", stylo.db.get_value("Event", {"subject": "_Test Event 2"}))
+		self.assertFalse(stylo.has_permission("Event", doc=doc))
 
 	def test_allowed_private_if_in_event_user(self):
-		name = frappe.db.get_value("Event", {"subject": "_Test Event 3"})
-		frappe.share.add("Event", name, self.test_user, "read")
-		frappe.set_user(self.test_user)
-		doc = frappe.get_doc("Event", name)
-		self.assertTrue(frappe.has_permission("Event", doc=doc))
-		frappe.set_user("Administrator")
-		frappe.share.remove("Event", name, self.test_user)
+		name = stylo.db.get_value("Event", {"subject": "_Test Event 3"})
+		stylo.share.add("Event", name, self.test_user, "read")
+		stylo.set_user(self.test_user)
+		doc = stylo.get_doc("Event", name)
+		self.assertTrue(stylo.has_permission("Event", doc=doc))
+		stylo.set_user("Administrator")
+		stylo.share.remove("Event", name, self.test_user)
 
 	def test_event_list(self):
-		frappe.set_user(self.test_user)
-		res = frappe.get_list(
+		stylo.set_user(self.test_user)
+		res = stylo.get_list(
 			"Event", filters=[["Event", "subject", "like", "_Test Event%"]], fields=["name", "subject"]
 		)
 		self.assertEqual(len(res), 1)
@@ -55,21 +55,21 @@ class TestEvent(StyloTestCase):
 		self.assertFalse("_Test Event 2" in subjects)
 
 	def test_revert_logic(self):
-		ev = frappe.get_doc(self.test_records[0]).insert()
+		ev = stylo.get_doc(self.test_records[0]).insert()
 		name = ev.name
 
-		frappe.delete_doc("Event", ev.name)
+		stylo.delete_doc("Event", ev.name)
 
 		# insert again
-		ev = frappe.get_doc(self.test_records[0]).insert()
+		ev = stylo.get_doc(self.test_records[0]).insert()
 
 		# the name should be same!
 		self.assertEqual(ev.name, name)
 
 	def test_assign(self):
-		from frappe.desk.form.assign_to import add
+		from stylo.desk.form.assign_to import add
 
-		ev = frappe.get_doc(self.test_records[0]).insert()
+		ev = stylo.get_doc(self.test_records[0]).insert()
 
 		add(
 			{
@@ -80,7 +80,7 @@ class TestEvent(StyloTestCase):
 			}
 		)
 
-		ev = frappe.get_doc("Event", ev.name)
+		ev = stylo.get_doc("Event", ev.name)
 
 		self.assertEqual(ev._assign, json.dumps(["test@example.com"]))
 
@@ -94,26 +94,26 @@ class TestEvent(StyloTestCase):
 			}
 		)
 
-		ev = frappe.get_doc("Event", ev.name)
+		ev = stylo.get_doc("Event", ev.name)
 
 		self.assertEqual(set(json.loads(ev._assign)), {"test@example.com", self.test_user})
 
 		# Remove an assignment
-		todo = frappe.get_doc(
+		todo = stylo.get_doc(
 			"ToDo",
 			{"reference_type": ev.doctype, "reference_name": ev.name, "allocated_to": self.test_user},
 		)
 		todo.status = "Cancelled"
 		todo.save()
 
-		ev = frappe.get_doc("Event", ev.name)
+		ev = stylo.get_doc("Event", ev.name)
 		self.assertEqual(ev._assign, json.dumps(["test@example.com"]))
 
 		# cleanup
 		ev.delete()
 
 	def test_recurring(self):
-		ev = frappe.get_doc(
+		ev = stylo.get_doc(
 			{
 				"doctype": "Event",
 				"subject": "_Test Event",

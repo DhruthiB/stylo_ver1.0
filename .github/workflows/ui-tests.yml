@@ -130,33 +130,33 @@ jobs:
       - name: Verify yarn.lock
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-forge/apps/frappe
+          cd ~/stylo-forge/apps/stylo
           yarn install --immutable --immutable-cache --check-cache
           git diff --exit-code yarn.lock
 
       - name: Instrument Source Code
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: cd ~/frappe-forge/apps/frappe/ && npx nyc instrument -x 'frappe/public/dist/**' -x 'frappe/public/js/lib/**' -x '**/*.bundle.js' --compact=false --in-place frappe
+        run: cd ~/stylo-forge/apps/stylo/ && npx nyc instrument -x 'stylo/public/dist/**' -x 'stylo/public/js/lib/**' -x '**/*.bundle.js' --compact=false --in-place stylo
 
       - name: Build
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: cd ~/frappe-forge/ && forge build --apps frappe
+        run: cd ~/stylo-forge/ && forge build --apps stylo
 
       - name: Site Setup
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-forge/
-          forge --site test_site execute frappe.utils.install.complete_setup_wizard
-          forge --site test_site execute frappe.tests.ui_test_helpers.create_test_user
+          cd ~/stylo-forge/
+          forge --site test_site execute stylo.utils.install.complete_setup_wizard
+          forge --site test_site execute stylo.tests.ui_test_helpers.create_test_user
 
       - name: UI Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-forge/
-          forge --site test_site run-ui-tests frappe --headless -- --record
+          cd ~/stylo-forge/
+          forge --site test_site run-ui-tests stylo --headless -- --record
         env:
           CYPRESS_RECORD_KEY: 4a48f41c-11b3-425b-aa88-c58048fa69eb
 
       - name: Show forge console if tests failed
         if: ${{ failure() }}
-        run: cat ~/frappe-forge/forge_start.log
+        run: cat ~/stylo-forge/forge_start.log

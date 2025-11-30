@@ -3,9 +3,9 @@
 
 from math import ceil
 
-import frappe
-from frappe import _
-from frappe.utils import (
+import stylo
+from stylo import _
+from stylo.utils import (
 	cint,
 	get_fullname,
 	global_date_format,
@@ -14,21 +14,21 @@ from frappe.utils import (
 	strip_html_tags,
 	today,
 )
-from frappe.website.utils import (
+from stylo.website.utils import (
 	clear_cache,
 	find_first_image,
 	get_comment_list,
 	get_html_content_based_on_type,
 )
-from frappe.website.website_generator import WebsiteGenerator
+from stylo.website.website_generator import WebsiteGenerator
 
 
 class BlogPost(WebsiteGenerator):
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def make_route(self):
 		if not self.route:
 			return (
-				frappe.db.get_value("Blog Category", self.blog_category, "route")
+				stylo.db.get_value("Blog Category", self.blog_category, "route")
 				+ "/"
 				+ self.scrub(self.title)
 			)
@@ -62,15 +62,15 @@ class BlogPost(WebsiteGenerator):
 
 		if self.featured:
 			if not self.meta_image:
-				frappe.throw(_("A featured post must have a cover image"))
+				stylo.throw(_("A featured post must have a cover image"))
 			self.reset_featured_for_other_blogs()
 
 		self.set_read_time()
 
 	def reset_featured_for_other_blogs(self):
-		all_posts = frappe.get_all("Blog Post", {"featured": 1})
+		all_posts = stylo.get_all("Blog Post", {"featured": 1})
 		for post in all_posts:
-			frappe.db.set_value("Blog Post", post.name, "featured", 0)
+			stylo.db.set_value("Blog Post", post.name, "featured", 0)
 
 	def on_update(self):
 		super().on_update()
@@ -91,12 +91,12 @@ class BlogPost(WebsiteGenerator):
 		context.updated = global_date_format(self.published_on)
 		context.social_links = self.fetch_social_links_info()
 		context.cta = self.fetch_cta()
-		context.enable_cta = not self.hide_cta and frappe.db.get_single_value(
+		context.enable_cta = not self.hide_cta and stylo.db.get_single_value(
 			"Blog Settings", "show_cta_in_blog", cache=True
 		)
 
 		if self.blogger:
-			context.blogger_info = frappe.get_doc("Blogger", self.blogger).as_dict()
+			context.blogger_info = stylo.get_doc("Blogger", self.blogger).as_dict()
 			context.author = self.blogger
 
 		context.content = get_html_content_based_on_type(self, "content", self.content_type)
@@ -118,7 +118,7 @@ class BlogPost(WebsiteGenerator):
 		self.load_comments(context)
 		self.load_likes(context)
 
-		context.category = frappe.db.get_value(
+		context.category = stylo.db.get_value(
 			"Blog Category", context.doc.blog_category, ["title", "route"], as_dict=1
 		)
 		context.parents = [
@@ -126,11 +126,11 @@ class BlogPost(WebsiteGenerator):
 			{"name": "Blog", "route": "/blog"},
 			{"label": context.category.title, "route": context.category.route},
 		]
-		context.guest_allowed = frappe.db.get_single_value("Blog Settings", "allow_guest_to_comment")
+		context.guest_allowed = stylo.db.get_single_value("Blog Settings", "allow_guest_to_comment")
 
 	def fetch_cta(self):
-		if frappe.db.get_single_value("Blog Settings", "show_cta_in_blog", cache=True):
-			blog_settings = frappe.get_cached_doc("Blog Settings")
+		if stylo.db.get_single_value("Blog Settings", "show_cta_in_blog", cache=True):
+			blog_settings = stylo.get_cached_doc("Blog Settings")
 
 			return {
 				"show_cta_in_blog": 1,
@@ -143,10 +143,10 @@ class BlogPost(WebsiteGenerator):
 		return {}
 
 	def fetch_social_links_info(self):
-		if not frappe.db.get_single_value("Blog Settings", "enable_social_sharing", cache=True):
+		if not stylo.db.get_single_value("Blog Settings", "enable_social_sharing", cache=True):
 			return []
 
-		url = frappe.local.site + "/" + self.route
+		url = stylo.local.site + "/" + self.route
 
 		social_links = [
 			{
@@ -169,7 +169,7 @@ class BlogPost(WebsiteGenerator):
 			context.comment_count = len(context.comment_list)
 
 	def load_likes(self, context):
-		user = frappe.session.user
+		user = stylo.session.user
 
 		filters = {
 			"comment_type": "Like",
@@ -177,14 +177,14 @@ class BlogPost(WebsiteGenerator):
 			"reference_name": self.name,
 		}
 
-		context.like_count = frappe.db.count("Comment", filters) or 0
+		context.like_count = stylo.db.count("Comment", filters) or 0
 
 		filters["comment_email"] = user
 
 		if user == "Guest":
-			filters["ip_address"] = frappe.local.request_ip
+			filters["ip_address"] = stylo.local.request_ip
 
-		context.like = frappe.db.count("Comment", filters) or 0
+		context.like = stylo.db.count("Comment", filters) or 0
 
 	def set_read_time(self):
 		content = self.content or self.content_html or ""
@@ -196,7 +196,7 @@ class BlogPost(WebsiteGenerator):
 
 
 def get_list_context(context=None):
-	list_context = frappe._dict(
+	list_context = stylo._dict(
 		get_list=get_blog_list,
 		no_breadcrumbs=True,
 		hide_filters=True,
@@ -204,28 +204,28 @@ def get_list_context(context=None):
 		title=_("Blog"),
 	)
 
-	category = frappe.utils.escape_html(
-		frappe.local.form_dict.blog_category or frappe.local.form_dict.category
+	category = stylo.utils.escape_html(
+		stylo.local.form_dict.blog_category or stylo.local.form_dict.category
 	)
 	if category:
 		category_title = get_blog_category(category)
 		list_context.sub_title = _("Posts filed under {0}").format(category_title)
 		list_context.title = category_title
 
-	elif frappe.local.form_dict.blogger:
-		blogger = frappe.db.get_value("Blogger", {"name": frappe.local.form_dict.blogger}, "full_name")
+	elif stylo.local.form_dict.blogger:
+		blogger = stylo.db.get_value("Blogger", {"name": stylo.local.form_dict.blogger}, "full_name")
 		list_context.sub_title = _("Posts by {0}").format(blogger)
 		list_context.title = blogger
 
-	elif frappe.local.form_dict.txt:
-		list_context.sub_title = _('Filtered by "{0}"').format(sanitize_html(frappe.local.form_dict.txt))
+	elif stylo.local.form_dict.txt:
+		list_context.sub_title = _('Filtered by "{0}"').format(sanitize_html(stylo.local.form_dict.txt))
 
 	if list_context.sub_title:
 		list_context.parents = [{"name": _("Home"), "route": "/"}, {"name": "Blog", "route": "/blog"}]
 	else:
 		list_context.parents = [{"name": _("Home"), "route": "/"}]
 
-	blog_settings = frappe.get_doc("Blog Settings").as_dict(no_default_fields=True)
+	blog_settings = stylo.get_doc("Blog Settings").as_dict(no_default_fields=True)
 	list_context.update(blog_settings)
 
 	if blog_settings.browse_by_category:
@@ -238,14 +238,14 @@ def get_blog_categories():
 	from pypika import Order
 	from pypika.terms import ExistsCriterion
 
-	post, category = frappe.qb.DocType("Blog Post"), frappe.qb.DocType("Blog Category")
+	post, category = stylo.qb.DocType("Blog Post"), stylo.qb.DocType("Blog Category")
 	return (
-		frappe.qb.from_(category)
+		stylo.qb.from_(category)
 		.select(category.name, category.route, category.title)
 		.where(
 			(category.published == 1)
 			& ExistsCriterion(
-				frappe.qb.from_(post)
+				stylo.qb.from_(post)
 				.select("name")
 				.where((post.published == 1) & (post.blog_category == category.name))
 			)
@@ -256,7 +256,7 @@ def get_blog_categories():
 
 
 def clear_blog_cache():
-	for blog in frappe.db.sql_list(
+	for blog in stylo.db.sql_list(
 		"""select route from
 		`tabBlog Post` where ifnull(published,0)=1"""
 	):
@@ -266,7 +266,7 @@ def clear_blog_cache():
 
 
 def get_blog_category(route):
-	return frappe.db.get_value("Blog Category", {"name": route}, "title") or route
+	return stylo.db.get_value("Blog Category", {"name": route}, "title") or route
 
 
 def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_length=20, order_by=None):
@@ -274,23 +274,23 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 	if filters and filters.get("blog_category"):
 		category = filters.get("blog_category")
 	else:
-		category = frappe.utils.escape_html(
-			frappe.local.form_dict.blog_category or frappe.local.form_dict.category
+		category = stylo.utils.escape_html(
+			stylo.local.form_dict.blog_category or stylo.local.form_dict.category
 		)
 
 	if filters and filters.get("blogger"):
-		conditions.append("t1.blogger=%s" % frappe.db.escape(filters.get("blogger")))
+		conditions.append("t1.blogger=%s" % stylo.db.escape(filters.get("blogger")))
 
 	if category:
-		conditions.append("t1.blog_category=%s" % frappe.db.escape(category))
+		conditions.append("t1.blog_category=%s" % stylo.db.escape(category))
 
 	if txt:
 		conditions.append(
-			'(t1.content like {0} or t1.title like {0}")'.format(frappe.db.escape("%" + txt + "%"))
+			'(t1.content like {0} or t1.title like {0}")'.format(stylo.db.escape("%" + txt + "%"))
 		)
 
 	if conditions:
-		frappe.local.no_cache = 1
+		stylo.local.no_cache = 1
 
 	query = """\
 		select
@@ -321,7 +321,7 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 		condition=(" and " + " and ".join(conditions)) if conditions else "",
 	)
 
-	posts = frappe.db.sql(query, as_dict=1)
+	posts = stylo.db.sql(query, as_dict=1)
 
 	for post in posts:
 		post.content = get_html_content_based_on_type(post, "content", post.content_type)
@@ -338,7 +338,7 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 			post.comment_text = _("{0} comments").format(str(post.comments))
 
 		post.avatar = post.avatar or ""
-		post.category = frappe.db.get_value(
+		post.category = stylo.db.get_value(
 			"Blog Category", post.blog_category, ["name", "route", "title"], as_dict=True
 		)
 

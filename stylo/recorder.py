@@ -11,9 +11,9 @@ from collections.abc import Callable
 
 import sqlparse
 
-import frappe
-from frappe import _
-from frappe.database.database import is_query_type
+import stylo
+from stylo import _
+from stylo.database.database import is_query_type
 
 RECORDER_INTERCEPT_FLAG = "recorder-intercept"
 RECORDER_REQUEST_SPARSE_HASH = "recorder-requests-sparse"
@@ -23,20 +23,20 @@ TRACEBACK_PATH_PATTERN = re.compile(".*/apps/")
 
 def sql(*args, **kwargs):
 	start_time = time.time()
-	result = frappe.db._sql(*args, **kwargs)
+	result = stylo.db._sql(*args, **kwargs)
 	end_time = time.time()
 
 	stack = list(get_current_stack_frames())
 
 	data = {
-		"query": str(frappe.db.last_query),
+		"query": str(stylo.db.last_query),
 		"stack": stack,
 		"explain_result": [],
 		"time": start_time,
 		"duration": float(f"{(end_time - start_time) * 1000:.3f}"),
 	}
 
-	frappe.local._recorder.register(data)
+	stylo.local._recorder.register(data)
 	return result
 
 
@@ -64,10 +64,10 @@ def post_process():
 	        - SQLParse reformatting of queries
 	        - Mark duplicates
 	"""
-	frappe.db.rollback()
-	frappe.db.begin(read_only=True)  # Explicitly start read only transaction
+	stylo.db.rollback()
+	stylo.db.begin(read_only=True)  # Explicitly start read only transaction
 
-	result = list(frappe.cache().hgetall(RECORDER_REQUEST_HASH).values())
+	result = list(stylo.cache().hgetall(RECORDER_REQUEST_HASH).values())
 
 	for request in result:
 		for call in request["calls"]:
@@ -80,11 +80,11 @@ def post_process():
 			if is_query_type(formatted_query, ("select", "update", "delete")):
 				# Only SELECT/UPDATE/DELETE queries can be "EXPLAIN"ed
 				try:
-					call["explain_result"] = frappe.db.sql(f"EXPLAIN {formatted_query}", as_dict=True)
+					call["explain_result"] = stylo.db.sql(f"EXPLAIN {formatted_query}", as_dict=True)
 				except Exception:
 					pass
 		mark_duplicates(request)
-		frappe.cache().hset(RECORDER_REQUEST_HASH, request["uuid"], request)
+		stylo.cache().hset(RECORDER_REQUEST_HASH, request["uuid"], request)
 
 
 def mark_duplicates(request):
@@ -131,27 +131,27 @@ def normalize_query(query: str) -> str:
 
 def record(force=False):
 	if __debug__:
-		if frappe.cache().get_value(RECORDER_INTERCEPT_FLAG) or force:
-			frappe.local._recorder = Recorder()
+		if stylo.cache().get_value(RECORDER_INTERCEPT_FLAG) or force:
+			stylo.local._recorder = Recorder()
 
 
 def dump():
 	if __debug__:
-		if hasattr(frappe.local, "_recorder"):
-			frappe.local._recorder.dump()
+		if hasattr(stylo.local, "_recorder"):
+			stylo.local._recorder.dump()
 
 
 class Recorder:
 	def __init__(self):
-		self.uuid = frappe.generate_hash(length=10)
+		self.uuid = stylo.generate_hash(length=10)
 		self.time = datetime.datetime.now()
 		self.calls = []
-		if frappe.request:
-			self.path = frappe.request.path
-			self.cmd = frappe.local.form_dict.cmd or ""
-			self.method = frappe.request.method
-			self.headers = dict(frappe.local.request.headers)
-			self.form_dict = frappe.local.form_dict
+		if stylo.request:
+			self.path = stylo.request.path
+			self.cmd = stylo.local.form_dict.cmd or ""
+			self.method = stylo.request.method
+			self.headers = dict(stylo.local.request.headers)
+			self.form_dict = stylo.local.form_dict
 		else:
 			self.path = None
 			self.cmd = None
@@ -175,8 +175,8 @@ class Recorder:
 			"duration": float(f"{(datetime.datetime.now() - self.time).total_seconds() * 1000:0.3f}"),
 			"method": self.method,
 		}
-		frappe.cache().hset(RECORDER_REQUEST_SPARSE_HASH, self.uuid, request_data)
-		frappe.publish_realtime(
+		stylo.cache().hset(RECORDER_REQUEST_SPARSE_HASH, self.uuid, request_data)
+		stylo.publish_realtime(
 			event="recorder-dump-event",
 			message=json.dumps(request_data, default=str),
 			user="Administrator",
@@ -185,23 +185,23 @@ class Recorder:
 		request_data["calls"] = self.calls
 		request_data["headers"] = self.headers
 		request_data["form_dict"] = self.form_dict
-		frappe.cache().hset(RECORDER_REQUEST_HASH, self.uuid, request_data)
+		stylo.cache().hset(RECORDER_REQUEST_HASH, self.uuid, request_data)
 
 
 def _patch():
-	frappe.db._sql = frappe.db.sql
-	frappe.db.sql = sql
+	stylo.db._sql = stylo.db.sql
+	stylo.db.sql = sql
 
 
 def _unpatch():
-	frappe.db.sql = frappe.db._sql
+	stylo.db.sql = stylo.db._sql
 
 
 def do_not_record(function):
 	def wrapper(*args, **kwargs):
-		if hasattr(frappe.local, "_recorder"):
-			del frappe.local._recorder
-			frappe.db.sql = frappe.db._sql
+		if hasattr(stylo.local, "_recorder"):
+			del stylo.local._recorder
+			stylo.db.sql = stylo.db._sql
 		return function(*args, **kwargs)
 
 	return wrapper
@@ -209,59 +209,59 @@ def do_not_record(function):
 
 def administrator_only(function):
 	def wrapper(*args, **kwargs):
-		if frappe.session.user != "Administrator":
-			frappe.throw(_("Only Administrator is allowed to use Recorder"))
+		if stylo.session.user != "Administrator":
+			stylo.throw(_("Only Administrator is allowed to use Recorder"))
 		return function(*args, **kwargs)
 
 	return wrapper
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def status(*args, **kwargs):
-	return bool(frappe.cache().get_value(RECORDER_INTERCEPT_FLAG))
+	return bool(stylo.cache().get_value(RECORDER_INTERCEPT_FLAG))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def start(*args, **kwargs):
-	frappe.cache().set_value(RECORDER_INTERCEPT_FLAG, 1, expires_in_sec=60 * 60)
+	stylo.cache().set_value(RECORDER_INTERCEPT_FLAG, 1, expires_in_sec=60 * 60)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def stop(*args, **kwargs):
-	frappe.cache().delete_value(RECORDER_INTERCEPT_FLAG)
-	frappe.enqueue(post_process, now=frappe.flags.in_test)
+	stylo.cache().delete_value(RECORDER_INTERCEPT_FLAG)
+	stylo.enqueue(post_process, now=stylo.flags.in_test)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def get(uuid=None, *args, **kwargs):
 	if uuid:
-		result = frappe.cache().hget(RECORDER_REQUEST_HASH, uuid)
+		result = stylo.cache().hget(RECORDER_REQUEST_HASH, uuid)
 	else:
-		result = list(frappe.cache().hgetall(RECORDER_REQUEST_SPARSE_HASH).values())
+		result = list(stylo.cache().hgetall(RECORDER_REQUEST_SPARSE_HASH).values())
 	return result
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def export_data(*args, **kwargs):
-	return list(frappe.cache().hgetall(RECORDER_REQUEST_HASH).values())
+	return list(stylo.cache().hgetall(RECORDER_REQUEST_HASH).values())
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 @do_not_record
 @administrator_only
 def delete(*args, **kwargs):
-	frappe.cache().delete_value(RECORDER_REQUEST_SPARSE_HASH)
-	frappe.cache().delete_value(RECORDER_REQUEST_HASH)
+	stylo.cache().delete_value(RECORDER_REQUEST_SPARSE_HASH)
+	stylo.cache().delete_value(RECORDER_REQUEST_HASH)
 
 
 def record_queries(func: Callable):
@@ -270,7 +270,7 @@ def record_queries(func: Callable):
 	@functools.wraps(func)
 	def wrapped(*args, **kwargs):
 		record(force=True)
-		frappe.local._recorder.path = f"Function call: {func.__module__}.{func.__qualname__}"
+		stylo.local._recorder.path = f"Function call: {func.__module__}.{func.__qualname__}"
 		ret = func(*args, **kwargs)
 		dump()
 		_unpatch()

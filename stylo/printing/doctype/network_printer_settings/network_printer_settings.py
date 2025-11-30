@@ -1,19 +1,19 @@
 # Copyright (c) 2021, Stylo Technologies and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class NetworkPrinterSettings(Document):
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def get_printers_list(self, ip="localhost", port=631):
 		printer_list = []
 		try:
 			import cups
 		except ImportError:
-			frappe.throw(
+			stylo.throw(
 				_(
 					"""This feature can not be used as dependencies are missing.
 				Please contact your system manager to enable this by installing pycups!"""
@@ -29,12 +29,12 @@ class NetworkPrinterSettings(Document):
 				printer_list.append({"value": printer_id, "label": printer["printer-make-and-model"]})
 
 		except RuntimeError:
-			frappe.throw(_("Failed to connect to server"))
-		except frappe.ValidationError:
-			frappe.throw(_("Failed to connect to server"))
+			stylo.throw(_("Failed to connect to server"))
+		except stylo.ValidationError:
+			stylo.throw(_("Failed to connect to server"))
 		return printer_list
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_network_printer_settings():
-	return frappe.db.get_list("Network Printer Settings", pluck="name")
+	return stylo.db.get_list("Network Printer Settings", pluck="name")

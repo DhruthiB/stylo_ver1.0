@@ -1,5 +1,5 @@
-from frappe.model.base_document import BaseDocument
-from frappe.tests.utils import StyloTestCase
+from stylo.model.base_document import BaseDocument
+from stylo.tests.utils import StyloTestCase
 
 
 class TestBaseDocument(StyloTestCase):

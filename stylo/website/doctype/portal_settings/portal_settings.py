@@ -1,9 +1,9 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
-from frappe.website.path_resolver import validate_path
+import stylo
+from stylo.model.document import Document
+from stylo.website.path_resolver import validate_path
 
 
 class PortalSettings(Document):
@@ -19,7 +19,7 @@ class PortalSettings(Document):
 			self.append("menu", item)
 			return True
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def reset(self):
 		"""Restore defaults"""
 		self.menu = []
@@ -28,9 +28,9 @@ class PortalSettings(Document):
 	def sync_menu(self):
 		"""Sync portal menu items"""
 		dirty = False
-		for item in frappe.get_hooks("standard_portal_menu_items"):
-			if item.get("role") and not frappe.db.exists("Role", item.get("role")):
-				frappe.get_doc({"doctype": "Role", "role_name": item.get("role"), "desk_access": 0}).insert()
+		for item in stylo.get_hooks("standard_portal_menu_items"):
+			if item.get("role") and not stylo.db.exists("Role", item.get("role")):
+				stylo.get_doc({"doctype": "Role", "role_name": item.get("role"), "desk_access": 0}).insert()
 			if self.add_item(item):
 				dirty = True
 
@@ -44,21 +44,21 @@ class PortalSettings(Document):
 	def clear_cache(self):
 		# make js and css
 		# clear web cache (for menus!)
-		frappe.clear_cache(user="Guest")
+		stylo.clear_cache(user="Guest")
 
-		from frappe.website.utils import clear_cache
+		from stylo.website.utils import clear_cache
 
 		clear_cache()
 
 		# clears role based home pages
-		frappe.clear_cache()
+		stylo.clear_cache()
 
 	def remove_deleted_doctype_items(self):
-		existing_doctypes = set(frappe.get_list("DocType", pluck="name"))
+		existing_doctypes = set(stylo.get_list("DocType", pluck="name"))
 		for menu_item in list(self.get("menu")):
 			if menu_item.reference_doctype not in existing_doctypes:
 				self.remove(menu_item)
 
 	def validate(self):
-		if frappe.request and self.default_portal_home:
+		if stylo.request and self.default_portal_home:
 			validate_path(self.default_portal_home)

@@ -7,17 +7,17 @@ import subprocess  # nosec
 
 from semantic_version import Version
 
-import frappe
-from frappe import _, safe_decode
-from frappe.utils import cstr
+import stylo
+from stylo import _, safe_decode
+from stylo.utils import cstr
 
 
 def get_change_log(user=None):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
-	last_known_versions = frappe._dict(
-		json.loads(frappe.db.get_value("User", user, "last_known_versions") or "{}")
+	last_known_versions = stylo._dict(
+		json.loads(stylo.db.get_value("User", user, "last_known_versions") or "{}")
 	)
 	current_versions = get_versions()
 
@@ -45,17 +45,17 @@ def get_change_log(user=None):
 				)
 
 	for app, opts in current_versions.items():
-		if app != "frappe":
+		if app != "stylo":
 			set_in_change_log(app, opts, change_log)
 
-	if "frappe" in current_versions:
-		set_in_change_log("frappe", current_versions["frappe"], change_log)
+	if "stylo" in current_versions:
+		set_in_change_log("stylo", current_versions["stylo"], change_log)
 
 	return change_log
 
 
 def get_change_log_for_app(app, from_version, to_version):
-	change_log_folder = os.path.join(frappe.get_app_path(app), "change_log")
+	change_log_folder = os.path.join(stylo.get_app_path(app), "change_log")
 	if not os.path.exists(change_log_folder):
 		return
 
@@ -74,7 +74,7 @@ def get_change_log_for_app(app, from_version, to_version):
 
 				if from_version < version <= to_version:
 					file_path = os.path.join(change_log_folder, folder, file)
-					content = frappe.read_file(file_path)
+					content = stylo.read_file(file_path)
 					app_change_log.append([version, content])
 
 	app_change_log = sorted(app_change_log, key=lambda d: d[0], reverse=True)
@@ -83,32 +83,32 @@ def get_change_log_for_app(app, from_version, to_version):
 	return [[cstr(d[0]), d[1]] for d in app_change_log]
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_last_known_versions():
-	frappe.db.set_value(
+	stylo.db.set_value(
 		"User",
-		frappe.session.user,
+		stylo.session.user,
 		"last_known_versions",
 		json.dumps(get_versions()),
 		update_modified=False,
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_versions():
 	"""Get versions of all installed apps.
 
 	Example:
 
 	        {
-	                "frappe": {
+	                "stylo": {
 	                        "title": "Stylo Framework",
 	                        "version": "5.0.0"
 	                }
 	        }"""
 	versions = {}
-	for app in frappe.get_installed_apps(_ensure_on_forge=True):
-		app_hooks = frappe.get_hooks(app_name=app)
+	for app in stylo.get_installed_apps(_ensure_on_forge=True):
+		app_hooks = stylo.get_hooks(app_name=app)
 		versions[app] = {
 			"title": app_hooks.get("app_title")[0],
 			"description": app_hooks.get("app_description")[0],
@@ -121,7 +121,7 @@ def get_versions():
 				versions[app]["branch_version"] = branch_version[0] + f" ({get_app_last_commit_ref(app)})"
 
 		try:
-			versions[app]["version"] = frappe.get_attr(app + ".__version__")
+			versions[app]["version"] = stylo.get_attr(app + ".__version__")
 		except AttributeError:
 			versions[app]["version"] = "0.0.1"
 
@@ -162,7 +162,7 @@ def get_app_last_commit_ref(app):
 
 
 def check_for_update():
-	updates = frappe._dict(major=[], minor=[], patch=[])
+	updates = stylo._dict(major=[], minor=[], patch=[])
 	apps = get_versions()
 
 	for app in apps:
@@ -184,7 +184,7 @@ def check_for_update():
 		for update_type in updates:
 			if github_version.__dict__[update_type] > instance_version.__dict__[update_type]:
 				updates[update_type].append(
-					frappe._dict(
+					stylo._dict(
 						current_version=str(instance_version),
 						available_version=str(github_version),
 						org_name=org_name,
@@ -268,17 +268,17 @@ def check_release_on_github(app: str):
 def add_message_to_redis(update_json):
 	# "update-message" will store the update message string
 	# "update-user-set" will be a set of users
-	cache = frappe.cache()
+	cache = stylo.cache()
 	cache.set_value("update-info", json.dumps(update_json))
-	user_list = [x.name for x in frappe.get_all("User", filters={"enabled": True})]
-	system_managers = [user for user in user_list if "System Manager" in frappe.get_roles(user)]
+	user_list = [x.name for x in stylo.get_all("User", filters={"enabled": True})]
+	system_managers = [user for user in user_list if "System Manager" in stylo.get_roles(user)]
 	cache.sadd("update-user-set", *system_managers)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def show_update_popup():
-	cache = frappe.cache()
-	user = frappe.session.user
+	cache = stylo.cache()
+	user = stylo.session.user
 
 	update_info = cache.get_value("update-info")
 	if not update_info:
@@ -292,7 +292,7 @@ def show_update_popup():
 		for update_type in updates:
 			release_links = ""
 			for app in updates[update_type]:
-				app = frappe._dict(app)
+				app = stylo._dict(app)
 				release_links += "<b>{title}</b>: <a href='https://github.com/{org_name}/{app_name}/releases/tag/v{available_version}'>v{available_version}</a><br>".format(
 					available_version=app.available_version,
 					org_name=app.org_name,
@@ -308,5 +308,5 @@ def show_update_popup():
 				)
 
 	if update_message:
-		frappe.msgprint(update_message, title=_("New updates are available"), indicator="green")
+		stylo.msgprint(update_message, title=_("New updates are available"), indicator="green")
 		cache.srem("update-user-set", user)

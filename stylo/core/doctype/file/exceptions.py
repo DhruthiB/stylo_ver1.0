@@ -1,12 +1,12 @@
-import frappe
+import stylo
 
 
-class MaxFileSizeReachedError(frappe.ValidationError):
+class MaxFileSizeReachedError(stylo.ValidationError):
 	pass
 
 
-class FolderNotEmpty(frappe.ValidationError):
+class FolderNotEmpty(stylo.ValidationError):
 	pass
 
 
-from frappe.exceptions import *
+from stylo.exceptions import *

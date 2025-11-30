@@ -3,8 +3,8 @@
 
 from collections import defaultdict
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class RoleProfile(Document):
@@ -14,11 +14,11 @@ class RoleProfile(Document):
 
 	def on_update(self):
 		"""Changes in role_profile reflected across all its user"""
-		has_role = frappe.qb.DocType("Has Role")
-		user = frappe.qb.DocType("User")
+		has_role = stylo.qb.DocType("Has Role")
+		user = stylo.qb.DocType("User")
 
 		all_current_roles = (
-			frappe.qb.from_(user)
+			stylo.qb.from_(user)
 			.join(has_role)
 			.on(user.name == has_role.parent)
 			.where(user.role_profile_name == self.name)
@@ -32,6 +32,6 @@ class RoleProfile(Document):
 		role_profile_roles = {role.role for role in self.roles}
 		for user, roles in user_roles.items():
 			if roles != role_profile_roles:
-				user = frappe.get_doc("User", user)
+				user = stylo.get_doc("User", user)
 				user.roles = []
 				user.add_roles(*role_profile_roles)

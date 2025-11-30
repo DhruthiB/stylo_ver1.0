@@ -8,10 +8,10 @@ from unittest.mock import patch
 
 import pytz
 
-import frappe
-from frappe.model.base_document import BaseDocument
-from frappe.utils import cint
-from frappe.utils.data import convert_utc_to_timezone, get_datetime, get_system_timezone
+import stylo
+from stylo.model.base_document import BaseDocument
+from stylo.utils import cint
+from stylo.utils.data import convert_utc_to_timezone, get_datetime, get_system_timezone
 
 datetime_like_types = (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)
 
@@ -30,17 +30,17 @@ class StyloTestCase(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(cls) -> None:
-		cls.TEST_SITE = getattr(frappe.local, "site", None) or cls.TEST_SITE
-		cls.ADMIN_PASSWORD = frappe.get_conf(cls.TEST_SITE).admin_password
-		cls._primary_connection = frappe.local.db
+		cls.TEST_SITE = getattr(stylo.local, "site", None) or cls.TEST_SITE
+		cls.ADMIN_PASSWORD = stylo.get_conf(cls.TEST_SITE).admin_password
+		cls._primary_connection = stylo.local.db
 		cls._secondary_connection = None
 		# flush changes done so far to avoid flake
-		frappe.db.commit()
+		stylo.db.commit()
 		if cls.SHOW_TRANSACTION_COMMIT_WARNINGS:
-			frappe.db.add_before_commit(_commit_watcher)
+			stylo.db.add_before_commit(_commit_watcher)
 
 		# enqueue teardown actions (executed in LIFO order)
-		cls.addClassCleanup(_restore_thread_locals, copy.deepcopy(frappe.local.flags))
+		cls.addClassCleanup(_restore_thread_locals, copy.deepcopy(stylo.local.flags))
 		cls.addClassCleanup(_rollback_db)
 
 		return super().setUpClass()
@@ -98,25 +98,25 @@ class StyloTestCase(unittest.TestCase):
 
 		This is used for simulating multiple users performing actions by simulating two DB connections"""
 		try:
-			current_conn = frappe.local.db
-			frappe.local.db = self._primary_connection
+			current_conn = stylo.local.db
+			stylo.local.db = self._primary_connection
 			yield
 		finally:
-			frappe.local.db = current_conn
+			stylo.local.db = current_conn
 
 	@contextmanager
 	def secondary_connection(self):
 		"""Switch to secondary DB connection."""
 		if self._secondary_connection is None:
-			frappe.connect()  # get second connection
-			self._secondary_connection = frappe.local.db
+			stylo.connect()  # get second connection
+			self._secondary_connection = stylo.local.db
 
 		try:
-			current_conn = frappe.local.db
-			frappe.local.db = self._secondary_connection
+			current_conn = stylo.local.db
+			stylo.local.db = self._secondary_connection
 			yield
 		finally:
-			frappe.local.db = current_conn
+			stylo.local.db = current_conn
 			self.addCleanup(self._rollback_connections)
 
 	def _rollback_connections(self):
@@ -132,16 +132,16 @@ class StyloTestCase(unittest.TestCase):
 
 		def _sql_with_count(*args, **kwargs):
 			ret = orig_sql(*args, **kwargs)
-			queries.append(frappe.db.last_query)
+			queries.append(stylo.db.last_query)
 			return ret
 
 		try:
-			orig_sql = frappe.db.sql
-			frappe.db.sql = _sql_with_count
+			orig_sql = stylo.db.sql
+			stylo.db.sql = _sql_with_count
 			yield
 			self.assertLessEqual(len(queries), count, msg="Queries executed: " + "\n\n".join(queries))
 		finally:
-			frappe.db.sql = orig_sql
+			stylo.db.sql = orig_sql
 
 	@contextmanager
 	def assertRowsRead(self, count):
@@ -152,25 +152,25 @@ class StyloTestCase(unittest.TestCase):
 
 			ret = orig_sql(*args, **kwargs)
 			# count of last touched rows as per DB-API 2.0 https://peps.python.org/pep-0249/#rowcount
-			rows_read += cint(frappe.db._cursor.rowcount)
+			rows_read += cint(stylo.db._cursor.rowcount)
 			return ret
 
 		try:
-			orig_sql = frappe.db.sql
-			frappe.db.sql = _sql_with_count
+			orig_sql = stylo.db.sql
+			stylo.db.sql = _sql_with_count
 			yield
 			self.assertLessEqual(rows_read, count, msg="Queries read more rows than expected")
 		finally:
-			frappe.db.sql = orig_sql
+			stylo.db.sql = orig_sql
 
 	@contextmanager
 	def set_user(self, user: str):
 		try:
-			old_user = frappe.session.user
-			frappe.set_user(user)
+			old_user = stylo.session.user
+			stylo.set_user(user)
 			yield
 		finally:
-			frappe.set_user(old_user)
+			stylo.set_user(old_user)
 
 	@contextmanager
 	def switch_site(self, site: str):
@@ -178,13 +178,13 @@ class StyloTestCase(unittest.TestCase):
 		Note: Drops current site connection completely."""
 
 		try:
-			old_site = frappe.local.site
-			frappe.init(site, force=True)
-			frappe.connect()
+			old_site = stylo.local.site
+			stylo.init(site, force=True)
+			stylo.connect()
 			yield
 		finally:
-			frappe.init(old_site, force=True)
-			frappe.connect()
+			stylo.init(old_site, force=True)
+			stylo.connect()
 
 	@contextmanager
 	def freeze_time(self, time_to_freeze, *args, **kwargs):
@@ -206,22 +206,22 @@ def _commit_watcher():
 
 
 def _rollback_db():
-	frappe.local.before_commit = []
-	frappe.local.rollback_observers = []
-	frappe.db.value_cache = {}
-	frappe.db.rollback()
+	stylo.local.before_commit = []
+	stylo.local.rollback_observers = []
+	stylo.db.value_cache = {}
+	stylo.db.rollback()
 
 
 def _restore_thread_locals(flags):
-	frappe.local.flags = flags
-	frappe.local.error_log = []
-	frappe.local.message_log = []
-	frappe.local.debug_log = []
-	frappe.local.realtime_log = []
-	frappe.local.conf = frappe._dict(frappe.get_site_config())
-	frappe.local.cache = {}
-	frappe.local.lang = "en"
-	frappe.local.preload_assets = {"style": [], "script": []}
+	stylo.local.flags = flags
+	stylo.local.error_log = []
+	stylo.local.message_log = []
+	stylo.local.debug_log = []
+	stylo.local.realtime_log = []
+	stylo.local.conf = stylo._dict(stylo.get_site_config())
+	stylo.local.cache = {}
+	stylo.local.lang = "en"
+	stylo.local.preload_assets = {"style": [], "script": []}
 
 
 @contextmanager
@@ -241,7 +241,7 @@ def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
 	try:
 		if settings_dict is None:
 			settings_dict = settings
-		settings = frappe.get_doc(doctype)
+		settings = stylo.get_doc(doctype)
 		# remember setting
 		previous_settings = copy.deepcopy(settings_dict)
 		for key in previous_settings:
@@ -252,19 +252,19 @@ def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
 			setattr(settings, key, value)
 		settings.save(ignore_permissions=True)
 		# singles are cached by default, clear to avoid flake
-		frappe.db.value_cache[settings] = {}
+		stylo.db.value_cache[settings] = {}
 		if commit:
-			frappe.db.commit()
+			stylo.db.commit()
 		yield  # yield control to calling function
 
 	finally:
 		# restore settings
-		settings = frappe.get_doc(doctype)
+		settings = stylo.get_doc(doctype)
 		for key, value in previous_settings.items():
 			setattr(settings, key, value)
 		settings.save(ignore_permissions=True)
 		if commit:
-			frappe.db.commit()
+			stylo.db.commit()
 
 
 def timeout(seconds=30, error_message="Test timed out."):
@@ -300,12 +300,12 @@ def timeout(seconds=30, error_message="Test timed out."):
 
 @contextmanager
 def patch_hooks(overridden_hoooks):
-	get_hooks = frappe.get_hooks
+	get_hooks = stylo.get_hooks
 
 	def patched_hooks(hook=None, default="_KEEP_DEFAULT_LIST", app_name=None):
 		if hook in overridden_hoooks:
 			return overridden_hoooks[hook]
 		return get_hooks(hook, default, app_name)
 
-	with patch.object(frappe, "get_hooks", patched_hooks):
+	with patch.object(stylo, "get_hooks", patched_hooks):
 		yield

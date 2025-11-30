@@ -2,30 +2,30 @@
 # License: MIT. See LICENSE
 import json
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.doctype.web_form.web_form import accept
-from frappe.website.serve import get_response_content
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.doctype.web_form.web_form import accept
+from stylo.website.serve import get_response_content
 
 test_dependencies = ["Web Form"]
 
 
 class TestWebForm(StyloTestCase):
 	def setUp(self):
-		frappe.conf.disable_website_cache = True
-		frappe.local.path = None
+		stylo.conf.disable_website_cache = True
+		stylo.local.path = None
 
 	def tearDown(self):
-		frappe.conf.disable_website_cache = False
-		frappe.local.path = None
-		frappe.local.request_ip = None
-		frappe.form_dict.web_form = None
-		frappe.form_dict.data = None
-		frappe.form_dict.docname = None
+		stylo.conf.disable_website_cache = False
+		stylo.local.path = None
+		stylo.local.request_ip = None
+		stylo.form_dict.web_form = None
+		stylo.form_dict.data = None
+		stylo.form_dict.docname = None
 
 	def test_accept(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 		doc = {
 			"doctype": "Event",
@@ -34,13 +34,13 @@ class TestWebForm(StyloTestCase):
 			"starts_on": "2014-09-09",
 		}
 
-		frappe.form_dict.web_form = "manage-events"
-		frappe.form_dict.data = json.dumps(doc)
-		frappe.local.request_ip = "127.0.0.1"
+		stylo.form_dict.web_form = "manage-events"
+		stylo.form_dict.data = json.dumps(doc)
+		stylo.local.request_ip = "127.0.0.1"
 
 		accept(web_form="manage-events", data=json.dumps(doc))
 
-		self.event_name = frappe.db.get_value("Event", {"subject": "_Test Event Web Form"})
+		self.event_name = stylo.db.get_value("Event", {"subject": "_Test Event Web Form"})
 		self.assertTrue(self.event_name)
 
 	def test_edit(self):
@@ -55,16 +55,16 @@ class TestWebForm(StyloTestCase):
 		}
 
 		self.assertNotEqual(
-			frappe.db.get_value("Event", self.event_name, "description"), doc.get("description")
+			stylo.db.get_value("Event", self.event_name, "description"), doc.get("description")
 		)
 
-		frappe.form_dict.web_form = "manage-events"
-		frappe.form_dict.docname = self.event_name
-		frappe.form_dict.data = json.dumps(doc)
+		stylo.form_dict.web_form = "manage-events"
+		stylo.form_dict.docname = self.event_name
+		stylo.form_dict.data = json.dumps(doc)
 
 		accept(web_form="manage-events", docname=self.event_name, data=json.dumps(doc))
 
-		self.assertEqual(frappe.db.get_value("Event", self.event_name, "description"), doc.get("description"))
+		self.assertEqual(stylo.db.get_value("Event", self.event_name, "description"), doc.get("description"))
 
 	def test_webform_render(self):
 		set_request(method="GET", path="manage-events/new")
@@ -80,4 +80,4 @@ class TestWebForm(StyloTestCase):
 
 		self.assertIn('<meta name="name" content="Test Meta Form Title">', content)
 		self.assertIn('<meta property="og:description" content="Test Meta Form Description">', content)
-		self.assertIn('<meta property="og:image" content="https://frappe.io/files/frappe.png">', content)
+		self.assertIn('<meta property="og:image" content="https://stylo.io/files/stylo.png">', content)

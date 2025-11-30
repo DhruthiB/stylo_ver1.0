@@ -13,13 +13,13 @@ from filetype import guess_mime
 from semantic_version import Version
 from werkzeug.test import TestResponse
 
-import frappe
-from frappe.installer import update_site_config
-from frappe.tests.utils import StyloTestCase, patch_hooks
-from frappe.utils import cint, get_site_url, get_test_client, get_url
+import stylo
+from stylo.installer import update_site_config
+from stylo.tests.utils import StyloTestCase, patch_hooks
+from stylo.utils import cint, get_site_url, get_test_client, get_url
 
 try:
-	_site = frappe.local.site
+	_site = stylo.local.site
 except Exception:
 	_site = None
 
@@ -58,8 +58,8 @@ class ThreadWithReturnValue(Thread):
 
 	def run(self):
 		if self._target is not None:
-			with patch("frappe.app.get_site_name", return_value=_site):
-				header_patch = patch("frappe.get_request_header", new=patch_request_header)
+			with patch("stylo.app.get_site_name", return_value=_site):
+				header_patch = patch("stylo.get_request_header", new=patch_request_header)
 				if authorization_token:
 					header_patch.start()
 				self._return = self._target(*self._args, **self._kwargs)
@@ -72,7 +72,7 @@ class ThreadWithReturnValue(Thread):
 
 
 class StyloAPITestCase(StyloTestCase):
-	SITE = frappe.local.site
+	SITE = stylo.local.site
 	SITE_URL = get_site_url(SITE)
 	RESOURCE_URL = f"{SITE_URL}/api/resource"
 	TEST_CLIENT = get_test_client()
@@ -80,14 +80,14 @@ class StyloAPITestCase(StyloTestCase):
 	@property
 	def sid(self) -> str:
 		if not getattr(self, "_sid", None):
-			from frappe.auth import CookieManager, LoginManager
-			from frappe.utils import set_request
+			from stylo.auth import CookieManager, LoginManager
+			from stylo.utils import set_request
 
 			set_request(path="/")
-			frappe.local.cookie_manager = CookieManager()
-			frappe.local.login_manager = LoginManager()
-			frappe.local.login_manager.login_as("Administrator")
-			self._sid = frappe.session.sid
+			stylo.local.cookie_manager = CookieManager()
+			stylo.local.login_manager = LoginManager()
+			stylo.local.login_manager.login_as("Administrator")
+			self._sid = stylo.session.sid
 
 		return self._sid
 
@@ -104,7 +104,7 @@ class StyloAPITestCase(StyloTestCase):
 		return make_request(target=self.TEST_CLIENT.delete, args=(path,), kwargs=kwargs)
 
 	def tearDown(self) -> None:
-		frappe.db.rollback()
+		stylo.db.rollback()
 		return super().tearDown()
 
 
@@ -116,16 +116,16 @@ class TestResourceAPI(StyloAPITestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		for _ in range(10):
-			doc = frappe.get_doc({"doctype": "ToDo", "description": frappe.mock("paragraph")}).insert()
+			doc = stylo.get_doc({"doctype": "ToDo", "description": stylo.mock("paragraph")}).insert()
 			cls.GENERATED_DOCUMENTS.append(doc.name)
-		frappe.db.commit()
+		stylo.db.commit()
 
 	@classmethod
 	def tearDownClass(cls):
-		frappe.db.commit()
+		stylo.db.commit()
 		for name in cls.GENERATED_DOCUMENTS:
-			frappe.delete_doc_if_exists(cls.DOCTYPE, name)
-		frappe.db.commit()
+			stylo.delete_doc_if_exists(cls.DOCTYPE, name)
+		stylo.db.commit()
 
 	def test_unauthorized_call(self):
 		# test 1: fetch documents without auth
@@ -148,13 +148,13 @@ class TestResourceAPI(StyloAPITestCase):
 	def test_get_list_dict(self):
 		# test 4: fetch response as (not) dict
 		response = self.get(f"/api/resource/{self.DOCTYPE}", {"sid": self.sid, "as_dict": True})
-		json = frappe._dict(response.json)
+		json = stylo._dict(response.json)
 		self.assertEqual(response.status_code, 200)
 		self.assertIsInstance(json.data, list)
 		self.assertIsInstance(json.data[0], dict)
 
 		response = self.get(f"/api/resource/{self.DOCTYPE}", {"sid": self.sid, "as_dict": False})
-		json = frappe._dict(response.json)
+		json = stylo._dict(response.json)
 		self.assertEqual(response.status_code, 200)
 		self.assertIsInstance(json.data, list)
 		self.assertIsInstance(json.data[0], list)
@@ -171,12 +171,12 @@ class TestResourceAPI(StyloAPITestCase):
 		# test 6: fetch response with fields
 		response = self.get(f"/api/resource/{self.DOCTYPE}", {"sid": self.sid, "fields": '["description"]'})
 		self.assertEqual(response.status_code, 200)
-		json = frappe._dict(response.json)
+		json = stylo._dict(response.json)
 		self.assertIn("description", json.data[0])
 
 	def test_create_document(self):
 		# test 7: POST method on /api/resource to create doc
-		data = {"description": frappe.mock("paragraph"), "sid": self.sid}
+		data = {"description": stylo.mock("paragraph"), "sid": self.sid}
 		response = self.post(f"/api/resource/{self.DOCTYPE}", data)
 		self.assertEqual(response.status_code, 200)
 		docname = response.json["data"]["name"]
@@ -185,10 +185,10 @@ class TestResourceAPI(StyloAPITestCase):
 
 	def test_update_document(self):
 		# test 8: PUT method on /api/resource to update doc
-		generated_desc = frappe.mock("paragraph")
+		generated_desc = stylo.mock("paragraph")
 		data = {"description": generated_desc, "sid": self.sid}
 		random_doc = choice(self.GENERATED_DOCUMENTS)
-		desc_before_update = frappe.db.get_value(self.DOCTYPE, random_doc, "description")
+		desc_before_update = stylo.db.get_value(self.DOCTYPE, random_doc, "description")
 
 		response = self.put(f"/api/resource/{self.DOCTYPE}/{random_doc}", data=data)
 		self.assertEqual(response.status_code, 200)
@@ -203,7 +203,7 @@ class TestResourceAPI(StyloAPITestCase):
 		self.assertDictEqual(response.json, {"message": "ok"})
 		self.GENERATED_DOCUMENTS.remove(doc_to_delete)
 
-		non_existent_doc = frappe.generate_hash(length=12)
+		non_existent_doc = stylo.generate_hash(length=12)
 		with suppress_stdout():
 			response = self.delete(f"/api/resource/{self.DOCTYPE}/{non_existent_doc}")
 		self.assertEqual(response.status_code, 404)
@@ -220,7 +220,7 @@ class TestResourceAPI(StyloAPITestCase):
 			self.assertTrue(set(response.json.keys()) == {"exc_type", "exception", "exc", "_server_messages"})
 			self.assertEqual(response.json.get("exc_type"), "PermissionError")
 			self.assertEqual(
-				response.json.get("exception"), "frappe.exceptions.PermissionError: Not permitted"
+				response.json.get("exception"), "stylo.exceptions.PermissionError: Not permitted"
 			)
 			self.assertIsInstance(response.json.get("exc"), str)
 
@@ -235,10 +235,10 @@ class TestMethodAPI(StyloAPITestCase):
 
 	def setUp(self):
 		if self._testMethodName == "test_auth_cycle":
-			from frappe.core.doctype.user.user import generate_keys
+			from stylo.core.doctype.user.user import generate_keys
 
 			generate_keys("Administrator")
-			frappe.db.commit()
+			stylo.db.commit()
 
 	def test_ping(self):
 		# test 2: test for /api/method/ping
@@ -248,8 +248,8 @@ class TestMethodAPI(StyloAPITestCase):
 		self.assertEqual(response.json["message"], "pong")
 
 	def test_get_user_info(self):
-		# test 3: test for /api/method/frappe.realtime.get_user_info
-		response = self.get(f"{self.METHOD_PATH}/frappe.realtime.get_user_info")
+		# test 3: test for /api/method/stylo.realtime.get_user_info
+		response = self.get(f"{self.METHOD_PATH}/stylo.realtime.get_user_info")
 		self.assertEqual(response.status_code, 200)
 		self.assertIsInstance(response.json, dict)
 		self.assertIn(response.json.get("message").get("user"), ("Administrator", "Guest"))
@@ -257,20 +257,20 @@ class TestMethodAPI(StyloAPITestCase):
 	def test_auth_cycle(self):
 		# test 4: Pass authorization token in request
 		global authorization_token
-		user = frappe.get_doc("User", "Administrator")
+		user = stylo.get_doc("User", "Administrator")
 		api_key, api_secret = user.api_key, user.get_password("api_secret")
 		authorization_token = f"{api_key}:{api_secret}"
-		response = self.get(f"{self.METHOD_PATH}/frappe.auth.get_logged_user")
+		response = self.get(f"{self.METHOD_PATH}/stylo.auth.get_logged_user")
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json["message"], "Administrator")
 
 		authorization_token = f"{api_key}:INCORRECT"
-		response = self.get(f"{self.METHOD_PATH}/frappe.auth.get_logged_user")
+		response = self.get(f"{self.METHOD_PATH}/stylo.auth.get_logged_user")
 		self.assertEqual(response.status_code, 401)
 
 		authorization_token = "NonExistentKey:INCORRECT"
-		response = self.get(f"{self.METHOD_PATH}/frappe.auth.get_logged_user")
+		response = self.get(f"{self.METHOD_PATH}/stylo.auth.get_logged_user")
 		self.assertEqual(response.status_code, 401)
 
 		authorization_token = None
@@ -297,7 +297,7 @@ class TestReadOnlyMode(StyloAPITestCase):
 		self.assertIsInstance(response.json["data"], list)
 
 	def test_blocked_writes(self):
-		response = self.post(self.REQ_PATH, {"description": frappe.mock("paragraph"), "sid": self.sid})
+		response = self.post(self.REQ_PATH, {"description": stylo.mock("paragraph"), "sid": self.sid})
 		self.assertEqual(response.status_code, 503)
 		self.assertEqual(response.json["exc_type"], "InReadOnlyMode")
 
@@ -308,8 +308,8 @@ class TestWSGIApp(StyloAPITestCase):
 
 		with patch_hooks(
 			{
-				"before_request": ["frappe.tests.test_api.before_request"],
-				"after_request": ["frappe.tests.test_api.after_request"],
+				"before_request": ["stylo.tests.test_api.before_request"],
+				"after_request": ["stylo.tests.test_api.after_request"],
 			}
 		):
 			self.assertIsNone(_test_REQ_HOOK.get("before_request"))
@@ -333,7 +333,7 @@ def after_request(*args, **kwargs):
 class TestResponse(StyloAPITestCase):
 	def test_generate_pdf(self):
 		response = self.get(
-			"/api/method/frappe.utils.print_format.download_pdf",
+			"/api/method/stylo.utils.print_format.download_pdf",
 			{"sid": self.sid, "doctype": "User", "name": "Guest"},
 		)
 		self.assertEqual(response.status_code, 200)
@@ -347,7 +347,7 @@ class TestResponse(StyloAPITestCase):
 			filters = json.dumps({})
 			fields = json.dumps({"User": ["name"]})
 			return self.post(
-				"/api/method/frappe.core.doctype.data_import.data_import.download_template",
+				"/api/method/stylo.core.doctype.data_import.data_import.download_template",
 				{
 					"sid": self.sid,
 					"doctype": "User",
@@ -370,13 +370,13 @@ class TestResponse(StyloAPITestCase):
 		self.assertIn("text/csv", response.headers["content-type"])
 		self.assertGreater(cint(response.headers["content-length"]), 0)
 
-		from frappe.utils.response import build_response
+		from stylo.utils.response import build_response
 
 		filename = "دفتر الأستاذ العام"
 		encoded_filename = filename.encode("utf-8").decode("unicode-escape", "ignore") + ".xlsx"
-		frappe.response["type"] = "binary"
-		frappe.response["filecontent"] = "content"
-		frappe.response["filename"] = filename + ".xlsx"
+		stylo.response["type"] = "binary"
+		stylo.response["filecontent"] = "content"
+		stylo.response["filename"] = filename + ".xlsx"
 
 		response = build_response("binary")
 		self.assertEqual(response.status_code, 200)
@@ -385,8 +385,8 @@ class TestResponse(StyloAPITestCase):
 		self.assertEqual(response.headers["content-disposition"], f'filename="{encoded_filename}"')
 
 	def test_download_private_file_with_unique_url(self):
-		test_content = frappe.generate_hash()
-		file = frappe.get_doc(
+		test_content = stylo.generate_hash()
+		file = stylo.get_doc(
 			{
 				"doctype": "File",
 				"file_name": test_content,

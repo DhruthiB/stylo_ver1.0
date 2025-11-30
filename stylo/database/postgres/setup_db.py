@@ -1,29 +1,29 @@
 import os
 
-import frappe
+import stylo
 
 
 def setup_database(force, source_sql=None, verbose=False):
-	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
+	root_conn = get_root_connection(stylo.flags.root_login, stylo.flags.root_password)
 	root_conn.commit()
 	root_conn.sql("end")
-	root_conn.sql(f"DROP DATABASE IF EXISTS `{frappe.conf.db_name}`")
-	root_conn.sql(f"DROP USER IF EXISTS {frappe.conf.db_name}")
-	root_conn.sql(f"CREATE DATABASE `{frappe.conf.db_name}`")
-	root_conn.sql(f"CREATE user {frappe.conf.db_name} password '{frappe.conf.db_password}'")
-	root_conn.sql(f"GRANT ALL PRIVILEGES ON DATABASE `{frappe.conf.db_name}` TO {frappe.conf.db_name}")
+	root_conn.sql(f"DROP DATABASE IF EXISTS `{stylo.conf.db_name}`")
+	root_conn.sql(f"DROP USER IF EXISTS {stylo.conf.db_name}")
+	root_conn.sql(f"CREATE DATABASE `{stylo.conf.db_name}`")
+	root_conn.sql(f"CREATE user {stylo.conf.db_name} password '{stylo.conf.db_password}'")
+	root_conn.sql(f"GRANT ALL PRIVILEGES ON DATABASE `{stylo.conf.db_name}` TO {stylo.conf.db_name}")
 	root_conn.close()
 
-	bootstrap_database(frappe.conf.db_name, verbose, source_sql=source_sql)
-	frappe.connect()
+	bootstrap_database(stylo.conf.db_name, verbose, source_sql=source_sql)
+	stylo.connect()
 
 
 def bootstrap_database(db_name, verbose, source_sql=None):
-	frappe.connect(db_name=db_name)
+	stylo.connect(db_name=db_name)
 	import_db_from_sql(source_sql, verbose)
-	frappe.connect(db_name=db_name)
+	stylo.connect(db_name=db_name)
 
-	if "tabDefaultValue" not in frappe.db.get_tables():
+	if "tabDefaultValue" not in stylo.db.get_tables():
 		import sys
 
 		from click import secho
@@ -44,7 +44,7 @@ def import_db_from_sql(source_sql=None, verbose=False):
 	# we can't pass psql password in arguments in postgresql as mysql. So
 	# set password connection parameter in environment variable
 	subprocess_env = os.environ.copy()
-	subprocess_env["PGPASSWORD"] = str(frappe.conf.db_password)
+	subprocess_env["PGPASSWORD"] = str(stylo.conf.db_password)
 
 	# bootstrap db
 	if not source_sql:
@@ -53,9 +53,9 @@ def import_db_from_sql(source_sql=None, verbose=False):
 	pv = which("pv")
 
 	_command = (
-		f"psql {frappe.conf.db_name} "
-		f"-h {frappe.conf.db_host or 'localhost'} -p {frappe.conf.db_port or '5432'!s} "
-		f"-U {frappe.conf.db_name}"
+		f"psql {stylo.conf.db_name} "
+		f"-h {stylo.conf.db_host or 'localhost'} -p {stylo.conf.db_port or '5432'!s} "
+		f"-U {stylo.conf.db_name}"
 	)
 
 	if pv:
@@ -74,7 +74,7 @@ def import_db_from_sql(source_sql=None, verbose=False):
 
 
 def setup_help_database(help_db_name):
-	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
+	root_conn = get_root_connection(stylo.flags.root_login, stylo.flags.root_password)
 	root_conn.sql(f"DROP DATABASE IF EXISTS `{help_db_name}`")
 	root_conn.sql(f"DROP USER IF EXISTS {help_db_name}")
 	root_conn.sql(f"CREATE DATABASE `{help_db_name}`")
@@ -83,29 +83,29 @@ def setup_help_database(help_db_name):
 
 
 def get_root_connection(root_login=None, root_password=None):
-	if not frappe.local.flags.root_connection:
+	if not stylo.local.flags.root_connection:
 		if not root_login:
-			root_login = frappe.conf.get("root_login") or None
+			root_login = stylo.conf.get("root_login") or None
 
 		if not root_login:
 			root_login = input("Enter postgres super user: ")
 
 		if not root_password:
-			root_password = frappe.conf.get("root_password") or None
+			root_password = stylo.conf.get("root_password") or None
 
 		if not root_password:
 			from getpass import getpass
 
 			root_password = getpass("Postgres super user password: ")
 
-		frappe.local.flags.root_connection = frappe.database.get_db(user=root_login, password=root_password)
+		stylo.local.flags.root_connection = stylo.database.get_db(user=root_login, password=root_password)
 
-	return frappe.local.flags.root_connection
+	return stylo.local.flags.root_connection
 
 
 def drop_user_and_database(db_name, root_login, root_password):
 	root_conn = get_root_connection(
-		frappe.flags.root_login or root_login, frappe.flags.root_password or root_password
+		stylo.flags.root_login or root_login, stylo.flags.root_password or root_password
 	)
 	root_conn.commit()
 	root_conn.sql(

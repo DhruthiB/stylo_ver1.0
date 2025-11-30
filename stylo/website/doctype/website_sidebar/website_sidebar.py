@@ -1,13 +1,13 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class WebsiteSidebar(Document):
 	def get_items(self):
-		items = frappe.get_all(
+		items = stylo.get_all(
 			"Website Sidebar Item",
 			filters={"parent": self.name},
 			fields=["title", "route", "group"],

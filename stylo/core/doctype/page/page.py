@@ -3,14 +3,14 @@
 
 import os
 
-import frappe
-from frappe import _, conf, safe_decode
-from frappe.build import html_to_js_template
-from frappe.core.doctype.custom_role.custom_role import get_custom_allowed_roles
-from frappe.desk.form.meta import get_code_files_via_hooks, get_js
-from frappe.desk.utils import validate_route_conflict
-from frappe.model.document import Document
-from frappe.model.utils import render_include
+import stylo
+from stylo import _, conf, safe_decode
+from stylo.build import html_to_js_template
+from stylo.core.doctype.custom_role.custom_role import get_custom_allowed_roles
+from stylo.desk.form.meta import get_code_files_via_hooks, get_js
+from stylo.desk.utils import validate_route_conflict
+from stylo.model.document import Document
+from stylo.model.utils import render_include
 
 
 class Page(Document):
@@ -20,12 +20,12 @@ class Page(Document):
 		Will restrict the name to 30 characters, if there exists a similar name,
 		it will add name-1, name-2 etc.
 		"""
-		from frappe.utils import cint
+		from stylo.utils import cint
 
 		if (self.name and self.name.startswith("New Page")) or not self.name:
 			self.name = self.page_name.lower().replace('"', "").replace("'", "").replace(" ", "-")[:20]
-			if frappe.db.exists("Page", self.name):
-				cnt = frappe.db.sql(
+			if stylo.db.exists("Page", self.name):
+				cnt = stylo.db.sql(
 					"""select name from tabPage
 					where name like "%s-%%" order by name desc limit 1"""
 					% self.name
@@ -40,11 +40,11 @@ class Page(Document):
 		validate_route_conflict(self.doctype, self.name)
 
 		if self.is_new() and not getattr(conf, "developer_mode", 0):
-			frappe.throw(_("Not in Developer Mode"))
+			stylo.throw(_("Not in Developer Mode"))
 
 		# setting ignore_permissions via update_setup_wizard_access (setup_wizard.py)
-		if frappe.session.user != "Administrator" and not self.flags.ignore_permissions:
-			frappe.throw(_("Only Administrator can edit"))
+		if stylo.session.user != "Administrator" and not self.flags.ignore_permissions:
+			stylo.throw(_("Only Administrator can edit"))
 
 	# export
 	def on_update(self):
@@ -55,11 +55,11 @@ class Page(Document):
 		if self.flags.do_not_update_json:
 			return
 
-		from frappe.core.doctype.doctype.doctype import make_module_and_roles
+		from stylo.core.doctype.doctype.doctype import make_module_and_roles
 
 		make_module_and_roles(self, "roles")
 
-		from frappe.modules.utils import export_module_json
+		from stylo.modules.utils import export_module_json
 
 		path = export_module_json(self, self.standard == "Yes", self.module)
 
@@ -68,8 +68,8 @@ class Page(Document):
 			if not os.path.exists(path + ".js"):
 				with open(path + ".js", "w") as f:
 					f.write(
-						f"""frappe.pages['{self.name}'].on_page_load = function(wrapper) {{
-	var page = frappe.ui.make_app_page({{
+						f"""stylo.pages['{self.name}'].on_page_load = function(wrapper) {{
+	var page = stylo.ui.make_app_page({{
 		parent: wrapper,
 		title: '{self.title}',
 		single_column: true
@@ -88,9 +88,9 @@ class Page(Document):
 
 	def is_permitted(self):
 		"""Returns true if Has Role is not set or the user is allowed."""
-		from frappe.utils import has_common
+		from stylo.utils import has_common
 
-		allowed = [d.role for d in frappe.get_all("Has Role", fields=["role"], filters={"parent": self.name})]
+		allowed = [d.role for d in stylo.get_all("Has Role", fields=["role"], filters={"parent": self.name})]
 
 		custom_roles = get_custom_allowed_roles("page", self.name)
 		allowed.extend(custom_roles)
@@ -98,7 +98,7 @@ class Page(Document):
 		if not allowed:
 			return True
 
-		roles = frappe.get_roles()
+		roles = stylo.get_roles()
 
 		if has_common(roles, allowed):
 			return True
@@ -106,7 +106,7 @@ class Page(Document):
 	def load_assets(self):
 		import os
 
-		from frappe.modules import get_module_path, scrub
+		from stylo.modules import get_module_path, scrub
 
 		self.script = ""
 
@@ -133,11 +133,11 @@ class Page(Document):
 				with open(os.path.join(path, fname)) as f:
 					template = f.read()
 					if "<!-- jinja -->" in template:
-						context = frappe._dict({})
+						context = stylo._dict({})
 						try:
-							out = frappe.get_attr(
+							out = stylo.get_attr(
 								"{app}.{module}.page.{page}.{page}.get_context".format(
-									app=frappe.local.module_app[scrub(self.module)],
+									app=stylo.local.module_app[scrub(self.module)],
 									module=scrub(self.module),
 									page=page_name,
 								)
@@ -148,14 +148,14 @@ class Page(Document):
 						except (AttributeError, ImportError):
 							pass
 
-						template = frappe.render_template(template, context)
+						template = stylo.render_template(template, context)
 					self.script = html_to_js_template(fname, template) + self.script
 
 					# flag for not caching this page
 					self._dynamic_page = True
 
-		if frappe.lang != "en":
-			from frappe.translate import get_lang_js
+		if stylo.lang != "en":
+			from stylo.translate import get_lang_js
 
 			self.script += get_lang_js("page", self.name)
 
@@ -166,6 +166,6 @@ class Page(Document):
 
 
 def delete_custom_role(field, docname):
-	name = frappe.db.get_value("Custom Role", {field: docname}, "name")
+	name = stylo.db.get_value("Custom Role", {field: docname}, "name")
 	if name:
-		frappe.delete_doc("Custom Role", name)
+		stylo.delete_doc("Custom Role", name)

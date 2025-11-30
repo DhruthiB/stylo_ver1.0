@@ -1,18 +1,18 @@
 // Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
-frappe.ui.form.on("DocType", {
+stylo.ui.form.on("DocType", {
 	refresh: function (frm) {
 		frm.set_query("role", "permissions", function (doc) {
-			if (doc.custom && frappe.session.user != "Administrator") {
+			if (doc.custom && stylo.session.user != "Administrator") {
 				return {
-					query: "frappe.core.doctype.role.role.role_query",
+					query: "stylo.core.doctype.role.role.role_query",
 					filters: [["Role", "name", "!=", "All"]],
 				};
 			}
 		});
 
-		if (frappe.session.user !== "Administrator" || !frappe.boot.developer_mode) {
+		if (stylo.session.user !== "Administrator" || !stylo.boot.developer_mode) {
 			if (frm.is_new()) {
 				frm.set_value("custom", 1);
 			}
@@ -24,17 +24,17 @@ frappe.ui.form.on("DocType", {
 		if (!frm.is_new() && !frm.doc.istable) {
 			if (frm.doc.issingle) {
 				frm.add_custom_button(__("Go to {0}", [__(frm.doc.name)]), () => {
-					window.open(`/app/${frappe.router.slug(frm.doc.name)}`);
+					window.open(`/app/${stylo.router.slug(frm.doc.name)}`);
 				});
 			} else {
 				frm.add_custom_button(__("Go to {0} List", [__(frm.doc.name)]), () => {
-					window.open(`/app/${frappe.router.slug(frm.doc.name)}`);
+					window.open(`/app/${stylo.router.slug(frm.doc.name)}`);
 				});
 			}
 		}
 
 		const customize_form_link = "<a href='/app/customize-form'>Customize Form</a>";
-		if (!frappe.boot.developer_mode && !frm.doc.custom) {
+		if (!stylo.boot.developer_mode && !frm.doc.custom) {
 			// make the document read-only
 			frm.set_read_only();
 			frm.dashboard.add_comment(
@@ -42,7 +42,7 @@ frappe.ui.form.on("DocType", {
 				"blue",
 				true
 			);
-		} else if (frappe.boot.developer_mode) {
+		} else if (stylo.boot.developer_mode) {
 			let msg = __(
 				"This site is running in developer mode. Any change made here will be updated in code."
 			);
@@ -93,11 +93,11 @@ frappe.ui.form.on("DocType", {
 	},
 
 	setup_default_views: (frm) => {
-		frappe.model.set_default_views_for_doctype(frm.doc.name, frm);
+		stylo.model.set_default_views_for_doctype(frm.doc.name, frm);
 	},
 });
 
-frappe.ui.form.on("DocField", {
+stylo.ui.form.on("DocField", {
 	form_render(frm, doctype, docname) {
 		// Render two select fields for Fetch From instead of Small Text for better UX
 		let field = frm.cur_grid.grid_form.fields_dict.fetch_from;
@@ -111,7 +111,7 @@ frappe.ui.form.on("DocField", {
 		$doctype_select.wrap('<div class="col"></div>');
 		$field_select.wrap('<div class="col"></div>');
 
-		let row = frappe.get_doc(doctype, docname);
+		let row = stylo.get_doc(doctype, docname);
 		let curr_value = { doctype: null, fieldname: null };
 		if (row.fetch_from) {
 			let [doctype, fieldname] = row.fetch_from.split(".");
@@ -145,10 +145,10 @@ frappe.ui.form.on("DocField", {
 			if (!link_fieldname) return;
 			let link_field = frm.doc.fields.find((df) => df.fieldname === link_fieldname);
 			let link_doctype = link_field.options;
-			frappe.model.with_doctype(link_doctype, () => {
-				let fields = frappe.meta
+			stylo.model.with_doctype(link_doctype, () => {
+				let fields = stylo.meta
 					.get_docfields(link_doctype, null, {
-						fieldtype: ["not in", frappe.model.no_value_type],
+						fieldtype: ["not in", stylo.model.no_value_type],
 					})
 					.sort((a, b) => a.label.localeCompare(b.label))
 					.map((df) => ({
@@ -192,4 +192,4 @@ frappe.ui.form.on("DocField", {
 	},
 });
 
-extend_cscript(cur_frm.cscript, new frappe.model.DocTypeController({ frm: cur_frm }));
+extend_cscript(cur_frm.cscript, new stylo.model.DocTypeController({ frm: cur_frm }));

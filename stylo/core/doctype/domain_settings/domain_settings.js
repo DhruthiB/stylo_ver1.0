@@ -1,10 +1,10 @@
 // Copyright (c) 2017, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Domain Settings", {
+stylo.ui.form.on("Domain Settings", {
 	before_load: function (frm) {
 		if (!frm.domains_multicheck) {
-			frm.domains_multicheck = frappe.ui.form.make_control({
+			frm.domains_multicheck = stylo.ui.form.make_control({
 				parent: frm.fields_dict.domains_html.$wrapper,
 				df: {
 					fieldname: "domains_multicheck",
@@ -13,7 +13,7 @@ frappe.ui.form.on("Domain Settings", {
 						let active_domains = (frm.doc.active_domains || []).map(
 							(row) => row.domain
 						);
-						return frappe.boot.all_domains.map((domain) => {
+						return stylo.boot.all_domains.map((domain) => {
 							return {
 								label: domain,
 								value: domain,
@@ -52,14 +52,14 @@ frappe.ui.form.on("Domain Settings", {
 
 		unselected_options.map((option) => {
 			if (list.includes(option)) {
-				frappe.model.clear_doc("Has Domain", map[option]);
+				stylo.model.clear_doc("Has Domain", map[option]);
 			}
 		});
 
 		selected_options.map((option) => {
 			if (!list.includes(option)) {
-				frappe.model.clear_doc("Has Domain", map[option]);
-				let row = frappe.model.add_child(frm.doc, "Has Domain", "active_domains");
+				stylo.model.clear_doc("Has Domain", map[option]);
+				let row = stylo.model.add_child(frm.doc, "Has Domain", "active_domains");
 				row.domain = option;
 			}
 		});

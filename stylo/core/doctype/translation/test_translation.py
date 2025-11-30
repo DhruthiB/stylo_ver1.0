@@ -1,28 +1,28 @@
 # Copyright (c) 2015, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe import _
-from frappe.tests.utils import StyloTestCase
-from frappe.translate import clear_cache
+import stylo
+from stylo import _
+from stylo.tests.utils import StyloTestCase
+from stylo.translate import clear_cache
 
 
 class TestTranslation(StyloTestCase):
 	def setUp(self):
-		frappe.db.delete("Translation")
+		stylo.db.delete("Translation")
 
 	def tearDown(self):
-		frappe.local.lang = "en"
+		stylo.local.lang = "en"
 		clear_cache()
 
 	def test_doctype(self):
 		translation_data = get_translation_data()
 		for key, val in translation_data.items():
-			frappe.local.lang = key
+			stylo.local.lang = key
 
 			translation = create_translation(key, val)
 			self.assertEqual(_(val[0]), val[1])
 
-			frappe.delete_doc("Translation", translation.name)
+			stylo.delete_doc("Translation", translation.name)
 			self.assertEqual(_(val[0]), val[0])
 
 	def test_parent_language(self):
@@ -35,13 +35,13 @@ class TestTranslation(StyloTestCase):
 		for key, val in data:
 			create_translation(key, val)
 
-		frappe.local.lang = "es"
+		stylo.local.lang = "es"
 
 		self.assertTrue(_(data[0][0]), data[0][1])
 
 		self.assertTrue(_(data[1][0]), data[1][1])
 
-		frappe.local.lang = "es-MX"
+		stylo.local.lang = "es-MX"
 
 		# different translation for es-MX
 		self.assertTrue(_(data[2][0]), data[2][1])
@@ -102,7 +102,7 @@ def get_translation_data():
 
 
 def create_translation(key, val):
-	translation = frappe.new_doc("Translation")
+	translation = stylo.new_doc("Translation")
 	translation.language = key
 	translation.source_text = val[0]
 	translation.translated_text = val[1]

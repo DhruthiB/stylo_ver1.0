@@ -1,7 +1,7 @@
 # Copyright (c) 2015, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestAddressTemplate(StyloTestCase):
@@ -9,18 +9,18 @@ class TestAddressTemplate(StyloTestCase):
 		self.make_default_address_template()
 
 	def test_default_is_unset(self):
-		a = frappe.get_doc("Address Template", "India")
+		a = stylo.get_doc("Address Template", "India")
 		a.is_default = 1
 		a.save()
 
-		b = frappe.get_doc("Address Template", "Brazil")
+		b = stylo.get_doc("Address Template", "Brazil")
 		b.is_default = 1
 		b.save()
 
-		self.assertEqual(frappe.db.get_value("Address Template", "India", "is_default"), 0)
+		self.assertEqual(stylo.db.get_value("Address Template", "India", "is_default"), 0)
 
 	def tearDown(self):
-		a = frappe.get_doc("Address Template", "India")
+		a = stylo.get_doc("Address Template", "India")
 		a.is_default = 1
 		a.save()
 
@@ -28,12 +28,12 @@ class TestAddressTemplate(StyloTestCase):
 	def make_default_address_template(self):
 		template = """{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif -%}{{ city }}<br>{% if state %}{{ state }}<br>{% endif -%}{% if pincode %}{{ pincode }}<br>{% endif -%}{{ country }}<br>{% if phone %}Phone: {{ phone }}<br>{% endif -%}{% if fax %}Fax: {{ fax }}<br>{% endif -%}{% if email_id %}Email: {{ email_id }}<br>{% endif -%}"""
 
-		if not frappe.db.exists("Address Template", "India"):
-			frappe.get_doc(
+		if not stylo.db.exists("Address Template", "India"):
+			stylo.get_doc(
 				{"doctype": "Address Template", "country": "India", "is_default": 1, "template": template}
 			).insert()
 
-		if not frappe.db.exists("Address Template", "Brazil"):
-			frappe.get_doc(
+		if not stylo.db.exists("Address Template", "Brazil"):
+			stylo.get_doc(
 				{"doctype": "Address Template", "country": "Brazil", "template": template}
 			).insert()

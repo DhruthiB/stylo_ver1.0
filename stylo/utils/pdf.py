@@ -14,11 +14,11 @@ import pdfkit
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader, PdfWriter
 
-import frappe
-from frappe import _
-from frappe.core.doctype.file.utils import find_file_by_url
-from frappe.utils import cstr, scrub_urls
-from frappe.utils.jinja_globals import bundled_asset, is_rtl
+import stylo
+from stylo import _
+from stylo.core.doctype.file.utils import find_file_by_url
+from stylo.utils import cstr, scrub_urls
+from stylo.utils.jinja_globals import bundled_asset, is_rtl
 
 PDF_CONTENT_ERRORS = [
 	"ContentNotFoundError",
@@ -48,7 +48,7 @@ def get_pdf(html, options=None, output: PdfWriter | None = None):
 		if any([error in str(e) for error in PDF_CONTENT_ERRORS]):
 			if not filedata:
 				print(html, options)
-				frappe.throw(_("PDF generation failed because of broken image links"))
+				stylo.throw(_("PDF generation failed because of broken image links"))
 
 			# allow pdfs with missing images if file got created
 			if output:
@@ -119,14 +119,14 @@ def prepare_options(html, options):
 
 	# page size
 	pdf_page_size = (
-		options.get("page-size") or frappe.db.get_single_value("Print Settings", "pdf_page_size") or "A4"
+		options.get("page-size") or stylo.db.get_single_value("Print Settings", "pdf_page_size") or "A4"
 	)
 
 	if pdf_page_size == "Custom":
-		options["page-height"] = options.get("page-height") or frappe.db.get_single_value(
+		options["page-height"] = options.get("page-height") or stylo.db.get_single_value(
 			"Print Settings", "pdf_page_height"
 		)
-		options["page-width"] = options.get("page-width") or frappe.db.get_single_value(
+		options["page-width"] = options.get("page-width") or stylo.db.get_single_value(
 			"Print Settings", "pdf_page_width"
 		)
 	else:
@@ -137,15 +137,15 @@ def prepare_options(html, options):
 
 def get_cookie_options():
 	options = {}
-	if frappe.session and frappe.session.sid and hasattr(frappe.local, "request"):
+	if stylo.session and stylo.session.sid and hasattr(stylo.local, "request"):
 		# Use wkhtmltopdf's cookie-jar feature to set cookies and restrict them to host domain
-		cookiejar = f"/tmp/{frappe.generate_hash()}.jar"
+		cookiejar = f"/tmp/{stylo.generate_hash()}.jar"
 
 		# Remove port from request.host
 		# https://werkzeug.palletsprojects.com/en/0.16.x/wrappers/#werkzeug.wrappers.BaseRequest.host
-		domain = frappe.utils.get_host_name().split(":", 1)[0]
+		domain = stylo.utils.get_host_name().split(":", 1)[0]
 		with open(cookiejar, "w") as f:
-			f.write(f"sid={frappe.session.sid}; Domain={domain};\n")
+			f.write(f"sid={stylo.session.sid}; Domain={domain};\n")
 
 		options["cookie-jar"] = cookiejar
 
@@ -240,7 +240,7 @@ def _get_base64_image(src):
 		b64_encoded_image = base64.b64encode(file.get_content()).decode()
 		return f"data:{mime_type};base64,{b64_encoded_image}"
 	except Exception:
-		frappe.logger("pdf").error("Failed to convert inline images to base64", exc_info=True)
+		stylo.logger("pdf").error("Failed to convert inline images to base64", exc_info=True)
 
 
 def prepare_header_footer(soup: BeautifulSoup):
@@ -250,7 +250,7 @@ def prepare_header_footer(soup: BeautifulSoup):
 	styles = soup.find_all("style")
 
 	print_css = bundled_asset("print.bundle.css").lstrip("/")
-	css = frappe.read_file(os.path.join(frappe.local.sites_path, print_css))
+	css = stylo.read_file(os.path.join(stylo.local.sites_path, print_css))
 
 	# extract header and footer
 	for html_id in ("header-html", "footer-html"):
@@ -263,7 +263,7 @@ def prepare_header_footer(soup: BeautifulSoup):
 				tag.extract()
 
 			toggle_visible_pdf(content)
-			html = frappe.render_template(
+			html = stylo.render_template(
 				"templates/print_formats/pdf_header_footer.html",
 				{
 					"head": head,
@@ -271,17 +271,17 @@ def prepare_header_footer(soup: BeautifulSoup):
 					"styles": styles,
 					"html_id": html_id,
 					"css": css,
-					"lang": frappe.local.lang,
+					"lang": stylo.local.lang,
 					"layout_direction": "rtl" if is_rtl() else "ltr",
 				},
 			)
 
 			# create temp file
-			fname = os.path.join("/tmp", f"frappe-pdf-{frappe.generate_hash()}.html")
+			fname = os.path.join("/tmp", f"stylo-pdf-{stylo.generate_hash()}.html")
 			with open(fname, "wb") as f:
 				f.write(html.encode("utf-8"))
 
-			# {"header-html": "/tmp/frappe-pdf-random.html"}
+			# {"header-html": "/tmp/stylo-pdf-random.html"}
 			options[html_id] = fname
 		else:
 			if html_id == "header-html":
@@ -309,13 +309,13 @@ def toggle_visible_pdf(soup):
 
 
 def get_wkhtmltopdf_version():
-	wkhtmltopdf_version = frappe.cache().hget("wkhtmltopdf_version", None)
+	wkhtmltopdf_version = stylo.cache().hget("wkhtmltopdf_version", None)
 
 	if not wkhtmltopdf_version:
 		try:
 			res = subprocess.check_output(["wkhtmltopdf", "--version"])
 			wkhtmltopdf_version = res.decode("utf-8").split(" ")[1]
-			frappe.cache().hset("wkhtmltopdf_version", None, wkhtmltopdf_version)
+			stylo.cache().hset("wkhtmltopdf_version", None, wkhtmltopdf_version)
 		except Exception:
 			pass
 

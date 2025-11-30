@@ -1,12 +1,12 @@
 # Copyright (c) 2022, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.core.utils import set_timeline_doc
-from frappe.model.document import Document
-from frappe.query_builder import DocType, Interval
-from frappe.query_builder.functions import Now
-from frappe.utils import get_fullname, now, strip_html
+import stylo
+from stylo.core.utils import set_timeline_doc
+from stylo.model.document import Document
+from stylo.query_builder import DocType, Interval
+from stylo.query_builder.functions import Now
+from stylo.utils import get_fullname, now, strip_html
 
 
 class ActivityLog(Document):
@@ -28,24 +28,24 @@ class ActivityLog(Document):
 
 	def set_ip_address(self):
 		if self.operation in ("Login", "Logout"):
-			self.ip_address = frappe.local.request_ip
+			self.ip_address = stylo.local.request_ip
 
 	@staticmethod
 	def clear_old_logs(days=None):
 		if not days:
 			days = 90
 		doctype = DocType("Activity Log")
-		frappe.db.delete(doctype, filters=(doctype.modified < (Now() - Interval(days=days))))
+		stylo.db.delete(doctype, filters=(doctype.modified < (Now() - Interval(days=days))))
 
 
 def on_doctype_update():
 	"""Add indexes in `tabActivity Log`"""
-	frappe.db.add_index("Activity Log", ["reference_doctype", "reference_name"])
-	frappe.db.add_index("Activity Log", ["timeline_doctype", "timeline_name"])
+	stylo.db.add_index("Activity Log", ["reference_doctype", "reference_name"])
+	stylo.db.add_index("Activity Log", ["timeline_doctype", "timeline_name"])
 
 
 def add_authentication_log(subject, user, operation="Login", status="Success"):
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "Activity Log",
 			"user": user,

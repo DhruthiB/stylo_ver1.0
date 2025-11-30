@@ -3,12 +3,12 @@
 
 from contextlib import suppress
 
-import frappe
-from frappe import _
-from frappe.query_builder.functions import DateFormat, Function
-from frappe.query_builder.utils import DocType
-from frappe.utils.data import add_to_date, cstr, flt, now_datetime
-from frappe.utils.formatters import format_value
+import stylo
+from stylo import _
+from stylo.query_builder.functions import DateFormat, Function
+from stylo.query_builder.utils import DocType
+from stylo.utils.data import add_to_date, cstr, flt, now_datetime
+from stylo.utils.formatters import format_value
 
 
 def get_monthly_results(
@@ -21,10 +21,10 @@ def get_monthly_results(
 	"""Get monthly aggregation values for given field of doctype"""
 
 	Table = DocType(goal_doctype)
-	date_format = "%m-%Y" if frappe.db.db_type != "postgres" else "MM-YYYY"
+	date_format = "%m-%Y" if stylo.db.db_type != "postgres" else "MM-YYYY"
 
 	return dict(
-		frappe.qb.get_query(
+		stylo.qb.get_query(
 			table=goal_doctype,
 			fields=[
 				DateFormat(Table[date_col], date_format).as_("month_year"),
@@ -38,7 +38,7 @@ def get_monthly_results(
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_monthly_goal_graph_data(
 	title: str,
 	doctype: str,
@@ -73,11 +73,11 @@ def get_monthly_goal_graph_data(
 	:return: dict of graph data
 	"""
 	if isinstance(filter_str, str):
-		frappe.throw(
+		stylo.throw(
 			"String filters have been deprecated. Pass Dict filters instead.", exc=DeprecationWarning
 		)  # nosemgrep
 
-	doc = frappe.get_doc(doctype, docname)
+	doc = stylo.get_doc(doctype, docname)
 	doc.check_permission()
 
 	meta = doc.meta
@@ -92,12 +92,12 @@ def get_monthly_goal_graph_data(
 	month_to_value_dict = None
 	if history and "{" in cstr(history):
 		with suppress(ValueError):
-			month_to_value_dict = frappe.parse_json(history)
+			month_to_value_dict = stylo.parse_json(history)
 
 	if month_to_value_dict is None:  # nosemgrep
 		doc_filter = {}
 		with suppress(ValueError):
-			doc_filter = frappe.parse_json(filters or "{}")
+			doc_filter = stylo.parse_json(filters or "{}")
 		if doctype != goal_doctype:
 			doc_filter[goal_doctype_link] = docname
 

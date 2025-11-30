@@ -5,33 +5,33 @@ import time
 
 import requests
 
-import frappe
-from frappe.auth import LoginAttemptTracker
-from frappe.frappeclient import AuthError, StyloClient
-from frappe.sessions import Session, get_expired_sessions, get_expiry_in_seconds
-from frappe.tests.test_api import StyloAPITestCase
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import get_datetime, get_site_url, now
-from frappe.utils.data import add_to_date
-from frappe.www.login import _generate_temporary_login_link
+import stylo
+from stylo.auth import LoginAttemptTracker
+from stylo.styloclient import AuthError, StyloClient
+from stylo.sessions import Session, get_expired_sessions, get_expiry_in_seconds
+from stylo.tests.test_api import StyloAPITestCase
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import get_datetime, get_site_url, now
+from stylo.utils.data import add_to_date
+from stylo.www.login import _generate_temporary_login_link
 
 
 def add_user(email, password, username=None, mobile_no=None):
 	first_name = email.split("@", 1)[0]
-	user = frappe.get_doc(
+	user = stylo.get_doc(
 		dict(doctype="User", email=email, first_name=first_name, username=username, mobile_no=mobile_no)
 	).insert()
 	user.new_password = password
 	user.simultaneous_sessions = 1
 	user.add_roles("System Manager")
-	frappe.db.commit()
+	stylo.db.commit()
 
 
 class TestAuth(StyloTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.HOST_NAME = frappe.get_site_config().host_name or get_site_url(frappe.local.site)
+		cls.HOST_NAME = stylo.get_site_config().host_name or get_site_url(stylo.local.site)
 		cls.test_user_email = "test_auth@test.com"
 		cls.test_user_name = "test_auth_user"
 		cls.test_user_mobile = "+911234567890"
@@ -47,17 +47,17 @@ class TestAuth(StyloTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
-		frappe.db.rollback()
-		frappe.delete_doc("User", cls.test_user_email, force=True)
-		frappe.local.request_ip = None
-		frappe.form_dict.email = None
-		frappe.local.response["http_status_code"] = None
-		frappe.db.commit()
+		stylo.db.rollback()
+		stylo.delete_doc("User", cls.test_user_email, force=True)
+		stylo.local.request_ip = None
+		stylo.form_dict.email = None
+		stylo.local.response["http_status_code"] = None
+		stylo.db.commit()
 
 	def set_system_settings(self, k, v):
-		frappe.db.set_value("System Settings", "System Settings", k, v)
-		frappe.clear_cache()
-		frappe.db.commit()
+		stylo.db.set_value("System Settings", "System Settings", k, v)
+		stylo.clear_cache()
+		stylo.db.commit()
 
 	def test_allow_login_using_mobile(self):
 		self.set_system_settings("allow_login_using_mobile_number", 1)
@@ -209,7 +209,7 @@ class TestLoginAttemptTracker(StyloTestCase):
 class TestSessionExpirty(StyloAPITestCase):
 	def test_session_expires(self):
 		sid = self.sid  # triggers login for test case login
-		s: Session = frappe.local.session_obj
+		s: Session = stylo.local.session_obj
 
 		expiry_in = get_expiry_in_seconds()
 		session_created = now()

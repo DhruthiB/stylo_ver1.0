@@ -1,11 +1,11 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import cint
-from frappe.utils.jinja import validate_template
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import cint
+from stylo.utils.jinja import validate_template
 
 
 class AddressTemplate(Document):
@@ -13,12 +13,12 @@ class AddressTemplate(Document):
 		if not self.template:
 			self.template = get_default_address_template()
 
-		self.defaults = frappe.db.get_values("Address Template", {"is_default": 1, "name": ("!=", self.name)})
+		self.defaults = stylo.db.get_values("Address Template", {"is_default": 1, "name": ("!=", self.name)})
 		if not self.is_default:
 			if not self.defaults:
 				self.is_default = 1
-				if cint(frappe.db.get_single_value("System Settings", "setup_complete")):
-					frappe.msgprint(
+				if cint(stylo.db.get_single_value("System Settings", "setup_complete")):
+					stylo.msgprint(
 						_("Setting this Address Template as default as there is no other default")
 					)
 
@@ -27,14 +27,14 @@ class AddressTemplate(Document):
 	def on_update(self):
 		if self.is_default and self.defaults:
 			for d in self.defaults:
-				frappe.db.set_value("Address Template", d[0], "is_default", 0)
+				stylo.db.set_value("Address Template", d[0], "is_default", 0)
 
 	def on_trash(self):
 		if self.is_default:
-			frappe.throw(_("Default Address Template cannot be deleted"))
+			stylo.throw(_("Default Address Template cannot be deleted"))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_default_address_template():
 	"""Get default address template (translated)"""
 	return (

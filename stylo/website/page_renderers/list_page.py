@@ -1,12 +1,12 @@
-import frappe
-from frappe.website.page_renderers.template_page import TemplatePage
+import stylo
+from stylo.website.page_renderers.template_page import TemplatePage
 
 
 class ListPage(TemplatePage):
 	def can_render(self):
-		return frappe.db.exists("DocType", self.path, True)
+		return stylo.db.exists("DocType", self.path, True)
 
 	def render(self):
-		frappe.local.form_dict.doctype = self.path
+		stylo.local.form_dict.doctype = self.path
 		self.set_standard_path("list")
 		return super().render()

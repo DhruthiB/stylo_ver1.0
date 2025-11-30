@@ -1,9 +1,9 @@
 # Copyright (c) 2022, Stylo Technologies and Contributors
 # See license.txt
 
-import frappe
-from frappe.core.doctype.rq_worker.rq_worker import RQWorker
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.rq_worker.rq_worker import RQWorker
+from stylo.tests.utils import StyloTestCase
 
 
 class TestRQWorker(StyloTestCase):
@@ -14,4 +14,4 @@ class TestRQWorker(StyloTestCase):
 
 	def test_worker_serialization(self):
 		workers = RQWorker.get_list({})
-		frappe.get_doc("RQ Worker", workers[0].name)
+		stylo.get_doc("RQ Worker", workers[0].name)

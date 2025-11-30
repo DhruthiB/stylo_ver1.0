@@ -7,26 +7,26 @@ from unittest.mock import patch
 
 import requests
 
-import frappe
-from frappe.core.doctype.communication.email import make
-from frappe.desk.form.load import get_attachments
-from frappe.email.doctype.email_account.test_email_account import TestEmailAccount
-from frappe.email.doctype.email_queue.email_queue import QueueBuilder
-from frappe.query_builder.utils import db_type_is
-from frappe.tests.test_query_builder import run_only_if
-from frappe.tests.utils import StyloTestCase, change_settings
+import stylo
+from stylo.core.doctype.communication.email import make
+from stylo.desk.form.load import get_attachments
+from stylo.email.doctype.email_account.test_email_account import TestEmailAccount
+from stylo.email.doctype.email_queue.email_queue import QueueBuilder
+from stylo.query_builder.utils import db_type_is
+from stylo.tests.test_query_builder import run_only_if
+from stylo.tests.utils import StyloTestCase, change_settings
 
 test_dependencies = ["Email Account"]
 
 
 class TestEmail(StyloTestCase):
 	def setUp(self):
-		frappe.db.delete("Email Unsubscribe")
-		frappe.db.delete("Email Queue")
-		frappe.db.delete("Email Queue Recipient")
+		stylo.db.delete("Email Unsubscribe")
+		stylo.db.delete("Email Queue")
+		stylo.db.delete("Email Queue Recipient")
 
 	def test_email_queue(self, send_after=None):
-		frappe.sendmail(
+		stylo.sendmail(
 			recipients=["test@example.com", "test1@example.com"],
 			sender="admin@example.com",
 			reference_doctype="User",
@@ -37,13 +37,13 @@ class TestEmail(StyloTestCase):
 			send_after=send_after,
 		)
 
-		email_queue = frappe.db.sql(
+		email_queue = stylo.db.sql(
 			"""select name,message from `tabEmail Queue` where status='Not Sent'""", as_dict=1
 		)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""SELECT recipient FROM `tabEmail Queue Recipient`
 			WHERE status='Not Sent'""",
 				as_dict=1,
@@ -56,22 +56,22 @@ class TestEmail(StyloTestCase):
 
 	def test_send_after(self):
 		self.test_email_queue(send_after=1)
-		from frappe.email.queue import flush
+		from stylo.email.queue import flush
 
 		flush()
-		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
+		email_queue = stylo.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 0)
 
 	def test_flush(self):
 		self.test_email_queue()
-		from frappe.email.queue import flush
+		from stylo.email.queue import flush
 
 		flush()
-		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
+		email_queue = stylo.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where status='Sent'""",
 				as_dict=1,
@@ -80,11 +80,11 @@ class TestEmail(StyloTestCase):
 		self.assertTrue("test@example.com" in queue_recipients)
 		self.assertTrue("test1@example.com" in queue_recipients)
 		self.assertEqual(len(queue_recipients), 2)
-		self.assertTrue("Unsubscribe" in frappe.safe_decode(frappe.flags.sent_mail))
+		self.assertTrue("Unsubscribe" in stylo.safe_decode(stylo.flags.sent_mail))
 
 	def test_cc_header(self):
 		# test if sending with cc's makes it into header
-		frappe.sendmail(
+		stylo.sendmail(
 			recipients=["test@example.com"],
 			cc=["test1@example.com"],
 			sender="admin@example.com",
@@ -95,13 +95,13 @@ class TestEmail(StyloTestCase):
 			unsubscribe_message="Unsubscribe",
 			expose_recipients="header",
 		)
-		email_queue = frappe.db.sql(
+		email_queue = stylo.db.sql(
 			"""select name from `tabEmail Queue` where status='Not Sent'""", as_dict=1
 		)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where status='Not Sent'""",
 				as_dict=1,
@@ -110,7 +110,7 @@ class TestEmail(StyloTestCase):
 		self.assertTrue("test@example.com" in queue_recipients)
 		self.assertTrue("test1@example.com" in queue_recipients)
 
-		message = frappe.db.sql(
+		message = stylo.db.sql(
 			"""select message from `tabEmail Queue`
 			where status='Not Sent'""",
 			as_dict=1,
@@ -120,7 +120,7 @@ class TestEmail(StyloTestCase):
 
 	def test_cc_footer(self):
 		# test if sending with cc's makes it into header
-		frappe.sendmail(
+		stylo.sendmail(
 			recipients=["test@example.com"],
 			cc=["test1@example.com"],
 			sender="admin@example.com",
@@ -132,11 +132,11 @@ class TestEmail(StyloTestCase):
 			expose_recipients="footer",
 			now=True,
 		)
-		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
+		email_queue = stylo.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where status='Sent'""",
 				as_dict=1,
@@ -147,13 +147,13 @@ class TestEmail(StyloTestCase):
 
 		self.assertTrue(
 			"This email was sent to test@example.com and copied to test1@example.com"
-			in frappe.safe_decode(frappe.flags.sent_mail)
+			in stylo.safe_decode(stylo.flags.sent_mail)
 		)
 
 	def test_expose(self):
-		from frappe.utils.verified_command import verify_request
+		from stylo.utils.verified_command import verify_request
 
-		frappe.sendmail(
+		stylo.sendmail(
 			recipients=["test@example.com"],
 			cc=["test1@example.com"],
 			sender="admin@example.com",
@@ -164,11 +164,11 @@ class TestEmail(StyloTestCase):
 			unsubscribe_message="Unsubscribe",
 			now=True,
 		)
-		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
+		email_queue = stylo.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where status='Sent'""",
 				as_dict=1,
@@ -177,39 +177,39 @@ class TestEmail(StyloTestCase):
 		self.assertTrue("test@example.com" in queue_recipients)
 		self.assertTrue("test1@example.com" in queue_recipients)
 
-		message = frappe.db.sql(
+		message = stylo.db.sql(
 			"""select message from `tabEmail Queue`
 			where status='Sent'""",
 			as_dict=1,
 		)[0].message
 		self.assertTrue("<!--recipient-->" in message)
 
-		email_obj = email.message_from_string(frappe.safe_decode(frappe.flags.sent_mail))
+		email_obj = email.message_from_string(stylo.safe_decode(stylo.flags.sent_mail))
 		for part in email_obj.walk():
 			content = part.get_payload(decode=True)
 
 			if content:
 				eol = "\r\n"
 
-				frappe.local.flags.signed_query_string = re.search(
-					r"(?<=/api/method/frappe.email.queue.unsubscribe\?).*(?=" + eol + ")", content.decode()
+				stylo.local.flags.signed_query_string = re.search(
+					r"(?<=/api/method/stylo.email.queue.unsubscribe\?).*(?=" + eol + ")", content.decode()
 				).group(0)
 				self.assertTrue(verify_request())
 				break
 
 	def test_expired(self):
 		self.test_email_queue()
-		frappe.db.sql("UPDATE `tabEmail Queue` SET `modified`=(NOW() - INTERVAL '8' day)")
+		stylo.db.sql("UPDATE `tabEmail Queue` SET `modified`=(NOW() - INTERVAL '8' day)")
 
-		from frappe.email.queue import set_expiry_for_email_queue
+		from stylo.email.queue import set_expiry_for_email_queue
 
 		set_expiry_for_email_queue()
 
-		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Expired'""", as_dict=1)
+		email_queue = stylo.db.sql("""select name from `tabEmail Queue` where status='Expired'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where parent = %s""",
 				email_queue[0].name,
@@ -223,17 +223,17 @@ class TestEmail(StyloTestCase):
 	def test_sender(self):
 		def _patched_assertion(email_account, assertion):
 			with patch.object(QueueBuilder, "get_outgoing_email_account", return_value=email_account):
-				frappe.sendmail(
+				stylo.sendmail(
 					recipients=["test1@example.com"],
 					sender="admin@example.com",
 					subject="Test Email Queue",
 					message="This mail is queued!",
 					now=True,
 				)
-				email_queue_sender = frappe.db.get_value("Email Queue", {"status": "Sent"}, "sender")
+				email_queue_sender = stylo.db.get_value("Email Queue", {"status": "Sent"}, "sender")
 				self.assertEqual(email_queue_sender, assertion)
 
-		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
+		email_account = stylo.get_doc("Email Account", "_Test Email Account 1")
 		email_account.default_outgoing = 1
 
 		email_account.always_use_account_name_as_sender_name = 0
@@ -251,11 +251,11 @@ class TestEmail(StyloTestCase):
 		_patched_assertion(email_account, "_Test Email Account 1 <test@example.com>")
 
 	def test_unsubscribe(self):
-		from frappe.email.queue import unsubscribe
+		from stylo.email.queue import unsubscribe
 
 		unsubscribe(doctype="User", name="Administrator", email="test@example.com")
 		self.assertTrue(
-			frappe.db.get_value(
+			stylo.db.get_value(
 				"Email Unsubscribe",
 				{"reference_doctype": "User", "reference_name": "Administrator", "email": "test@example.com"},
 			)
@@ -274,10 +274,10 @@ class TestEmail(StyloTestCase):
 		# don't send right now
 		builder.process()
 
-		email_queue = frappe.db.get_value("Email Queue", {"status": "Not Sent"})
+		email_queue = stylo.db.get_value("Email Queue", {"status": "Not Sent"})
 		queue_recipients = [
 			r.recipient
-			for r in frappe.db.sql(
+			for r in stylo.db.sql(
 				"""select recipient from `tabEmail Queue Recipient`
 			where status='Not Sent'""",
 				as_dict=1,
@@ -287,22 +287,22 @@ class TestEmail(StyloTestCase):
 		self.assertTrue("test1@example.com" in queue_recipients)
 		self.assertEqual(len(queue_recipients), 1)
 
-		frappe.get_doc("Email Queue", email_queue).send()
-		self.assertTrue("Unsubscribe" in frappe.safe_decode(frappe.flags.sent_mail))
+		stylo.get_doc("Email Queue", email_queue).send()
+		self.assertTrue("Unsubscribe" in stylo.safe_decode(stylo.flags.sent_mail))
 
 	def test_image_parsing(self):
 		import re
 
-		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
+		email_account = stylo.get_doc("Email Account", "_Test Email Account 1")
 
-		frappe.db.delete("Communication", {"sender": "sukh@yyy.com"})
+		stylo.db.delete("Communication", {"sender": "sukh@yyy.com"})
 
-		with open(frappe.get_app_path("frappe", "tests", "data", "email_with_image.txt")) as raw:
+		with open(stylo.get_app_path("stylo", "tests", "data", "email_with_image.txt")) as raw:
 			messages = {
 				'"INBOX"': {"latest_messages": [raw.read()], "seen_status": {2: "UNSEEN"}, "uid_list": [2]}
 			}
 
-			email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
+			email_account = stylo.get_doc("Email Account", "_Test Email Account 1")
 			changed_flag = False
 			if not email_account.enable_incoming:
 				email_account.enable_incoming = True
@@ -328,8 +328,8 @@ class TestEmail(StyloTestCase):
 
 class TestVerifiedRequests(StyloTestCase):
 	def test_round_trip(self):
-		from frappe.utils import set_request
-		from frappe.utils.verified_command import get_signed_params, verify_request
+		from stylo.utils import set_request
+		from stylo.utils.verified_command import get_signed_params, verify_request
 
 		test_cases = [{"xyz": "abc"}, {"email": "a@b.com", "user": "xyz"}]
 
@@ -337,7 +337,7 @@ class TestVerifiedRequests(StyloTestCase):
 			signed_url = get_signed_params(params)
 			set_request(method="GET", path="?" + signed_url)
 			self.assertTrue(verify_request())
-		frappe.local.request = None
+		stylo.local.request = None
 
 
 class TestEmailIntegrationTest(StyloTestCase):
@@ -353,12 +353,12 @@ class TestEmailIntegrationTest(StyloTestCase):
 
 	def setUp(self) -> None:
 		# Stylo code is configured to not attempting sending emails during test.
-		frappe.flags.testing_email = True
+		stylo.flags.testing_email = True
 		requests.delete(f"{self.SMTP4DEV_WEB}/api/Messages/*")
 		return super().setUp()
 
 	def tearDown(self) -> None:
-		frappe.flags.testing_email = False
+		stylo.flags.testing_email = False
 		return super().tearDown()
 
 	@classmethod
@@ -375,8 +375,8 @@ class TestEmailIntegrationTest(StyloTestCase):
 		subject = "checking if email works"
 		content = "is email working?"
 
-		frappe.sendmail(sender=sender, recipients=recipients, subject=subject, content=content, now=True)
-		email = frappe.get_last_doc("Email Queue")
+		stylo.sendmail(sender=sender, recipients=recipients, subject=subject, content=content, now=True)
+		email = stylo.get_last_doc("Email Queue")
 		self.assertEqual(email.sender, sender)
 		self.assertEqual(len(email.recipients), 2)
 		self.assertEqual(email.status, "Sent")
@@ -407,12 +407,12 @@ class TestEmailIntegrationTest(StyloTestCase):
 			now=True,
 		).get("name")
 
-		communication = frappe.get_doc("Communication", name)
+		communication = stylo.get_doc("Communication", name)
 
 		attachments = get_attachments(communication.doctype, communication.name)
 		self.assertEqual(len(attachments), 1)
 
-		file = frappe.get_doc("File", attachments[0].name)
+		file = stylo.get_doc("File", attachments[0].name)
 		self.assertGreater(file.file_size, 1000)
 		self.assertIn("pdf", file.file_name.lower())
 		sent_mails = self.get_last_sent_emails()

@@ -3,8 +3,8 @@
 
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class PatchLog(Document):
@@ -12,4 +12,4 @@ class PatchLog(Document):
 
 
 def before_migrate():
-	frappe.reload_doc("core", "doctype", "patch_log")
+	stylo.reload_doc("core", "doctype", "patch_log")

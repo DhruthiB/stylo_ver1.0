@@ -2,15 +2,15 @@
 # License: MIT. See LICENSE
 import hashlib
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 test_records = []
 
 
 class TestTransactionLog(StyloTestCase):
 	def test_validate_chaining(self):
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "Transaction Log",
 				"reference_doctype": "Test Doctype",
@@ -19,7 +19,7 @@ class TestTransactionLog(StyloTestCase):
 			}
 		).insert(ignore_permissions=True)
 
-		second_log = frappe.get_doc(
+		second_log = stylo.get_doc(
 			{
 				"doctype": "Transaction Log",
 				"reference_doctype": "Test Doctype",
@@ -28,7 +28,7 @@ class TestTransactionLog(StyloTestCase):
 			}
 		).insert(ignore_permissions=True)
 
-		third_log = frappe.get_doc(
+		third_log = stylo.get_doc(
 			{
 				"doctype": "Transaction Log",
 				"reference_doctype": "Test Doctype",
@@ -39,8 +39,8 @@ class TestTransactionLog(StyloTestCase):
 
 		sha = hashlib.sha256()
 		sha.update(
-			frappe.safe_encode(str(third_log.transaction_hash))
-			+ frappe.safe_encode(str(second_log.chaining_hash))
+			stylo.safe_encode(str(third_log.transaction_hash))
+			+ stylo.safe_encode(str(second_log.chaining_hash))
 		)
 
 		self.assertEqual(sha.hexdigest(), third_log.chaining_hash)

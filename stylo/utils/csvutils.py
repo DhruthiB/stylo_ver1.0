@@ -6,13 +6,13 @@ from io import StringIO
 
 import requests
 
-import frappe
-from frappe import _, msgprint
-from frappe.utils import cint, comma_or, cstr, flt
+import stylo
+from stylo import _, msgprint
+from stylo.utils import cint, comma_or, cstr, flt
 
 
 def read_csv_content_from_attached_file(doc):
-	fileid = frappe.get_all(
+	fileid = stylo.get_all(
 		"File",
 		fields=["name"],
 		filters={"attached_to_doctype": doc.doctype, "attached_to_name": doc.name},
@@ -27,11 +27,11 @@ def read_csv_content_from_attached_file(doc):
 		raise Exception
 
 	try:
-		_file = frappe.get_doc("File", fileid)
+		_file = stylo.get_doc("File", fileid)
 		fcontent = _file.get_content()
 		return read_csv_content(fcontent)
 	except Exception:
-		frappe.throw(
+		stylo.throw(
 			_("Unable to open attached file. Did you export it as CSV?"), title=_("Invalid CSV Format")
 		)
 
@@ -48,14 +48,14 @@ def read_csv_content(fcontent):
 				continue
 
 		if not decoded:
-			frappe.msgprint(
+			stylo.msgprint(
 				_("Unknown file encoding. Tried utf-8, windows-1250, windows-1252."), raise_exception=True
 			)
 
 	fcontent = fcontent.encode("utf-8")
 	content = []
 	for line in fcontent.splitlines(True):
-		content.append(frappe.safe_decode(line))
+		content.append(stylo.safe_decode(line))
 
 	try:
 		rows = []
@@ -76,20 +76,20 @@ def read_csv_content(fcontent):
 		return rows
 
 	except Exception:
-		frappe.msgprint(_("Not a valid Comma Separated Value (CSV File)"))
+		stylo.msgprint(_("Not a valid Comma Separated Value (CSV File)"))
 		raise
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def send_csv_to_client(args):
 	if isinstance(args, str):
 		args = json.loads(args)
 
-	args = frappe._dict(args)
+	args = stylo._dict(args)
 
-	frappe.response["result"] = cstr(to_csv(args.data))
-	frappe.response["doctype"] = args.filename
-	frappe.response["type"] = "csv"
+	stylo.response["result"] = cstr(to_csv(args.data))
+	stylo.response["doctype"] = args.filename
+	stylo.response["type"] = "csv"
 
 
 def to_csv(data):
@@ -101,9 +101,9 @@ def to_csv(data):
 
 
 def build_csv_response(data, filename):
-	frappe.response["result"] = cstr(to_csv(data))
-	frappe.response["doctype"] = filename
-	frappe.response["type"] = "csv"
+	stylo.response["result"] = cstr(to_csv(data))
+	stylo.response["doctype"] = filename
+	stylo.response["type"] = "csv"
 
 
 class UnicodeWriter:
@@ -121,20 +121,20 @@ class UnicodeWriter:
 
 def check_record(d):
 	"""check for mandatory, select options, dates. these should ideally be in doclist"""
-	from frappe.utils.dateutils import parse_date
+	from stylo.utils.dateutils import parse_date
 
-	doc = frappe.get_doc(d)
+	doc = stylo.get_doc(d)
 
 	for key in d:
 		docfield = doc.meta.get_field(key)
 		val = d[key]
 		if docfield:
 			if docfield.reqd and (val == "" or val is None):
-				frappe.msgprint(_("{0} is required").format(docfield.label), raise_exception=1)
+				stylo.msgprint(_("{0} is required").format(docfield.label), raise_exception=1)
 
 			if docfield.fieldtype == "Select" and val and docfield.options:
 				if val not in docfield.options.split("\n"):
-					frappe.throw(
+					stylo.throw(
 						_("{0} must be one of {1}").format(
 							_(docfield.label), comma_or(docfield.options.split("\n"))
 						)
@@ -150,9 +150,9 @@ def check_record(d):
 
 def import_doc(d, doctype, overwrite, row_idx, submit=False, ignore_links=False):
 	"""import main (non child) document"""
-	if d.get("name") and frappe.db.exists(doctype, d["name"]):
+	if d.get("name") and stylo.db.exists(doctype, d["name"]):
 		if overwrite:
-			doc = frappe.get_doc(doctype, d["name"])
+			doc = stylo.get_doc(doctype, d["name"])
 			doc.flags.ignore_links = ignore_links
 			doc.update(d)
 			if d.get("docstatus") == 1:
@@ -165,7 +165,7 @@ def import_doc(d, doctype, overwrite, row_idx, submit=False, ignore_links=False)
 		else:
 			return "Ignored row (#%d) %s (exists)" % (row_idx + 1, getlink(doctype, d["name"]))
 	else:
-		doc = frappe.get_doc(d)
+		doc = stylo.get_doc(d)
 		doc.flags.ignore_links = ignore_links
 		doc.insert()
 
@@ -199,12 +199,12 @@ def get_csv_content_from_google_sheets(url):
 		# if it returns html, it couldn't find the CSV content
 		# because of invalid url or no access
 		if response.text.strip().endswith("</html>"):
-			frappe.throw(
+			stylo.throw(
 				_("Google Sheets URL is invalid or not publicly accessible."), title=_("Invalid URL")
 			)
 		return response.content
 	elif response.status_code == 400:
-		frappe.throw(
+		stylo.throw(
 			_(
 				'Google Sheets URL must end with "gid={number}". Copy and paste the URL from the browser address bar and try again.'
 			),
@@ -219,7 +219,7 @@ def validate_google_sheets_url(url):
 
 	u = urlparse(url)
 	if u.scheme != "https" or u.netloc != "docs.google.com" or "/spreadsheets/" not in u.path:
-		frappe.throw(
+		stylo.throw(
 			_('"{0}" is not a valid Google Sheets URL').format(url),
 			title=_("Invalid URL"),
 		)

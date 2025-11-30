@@ -1,13 +1,13 @@
 # Copyright (c) 2013, Stylo and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.website.doctype.help_article.help_article import clear_cache
-from frappe.website.website_generator import WebsiteGenerator
+import stylo
+from stylo.website.doctype.help_article.help_article import clear_cache
+from stylo.website.website_generator import WebsiteGenerator
 
 
 class HelpCategory(WebsiteGenerator):
-	website = frappe._dict(condition_field="published", page_title_field="category_name")
+	website = stylo._dict(condition_field="published", page_title_field="category_name")
 
 	def before_insert(self):
 		self.published = 1

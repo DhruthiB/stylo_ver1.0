@@ -1,15 +1,15 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDynamicLinks(StyloTestCase):
 	def setUp(self):
-		frappe.db.delete("Email Unsubscribe")
+		stylo.db.delete("Email Unsubscribe")
 
 	def test_delete_normal(self):
-		event = frappe.get_doc(
+		event = stylo.get_doc(
 			{
 				"doctype": "Event",
 				"subject": "test-for-delete",
@@ -18,7 +18,7 @@ class TestDynamicLinks(StyloTestCase):
 			}
 		).insert()
 
-		unsub = frappe.get_doc(
+		unsub = stylo.get_doc(
 			{
 				"doctype": "Email Unsubscribe",
 				"email": "test@example.com",
@@ -29,10 +29,10 @@ class TestDynamicLinks(StyloTestCase):
 
 		event.delete()
 
-		self.assertFalse(frappe.db.exists("Email Unsubscribe", unsub.name))
+		self.assertFalse(stylo.db.exists("Email Unsubscribe", unsub.name))
 
 	def test_delete_with_comment(self):
-		event = frappe.get_doc(
+		event = stylo.get_doc(
 			{
 				"doctype": "Event",
 				"subject": "test-for-delete-1",
@@ -43,24 +43,24 @@ class TestDynamicLinks(StyloTestCase):
 		event.add_comment("Comment", "test")
 
 		self.assertTrue(
-			frappe.get_all("Comment", filters={"reference_doctype": "Event", "reference_name": event.name})
+			stylo.get_all("Comment", filters={"reference_doctype": "Event", "reference_name": event.name})
 		)
 		event.delete()
 		self.assertFalse(
-			frappe.get_all("Comment", filters={"reference_doctype": "Event", "reference_name": event.name})
+			stylo.get_all("Comment", filters={"reference_doctype": "Event", "reference_name": event.name})
 		)
 
 	def test_custom_fields(self):
-		from frappe.utils.testutils import add_custom_field, clear_custom_fields
+		from stylo.utils.testutils import add_custom_field, clear_custom_fields
 
 		add_custom_field("Event", "test_ref_doc", "Link", "DocType")
 		add_custom_field("Event", "test_ref_name", "Dynamic Link", "test_ref_doc")
 
-		unsub = frappe.get_doc(
+		unsub = stylo.get_doc(
 			{"doctype": "Email Unsubscribe", "email": "test@example.com", "global_unsubscribe": 1}
 		).insert()
 
-		event = frappe.get_doc(
+		event = stylo.get_doc(
 			{
 				"doctype": "Event",
 				"subject": "test-for-delete-2",
@@ -71,7 +71,7 @@ class TestDynamicLinks(StyloTestCase):
 			}
 		).insert()
 
-		self.assertRaises(frappe.LinkExistsError, unsub.delete)
+		self.assertRaises(stylo.LinkExistsError, unsub.delete)
 
 		event.test_ref_doc = None
 		event.test_ref_name = None
@@ -80,4 +80,4 @@ class TestDynamicLinks(StyloTestCase):
 		unsub.delete()
 
 		clear_custom_fields("Event")
-		frappe.db.commit()  # undo changes done by DDL
+		stylo.db.commit()  # undo changes done by DDL

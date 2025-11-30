@@ -1,14 +1,14 @@
 # Copyright (c) 2019, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
-from frappe.query_builder import Interval
-from frappe.query_builder.functions import Now
+import stylo
+from stylo.model.document import Document
+from stylo.query_builder import Interval
+from stylo.query_builder.functions import Now
 
 
 class ScheduledJobLog(Document):
 	@staticmethod
 	def clear_old_logs(days=90):
-		table = frappe.qb.DocType("Scheduled Job Log")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
+		table = stylo.qb.DocType("Scheduled Job Log")
+		stylo.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))

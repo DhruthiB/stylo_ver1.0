@@ -1,15 +1,15 @@
 # Copyright (c) 2018, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestViewLog(StyloTestCase):
 	def tearDown(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
 	def test_if_user_is_added(self):
-		ev = frappe.get_doc(
+		ev = stylo.get_doc(
 			{
 				"doctype": "Event",
 				"subject": "test event for view logs",
@@ -18,13 +18,13 @@ class TestViewLog(StyloTestCase):
 			}
 		).insert()
 
-		frappe.set_user("test@example.com")
+		stylo.set_user("test@example.com")
 
-		from frappe.desk.form.load import getdoc
+		from stylo.desk.form.load import getdoc
 
 		# load the form
 		getdoc("Event", ev.name)
-		a = frappe.get_value(
+		a = stylo.get_value(
 			doctype="View Log",
 			filters={"reference_doctype": "Event", "reference_name": ev.name},
 			fieldname=["viewed_by"],

@@ -1,19 +1,19 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
-test_records = frappe.get_test_records("Note")
+test_records = stylo.get_test_records("Note")
 
 
 class TestNote(StyloTestCase):
 	def insert_note(self):
-		frappe.db.delete("Version")
-		frappe.db.delete("Note")
-		frappe.db.delete("Note Seen By")
+		stylo.db.delete("Version")
+		stylo.db.delete("Note")
+		stylo.db.delete("Note Seen By")
 
-		return frappe.get_doc(dict(doctype="Note", title="test note", content="test note content")).insert()
+		return stylo.get_doc(dict(doctype="Note", title="test note", content="test note content")).insert()
 
 	def test_version(self):
 		note = self.insert_note()
@@ -21,7 +21,7 @@ class TestNote(StyloTestCase):
 		note.content = "1"
 		note.save(ignore_version=False)
 
-		version = frappe.get_doc("Version", dict(docname=note.name))
+		version = stylo.get_doc("Version", dict(docname=note.name))
 		data = version.get_data()
 
 		self.assertTrue(("title", "test note", "test note 1"), data["changed"])
@@ -34,7 +34,7 @@ class TestNote(StyloTestCase):
 		note.append("seen_by", {"user": "Administrator"})
 		note.save(ignore_version=False)
 
-		version = frappe.get_doc("Version", dict(docname=note.name))
+		version = stylo.get_doc("Version", dict(docname=note.name))
 		data = version.get_data()
 
 		self.assertEqual(len(data.get("added")), 1)
@@ -49,7 +49,7 @@ class TestNote(StyloTestCase):
 		note.seen_by[0].user = "Guest"
 		note.save(ignore_version=False)
 
-		version = frappe.get_doc("Version", dict(docname=note.name))
+		version = stylo.get_doc("Version", dict(docname=note.name))
 		data = version.get_data()
 
 		self.assertEqual(len(data.get("row_changed")), 1)
@@ -63,7 +63,7 @@ class TestNote(StyloTestCase):
 		note.seen_by = []
 		note.save(ignore_version=False)
 
-		version = frappe.get_doc("Version", dict(docname=note.name))
+		version = stylo.get_doc("Version", dict(docname=note.name))
 		data = version.get_data()
 
 		self.assertEqual(len(data.get("removed")), 1)

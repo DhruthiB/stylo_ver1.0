@@ -2,65 +2,65 @@
 # License: MIT. See LICENSE
 import getpass
 
-import frappe
-from frappe.utils.password import update_password
+import stylo
+from stylo.utils.password import update_password
 
 
 def before_install():
-	frappe.reload_doc("core", "doctype", "doctype_state")
-	frappe.reload_doc("core", "doctype", "docfield")
-	frappe.reload_doc("core", "doctype", "docperm")
-	frappe.reload_doc("core", "doctype", "doctype_action")
-	frappe.reload_doc("core", "doctype", "doctype_link")
-	frappe.reload_doc("desk", "doctype", "form_tour_step")
-	frappe.reload_doc("desk", "doctype", "form_tour")
-	frappe.reload_doc("core", "doctype", "doctype")
-	frappe.clear_cache()
+	stylo.reload_doc("core", "doctype", "doctype_state")
+	stylo.reload_doc("core", "doctype", "docfield")
+	stylo.reload_doc("core", "doctype", "docperm")
+	stylo.reload_doc("core", "doctype", "doctype_action")
+	stylo.reload_doc("core", "doctype", "doctype_link")
+	stylo.reload_doc("desk", "doctype", "form_tour_step")
+	stylo.reload_doc("desk", "doctype", "form_tour")
+	stylo.reload_doc("core", "doctype", "doctype")
+	stylo.clear_cache()
 
 
 def after_install():
 	create_user_type()
 	install_basic_docs()
 
-	from frappe.core.doctype.file.utils import make_home_folder
+	from stylo.core.doctype.file.utils import make_home_folder
 
 	make_home_folder()
 
 	import_country_and_currency()
 
-	from frappe.core.doctype.language.language import sync_languages
+	from stylo.core.doctype.language.language import sync_languages
 
 	sync_languages()
 
 	# save default print setting
-	print_settings = frappe.get_doc("Print Settings")
+	print_settings = stylo.get_doc("Print Settings")
 	print_settings.save()
 
 	# all roles to admin
-	frappe.get_doc("User", "Administrator").add_roles(*frappe.get_all("Role", pluck="name"))
+	stylo.get_doc("User", "Administrator").add_roles(*stylo.get_all("Role", pluck="name"))
 
 	# update admin password
 	update_password("Administrator", get_admin_password())
 
-	if not frappe.conf.skip_setup_wizard:
+	if not stylo.conf.skip_setup_wizard:
 		# only set home_page if the value doesn't exist in the db
-		if not frappe.db.get_default("desktop:home_page"):
-			frappe.db.set_default("desktop:home_page", "setup-wizard")
-			frappe.db.set_single_value("System Settings", "setup_complete", 0)
+		if not stylo.db.get_default("desktop:home_page"):
+			stylo.db.set_default("desktop:home_page", "setup-wizard")
+			stylo.db.set_single_value("System Settings", "setup_complete", 0)
 
 	# clear test log
-	with open(frappe.get_site_path(".test_log"), "w") as f:
+	with open(stylo.get_site_path(".test_log"), "w") as f:
 		f.write("")
 
 	add_standard_navbar_items()
 
-	frappe.db.commit()
+	stylo.db.commit()
 
 
 def create_user_type():
 	for user_type in ["System User", "Website User"]:
-		if not frappe.db.exists("User Type", user_type):
-			frappe.get_doc({"doctype": "User Type", "name": user_type, "is_standard": 1}).insert(
+		if not stylo.db.exists("User Type", user_type):
+			stylo.get_doc({"doctype": "User Type", "name": user_type, "is_standard": 1}).insert(
 				ignore_permissions=True
 			)
 
@@ -117,8 +117,8 @@ def install_basic_docs():
 
 	for d in install_docs:
 		try:
-			frappe.get_doc(d).insert(ignore_if_duplicate=True)
-		except frappe.NameError:
+			stylo.get_doc(d).insert(ignore_if_duplicate=True)
+		except stylo.NameError:
 			pass
 
 
@@ -131,33 +131,33 @@ def get_admin_password():
 			return ask_admin_password()
 		return admin_password
 
-	admin_password = frappe.conf.get("admin_password")
+	admin_password = stylo.conf.get("admin_password")
 	if not admin_password:
 		return ask_admin_password()
 	return admin_password
 
 
 def before_tests():
-	if len(frappe.get_installed_apps()) > 1:
+	if len(stylo.get_installed_apps()) > 1:
 		# don't run before tests if any other app is installed
 		return
 
-	frappe.db.truncate("Custom Field")
-	frappe.db.truncate("Event")
+	stylo.db.truncate("Custom Field")
+	stylo.db.truncate("Event")
 
-	frappe.clear_cache()
+	stylo.clear_cache()
 
 	# complete setup if missing
-	if not int(frappe.db.get_single_value("System Settings", "setup_complete") or 0):
+	if not int(stylo.db.get_single_value("System Settings", "setup_complete") or 0):
 		complete_setup_wizard()
 
-	frappe.db.set_single_value("Website Settings", "disable_signup", 0)
-	frappe.db.commit()
-	frappe.clear_cache()
+	stylo.db.set_single_value("Website Settings", "disable_signup", 0)
+	stylo.db.commit()
+	stylo.clear_cache()
 
 
 def complete_setup_wizard():
-	from frappe.desk.page.setup_wizard.setup_wizard import setup_complete
+	from stylo.desk.page.setup_wizard.setup_wizard import setup_complete
 
 	setup_complete(
 		{
@@ -173,26 +173,26 @@ def complete_setup_wizard():
 
 
 def import_country_and_currency():
-	from frappe.geo.country_info import get_all
-	from frappe.utils import update_progress_bar
+	from stylo.geo.country_info import get_all
+	from stylo.utils import update_progress_bar
 
 	data = get_all()
 
 	for i, name in enumerate(data):
 		update_progress_bar("Updating country info", i, len(data))
-		country = frappe._dict(data[name])
+		country = stylo._dict(data[name])
 		add_country_and_currency(name, country)
 
 	print("")
 
 	# enable frequently used currencies
 	for currency in ("INR", "USD", "GBP", "EUR", "AED", "AUD", "JPY", "CNY", "CHF"):
-		frappe.db.set_value("Currency", currency, "enabled", 1)
+		stylo.db.set_value("Currency", currency, "enabled", 1)
 
 
 def add_country_and_currency(name, country):
-	if not frappe.db.exists("Country", name):
-		frappe.get_doc(
+	if not stylo.db.exists("Country", name):
+		stylo.get_doc(
 			{
 				"doctype": "Country",
 				"country_name": name,
@@ -204,8 +204,8 @@ def add_country_and_currency(name, country):
 			}
 		).db_insert()
 
-	if country.currency and not frappe.db.exists("Currency", country.currency):
-		frappe.get_doc(
+	if country.currency and not stylo.db.exists("Currency", country.currency):
+		stylo.get_doc(
 			{
 				"doctype": "Currency",
 				"currency_name": country.currency,
@@ -220,7 +220,7 @@ def add_country_and_currency(name, country):
 
 
 def add_standard_navbar_items():
-	navbar_settings = frappe.get_single("Navbar Settings")
+	navbar_settings = stylo.get_single("Navbar Settings")
 
 	# don't add settings/help options if they're already present
 	if navbar_settings.settings_dropdown and navbar_settings.help_dropdown:
@@ -236,37 +236,37 @@ def add_standard_navbar_items():
 		{
 			"item_label": "My Settings",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.route_to_user()",
+			"action": "stylo.ui.toolbar.route_to_user()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Session Defaults",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.setup_session_defaults()",
+			"action": "stylo.ui.toolbar.setup_session_defaults()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Reload",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.clear_cache()",
+			"action": "stylo.ui.toolbar.clear_cache()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "View Website",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.view_website()",
+			"action": "stylo.ui.toolbar.view_website()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Toggle Full Width",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.toggle_full_width()",
+			"action": "stylo.ui.toolbar.toggle_full_width()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Toggle Theme",
 			"item_type": "Action",
-			"action": "new frappe.ui.ThemeSwitcher().show()",
+			"action": "new stylo.ui.ThemeSwitcher().show()",
 			"is_standard": 1,
 		},
 		{
@@ -277,7 +277,7 @@ def add_standard_navbar_items():
 		{
 			"item_label": "Log out",
 			"item_type": "Action",
-			"action": "frappe.app.logout()",
+			"action": "stylo.app.logout()",
 			"is_standard": 1,
 		},
 	]
@@ -286,19 +286,19 @@ def add_standard_navbar_items():
 		{
 			"item_label": "About",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.show_about()",
+			"action": "stylo.ui.toolbar.show_about()",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Keyboard Shortcuts",
 			"item_type": "Action",
-			"action": "frappe.ui.toolbar.show_shortcuts(event)",
+			"action": "stylo.ui.toolbar.show_shortcuts(event)",
 			"is_standard": 1,
 		},
 		{
 			"item_label": "Stylo Support",
 			"item_type": "Route",
-			"route": "https://frappe.io/support",
+			"route": "https://stylo.io/support",
 			"is_standard": 1,
 		},
 	]

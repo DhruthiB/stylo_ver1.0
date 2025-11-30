@@ -12,8 +12,8 @@ import textwrap
 import click
 import git
 
-import frappe
-from frappe.utils import touch_file
+import stylo
+from stylo.utils import touch_file
 
 APP_TITLE_PATTERN = re.compile(r"^(?![\W])[^\d_\s][\w -]+$", flags=re.UNICODE)
 
@@ -24,16 +24,16 @@ def make_boilerplate(dest, app_name, no_git=False):
 		return
 
 	# app_name should be in snake_case
-	app_name = frappe.scrub(app_name)
+	app_name = stylo.scrub(app_name)
 	hooks = _get_user_inputs(app_name)
 	_create_app_boilerplate(dest, hooks, no_git=no_git)
 
 
 def _get_user_inputs(app_name):
 	"""Prompt user for various inputs related to new app and return config."""
-	app_name = frappe.scrub(app_name)
+	app_name = stylo.scrub(app_name)
 
-	hooks = frappe._dict()
+	hooks = stylo._dict()
 	hooks.app_name = app_name
 	app_title = hooks.app_name.replace("_", " ").title()
 
@@ -82,19 +82,19 @@ def is_valid_title(title) -> bool:
 
 
 def _create_app_boilerplate(dest, hooks, no_git=False):
-	frappe.create_folder(
-		os.path.join(dest, hooks.app_name, hooks.app_name, frappe.scrub(hooks.app_title)),
+	stylo.create_folder(
+		os.path.join(dest, hooks.app_name, hooks.app_name, stylo.scrub(hooks.app_title)),
 		with_init=True,
 	)
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "templates"), with_init=True)
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "www"))
-	frappe.create_folder(
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "templates"), with_init=True)
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "www"))
+	stylo.create_folder(
 		os.path.join(dest, hooks.app_name, hooks.app_name, "templates", "pages"), with_init=True
 	)
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "templates", "includes"))
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "config"), with_init=True)
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "public", "css"))
-	frappe.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "public", "js"))
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "templates", "includes"))
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "config"), with_init=True)
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "public", "css"))
+	stylo.create_folder(os.path.join(dest, hooks.app_name, hooks.app_name, "public", "js"))
 
 	# add .gitkeep file so that public folder is committed to git
 	# this is needed because if public doesn't exist, forge build doesn't symlink the apps assets
@@ -102,23 +102,23 @@ def _create_app_boilerplate(dest, hooks, no_git=False):
 		f.write("")
 
 	with open(os.path.join(dest, hooks.app_name, hooks.app_name, "__init__.py"), "w") as f:
-		f.write(frappe.as_unicode(init_template))
+		f.write(stylo.as_unicode(init_template))
 
 	with open(os.path.join(dest, hooks.app_name, "pyproject.toml"), "w") as f:
-		f.write(frappe.as_unicode(pyproject_template.format(**hooks)))
+		f.write(stylo.as_unicode(pyproject_template.format(**hooks)))
 
 	with open(os.path.join(dest, hooks.app_name, "README.md"), "w") as f:
 		f.write(
-			frappe.as_unicode(
+			stylo.as_unicode(
 				f"## {hooks.app_title}\n\n{hooks.app_description}\n\n#### License\n\n{hooks.app_license}"
 			)
 		)
 
 	with open(os.path.join(dest, hooks.app_name, "license.txt"), "w") as f:
-		f.write(frappe.as_unicode("License: " + hooks.app_license))
+		f.write(stylo.as_unicode("License: " + hooks.app_license))
 
 	with open(os.path.join(dest, hooks.app_name, hooks.app_name, "modules.txt"), "w") as f:
-		f.write(frappe.as_unicode(hooks.app_title))
+		f.write(stylo.as_unicode(hooks.app_title))
 
 	# These values could contain quotes and can break string declarations
 	# So escaping them before setting variables in setup.py and hooks.py
@@ -126,15 +126,15 @@ def _create_app_boilerplate(dest, hooks, no_git=False):
 		hooks[key] = hooks[key].replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
 
 	with open(os.path.join(dest, hooks.app_name, hooks.app_name, "hooks.py"), "w") as f:
-		f.write(frappe.as_unicode(hooks_template.format(**hooks)))
+		f.write(stylo.as_unicode(hooks_template.format(**hooks)))
 
 	touch_file(os.path.join(dest, hooks.app_name, hooks.app_name, "patches.txt"))
 
 	with open(os.path.join(dest, hooks.app_name, hooks.app_name, "config", "desktop.py"), "w") as f:
-		f.write(frappe.as_unicode(desktop_template.format(**hooks)))
+		f.write(stylo.as_unicode(desktop_template.format(**hooks)))
 
 	with open(os.path.join(dest, hooks.app_name, hooks.app_name, "config", "docs.py"), "w") as f:
-		f.write(frappe.as_unicode(docs_template.format(**hooks)))
+		f.write(stylo.as_unicode(docs_template.format(**hooks)))
 
 	app_directory = os.path.join(dest, hooks.app_name)
 
@@ -143,7 +143,7 @@ def _create_app_boilerplate(dest, hooks, no_git=False):
 
 	if not no_git:
 		with open(os.path.join(dest, hooks.app_name, ".gitignore"), "w") as f:
-			f.write(frappe.as_unicode(gitignore_template.format(app_name=hooks.app_name)))
+			f.write(stylo.as_unicode(gitignore_template.format(app_name=hooks.app_name)))
 
 		# initialize git repository
 		app_repo = git.Repo.init(app_directory)
@@ -164,7 +164,7 @@ def _create_github_workflow_files(dest, hooks):
 
 PATCH_TEMPLATE = textwrap.dedent(
 	'''
-	import frappe
+	import stylo
 
 	def execute():
 		"""{docstring}"""
@@ -177,7 +177,7 @@ PATCH_TEMPLATE = textwrap.dedent(
 
 class PatchCreator:
 	def __init__(self):
-		self.all_apps = frappe.get_all_apps(sites_path=".", with_internal_apps=False)
+		self.all_apps = stylo.get_all_apps(sites_path=".", with_internal_apps=False)
 
 		self.app = None
 		self.app_dir = None
@@ -193,7 +193,7 @@ class PatchCreator:
 
 	def _ask_app_name(self):
 		self.app = click.prompt("Select app for new patch", type=click.Choice(self.all_apps))
-		self.app_dir = pathlib.Path(frappe.get_app_path(self.app))
+		self.app_dir = pathlib.Path(stylo.get_app_path(self.app))
 
 	def _ask_doctype_name(self):
 		def _doctype_name(filename):
@@ -214,7 +214,7 @@ class PatchCreator:
 
 	def _ask_patch_meta_info(self):
 		self.docstring = click.prompt("Describe what this patch does", type=str)
-		default_filename = frappe.scrub(self.docstring) + ".py"
+		default_filename = stylo.scrub(self.docstring) + ".py"
 
 		def _valid_filename(name):
 			if not name:
@@ -282,7 +282,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
-    # "frappe~=15.0.0" # Installed and managed by forge.
+    # "stylo~=15.0.0" # Installed and managed by forge.
 ]
 
 [build-system]
@@ -384,7 +384,7 @@ app_license = "{app_license}"
 
 # Desk Notifications
 # ------------------
-# See frappe.core.notifications.get_notification_config
+# See stylo.core.notifications.get_notification_config
 
 # notification_config = "{app_name}.notifications.get_notification_config"
 
@@ -393,11 +393,11 @@ app_license = "{app_license}"
 # Permissions evaluated in scripted ways
 
 # permission_query_conditions = {{
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
+# 	"Event": "stylo.desk.doctype.event.event.get_permission_query_conditions",
 # }}
 #
 # has_permission = {{
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
+# 	"Event": "stylo.desk.doctype.event.event.has_permission",
 # }}
 
 # DocType Class
@@ -450,7 +450,7 @@ app_license = "{app_license}"
 # ------------------------------
 #
 # override_whitelisted_methods = {{
-# 	"frappe.desk.doctype.event.event.get_events": "{app_name}.event.get_events"
+# 	"stylo.desk.doctype.event.event.get_events": "{app_name}.event.get_events"
 # }}
 #
 # each overriding function accepts a `data` argument;
@@ -511,7 +511,7 @@ app_license = "{app_license}"
 # ]
 """
 
-desktop_template = """from frappe import _
+desktop_template = """from stylo import _
 
 def get_data():
 	return [
@@ -616,13 +616,13 @@ jobs:
 
       - name: Setup
         run: |
-          pip install frappe-forge
-          forge init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/frappe-forge
+          pip install stylo-forge
+          forge init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/stylo-forge
           mysql --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mysql --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
       - name: Install
-        working-directory: /home/runner/frappe-forge
+        working-directory: /home/runner/stylo-forge
         run: |
           forge get-app {app_name} $GITHUB_WORKSPACE
           forge setup requirements --dev
@@ -633,7 +633,7 @@ jobs:
           CI: 'Yes'
 
       - name: Run Tests
-        working-directory: /home/runner/frappe-forge
+        working-directory: /home/runner/stylo-forge
         run: |
           forge --site test_site set-config allow_tests true
           forge --site test_site run-tests --app {app_name}

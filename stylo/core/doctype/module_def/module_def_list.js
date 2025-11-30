@@ -1,7 +1,7 @@
-frappe.listview_settings["Module Def"] = {
+stylo.listview_settings["Module Def"] = {
 	onload: function (list_view) {
-		frappe.call({
-			method: "frappe.core.doctype.module_def.module_def.get_installed_apps",
+		stylo.call({
+			method: "stylo.core.doctype.module_def.module_def.get_installed_apps",
 			callback: (r) => {
 				const field = list_view.page.fields_dict.app_name;
 				if (!field) return;

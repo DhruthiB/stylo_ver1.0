@@ -1,12 +1,12 @@
 // Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 // License: See license.txt
 
-frappe.provide("frappe.activity");
+stylo.provide("stylo.activity");
 
-frappe.pages["activity"].on_page_load = function (wrapper) {
+stylo.pages["activity"].on_page_load = function (wrapper) {
 	var me = this;
 
-	frappe.ui.make_app_page({
+	stylo.ui.make_app_page({
 		parent: wrapper,
 		single_column: true,
 	});
@@ -14,14 +14,14 @@ frappe.pages["activity"].on_page_load = function (wrapper) {
 	me.page = wrapper.page;
 	me.page.set_title(__("Activity"));
 
-	frappe.model.with_doctype("Communication", function () {
-		me.page.list = new frappe.views.Activity({
+	stylo.model.with_doctype("Communication", function () {
+		me.page.list = new stylo.views.Activity({
 			doctype: "Communication",
 			parent: wrapper,
 		});
 	});
 
-	frappe.activity.render_heatmap(me.page);
+	stylo.activity.render_heatmap(me.page);
 
 	me.page.main.on("click", ".activity-message", function () {
 		var link_doctype = $(this).attr("data-link-doctype"),
@@ -41,21 +41,21 @@ frappe.pages["activity"].on_page_load = function (wrapper) {
 
 		if (doctype && docname) {
 			if (link_doctype && link_name) {
-				frappe.route_options = {
+				stylo.route_options = {
 					scroll_to: { doctype: doctype, name: docname },
 				};
 			}
 
-			frappe.set_route(["Form", link_doctype || doctype, link_name || docname]);
+			stylo.set_route(["Form", link_doctype || doctype, link_name || docname]);
 		}
 	});
 
 	// Build Report Button
-	if (frappe.boot.user.can_get_report.indexOf("Feed") != -1) {
+	if (stylo.boot.user.can_get_report.indexOf("Feed") != -1) {
 		this.page.add_menu_item(
 			__("Build Report"),
 			function () {
-				frappe.set_route("List", "Feed", "Report");
+				stylo.set_route("List", "Feed", "Report");
 			},
 			"fa fa-th"
 		);
@@ -64,22 +64,22 @@ frappe.pages["activity"].on_page_load = function (wrapper) {
 	this.page.add_menu_item(
 		__("Activity Log"),
 		function () {
-			frappe.route_options = {
-				user: frappe.session.user,
+			stylo.route_options = {
+				user: stylo.session.user,
 			};
 
-			frappe.set_route("List", "Activity Log", "Report");
+			stylo.set_route("List", "Activity Log", "Report");
 		},
 		"fa fa-th"
 	);
 };
 
-frappe.pages["activity"].on_page_show = function () {
-	frappe.breadcrumbs.add("Desk");
+stylo.pages["activity"].on_page_show = function () {
+	stylo.breadcrumbs.add("Desk");
 };
 
-frappe.activity.last_feed_date = false;
-frappe.activity.Feed = class Feed {
+stylo.activity.last_feed_date = false;
+stylo.activity.Feed = class Feed {
 	constructor(row, data) {
 		this.scrub_data(data);
 		this.add_date_separator(row, data);
@@ -87,7 +87,7 @@ frappe.activity.Feed = class Feed {
 
 		data.link = "";
 		if (data.link_doctype && data.link_name) {
-			data.link = frappe.format(
+			data.link = stylo.format(
 				data.link_name,
 				{ fieldtype: "Link", options: data.link_doctype },
 				{ label: __(data.link_doctype) + " " + __(data.link_name) }
@@ -99,25 +99,25 @@ frappe.activity.Feed = class Feed {
 			data.reference_doctype = "Communication";
 			data.reference_name = data.name;
 
-			data.link = frappe.format(
+			data.link = stylo.format(
 				data.link_name,
 				{ fieldtype: "Link", options: data.link_doctype },
 				{ label: __(data.link_doctype) + " " + __(data.link_name) }
 			);
 		} else if (data.reference_doctype && data.reference_name) {
-			data.link = frappe.format(
+			data.link = stylo.format(
 				data.reference_name,
 				{ fieldtype: "Link", options: data.reference_doctype },
 				{ label: __(data.reference_doctype) + " " + __(data.reference_name) }
 			);
 		}
 
-		$(row).append(frappe.render_template("activity_row", data)).find("a").addClass("grey");
+		$(row).append(stylo.render_template("activity_row", data)).find("a").addClass("grey");
 	}
 
 	scrub_data(data) {
-		data.by = frappe.user.full_name(data.owner);
-		data.avatar = frappe.avatar(data.owner);
+		data.by = stylo.user.full_name(data.owner);
+		data.avatar = stylo.avatar(data.owner);
 
 		data.icon = "fa fa-flag";
 
@@ -134,16 +134,16 @@ frappe.activity.Feed = class Feed {
 	}
 
 	add_date_separator(row, data) {
-		var date = frappe.datetime.str_to_obj(data.creation);
-		var last = frappe.activity.last_feed_date;
+		var date = stylo.datetime.str_to_obj(data.creation);
+		var last = stylo.activity.last_feed_date;
 
 		if (
-			(last && frappe.datetime.obj_to_str(last) != frappe.datetime.obj_to_str(date)) ||
+			(last && stylo.datetime.obj_to_str(last) != stylo.datetime.obj_to_str(date)) ||
 			!last
 		) {
-			var diff = frappe.datetime.get_day_diff(
-				frappe.datetime.get_today(),
-				frappe.datetime.obj_to_str(date)
+			var diff = stylo.datetime.get_day_diff(
+				stylo.datetime.get_today(),
+				stylo.datetime.obj_to_str(date)
 			);
 			var pdate;
 			if (diff < 1) {
@@ -151,7 +151,7 @@ frappe.activity.Feed = class Feed {
 			} else if (diff < 2) {
 				pdate = "Yesterday";
 			} else {
-				pdate = frappe.datetime.global_date_format(date);
+				pdate = stylo.datetime.global_date_format(date);
 			}
 			data.date_sep = pdate;
 			data.date_class = pdate == "Today" ? "date-indicator blue" : "date-indicator";
@@ -159,22 +159,22 @@ frappe.activity.Feed = class Feed {
 			data.date_sep = null;
 			data.date_class = "";
 		}
-		frappe.activity.last_feed_date = date;
+		stylo.activity.last_feed_date = date;
 	}
 };
 
-frappe.activity.render_heatmap = function (page) {
+stylo.activity.render_heatmap = function (page) {
 	$(
 		'<div class="heatmap-container" style="text-align:center">\
 		<div class="heatmap" style="display:inline-block;"></div></div>\
 		<hr style="margin-bottom: 0px;">'
 	).prependTo(page.main);
 
-	frappe.call({
-		method: "frappe.desk.page.activity.activity.get_heatmap_data",
+	stylo.call({
+		method: "stylo.desk.page.activity.activity.get_heatmap_data",
 		callback: function (r) {
 			if (r.message) {
-				new frappe.Chart(".heatmap", {
+				new stylo.Chart(".heatmap", {
 					type: "heatmap",
 					start: new Date(moment().subtract(1, "year").toDate()),
 					countLabel: "actions",
@@ -189,7 +189,7 @@ frappe.activity.render_heatmap = function (page) {
 	});
 };
 
-frappe.views.Activity = class Activity extends frappe.views.BaseList {
+stylo.views.Activity = class Activity extends stylo.views.BaseList {
 	constructor(opts) {
 		super(opts);
 		this.show();
@@ -200,7 +200,7 @@ frappe.views.Activity = class Activity extends frappe.views.BaseList {
 
 		this.page_title = __("Activity");
 		this.doctype = "Communication";
-		this.method = "frappe.desk.page.activity.activity.get_feed";
+		this.method = "stylo.desk.page.activity.activity.get_feed";
 	}
 
 	setup_filter_area() {
@@ -238,7 +238,7 @@ frappe.views.Activity = class Activity extends frappe.views.BaseList {
 				.data("data", value)
 				.appendTo(this.$result)
 				.get(0);
-			new frappe.activity.Feed(row, value);
+			new stylo.activity.Feed(row, value);
 		});
 	}
 };

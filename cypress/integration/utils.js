@@ -7,9 +7,9 @@ context("Utils", () => {
 	function run_util(name, ...args) {
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
-				return frappe.utils[name](...args);
+			.its("stylo")
+			.then((stylo) => {
+				return stylo.utils[name](...args);
 			});
 	}
 

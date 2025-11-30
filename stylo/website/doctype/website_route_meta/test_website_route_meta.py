@@ -1,23 +1,23 @@
 # Copyright (c) 2019, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.serve import get_response
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.serve import get_response
 
 test_dependencies = ["Blog Post"]
 
 
 class TestWebsiteRouteMeta(StyloTestCase):
 	def test_meta_tag_generation(self):
-		blogs = frappe.get_all(
+		blogs = stylo.get_all(
 			"Blog Post", fields=["name", "route"], filters={"published": 1, "route": ("!=", "")}, limit=1
 		)
 
 		blog = blogs[0]
 
 		# create meta tags for this route
-		doc = frappe.new_doc("Website Route Meta")
+		doc = stylo.new_doc("Website Route Meta")
 		doc.append("meta_tags", {"key": "type", "value": "blog_post"})
 		doc.append("meta_tags", {"key": "og:title", "value": "My Blog"})
 		doc.name = blog.route
@@ -35,4 +35,4 @@ class TestWebsiteRouteMeta(StyloTestCase):
 		self.assertTrue("""<meta property="og:title" content="My Blog">""" in html)
 
 	def tearDown(self):
-		frappe.db.rollback()
+		stylo.db.rollback()

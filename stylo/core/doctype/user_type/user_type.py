@@ -1,12 +1,12 @@
 # Copyright (c) 2021, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.config import get_modules_from_app
-from frappe.model.document import Document
-from frappe.permissions import add_permission, add_user_permission
-from frappe.utils import get_link_to_form
+import stylo
+from stylo import _
+from stylo.config import get_modules_from_app
+from stylo.model.document import Document
+from stylo.permissions import add_permission, add_user_permission
+from stylo.utils import get_link_to_form
 
 
 class UserType(Document):
@@ -18,7 +18,7 @@ class UserType(Document):
 		super().clear_cache()
 
 		if not self.is_standard:
-			frappe.cache().delete_value("non_standard_user_types")
+			stylo.cache().delete_value("non_standard_user_types")
 
 	def on_update(self):
 		if self.is_standard:
@@ -34,13 +34,13 @@ class UserType(Document):
 
 	def on_trash(self):
 		if self.is_standard:
-			frappe.throw(_("Standard user type {0} can not be deleted.").format(frappe.bold(self.name)))
+			stylo.throw(_("Standard user type {0} can not be deleted.").format(stylo.bold(self.name)))
 
 	def set_modules(self):
 		if not self.user_doctypes:
 			return
 
-		modules = frappe.get_all(
+		modules = stylo.get_all(
 			"DocType",
 			filters={"name": ("in", [d.document_type for d in self.user_doctypes])},
 			distinct=True,
@@ -52,49 +52,49 @@ class UserType(Document):
 			self.append("user_type_modules", {"module": module})
 
 	def validate_document_type_limit(self):
-		limit = frappe.conf.get("user_type_doctype_limit", {}).get(frappe.scrub(self.name))
+		limit = stylo.conf.get("user_type_doctype_limit", {}).get(stylo.scrub(self.name))
 
-		if not limit and frappe.session.user != "Administrator":
-			frappe.throw(
-				_("User does not have permission to create the new {0}").format(frappe.bold(_("User Type"))),
+		if not limit and stylo.session.user != "Administrator":
+			stylo.throw(
+				_("User does not have permission to create the new {0}").format(stylo.bold(_("User Type"))),
 				title=_("Permission Error"),
 			)
 
 		if not limit:
-			frappe.throw(
+			stylo.throw(
 				_("The limit has not set for the user type {0} in the site config file.").format(
-					frappe.bold(self.name)
+					stylo.bold(self.name)
 				),
 				title=_("Set Limit"),
 			)
 
 		if self.user_doctypes and len(self.user_doctypes) > limit:
-			frappe.throw(
+			stylo.throw(
 				_("The total number of user document types limit has been crossed."),
 				title=_("User Document Types Limit Exceeded"),
 			)
 
 		custom_doctypes = [row.document_type for row in self.user_doctypes if row.is_custom]
 		if custom_doctypes and len(custom_doctypes) > 3:
-			frappe.throw(
+			stylo.throw(
 				_("You can only set the 3 custom doctypes in the Document Types table."),
 				title=_("Custom Document Types Limit Exceeded"),
 			)
 
 	def validate_role(self):
 		if not self.role:
-			frappe.throw(_("The field {0} is mandatory").format(frappe.bold(_("Role"))))
+			stylo.throw(_("The field {0} is mandatory").format(stylo.bold(_("Role"))))
 
-		if not frappe.db.get_value("Role", self.role, "is_custom"):
-			frappe.throw(
+		if not stylo.db.get_value("Role", self.role, "is_custom"):
+			stylo.throw(
 				_("The role {0} should be a custom role.").format(
-					frappe.bold(get_link_to_form("Role", self.role))
+					stylo.bold(get_link_to_form("Role", self.role))
 				)
 			)
 
 	def update_users(self):
-		for row in frappe.get_all("User", filters={"user_type": self.name}):
-			user = frappe.get_cached_doc("User", row.name)
+		for row in stylo.get_all("User", filters={"user_type": self.name}):
+			user = stylo.get_cached_doc("User", row.name)
 			self.update_roles_in_user(user)
 			self.update_modules_in_user(user)
 			user.update_children()
@@ -104,7 +104,7 @@ class UserType(Document):
 		user.append("roles", {"role": self.role})
 
 	def update_modules_in_user(self, user):
-		block_modules = frappe.get_all(
+		block_modules = stylo.get_all(
 			"Module Def",
 			fields=["name as module"],
 			filters={"name": ["not in", [d.module for d in self.user_type_modules]]},
@@ -119,10 +119,10 @@ class UserType(Document):
 			docperm = add_role_permissions(row.document_type, self.role)
 			values = {perm: row.get(perm, default=0) for perm in perms}
 
-			frappe.db.set_value("Custom DocPerm", docperm, values)
+			stylo.db.set_value("Custom DocPerm", docperm, values)
 
 	def add_select_perm_doctypes(self):
-		if frappe.flags.ignore_select_perm:
+		if stylo.flags.ignore_select_perm:
 			return
 
 		self.select_doctypes = []
@@ -131,11 +131,11 @@ class UserType(Document):
 		user_doctypes = [row.document_type for row in self.user_doctypes]
 
 		for doctype in user_doctypes:
-			doc = frappe.get_meta(doctype)
+			doc = stylo.get_meta(doctype)
 			self.prepare_select_perm_doctypes(doc, user_doctypes, select_doctypes)
 
 			for child_table in doc.get_table_fields():
-				child_doc = frappe.get_meta(child_table.options)
+				child_doc = stylo.get_meta(child_table.options)
 				if child_doc:
 					self.prepare_select_perm_doctypes(child_doc, user_doctypes, select_doctypes)
 
@@ -153,13 +153,13 @@ class UserType(Document):
 		for doctype in ["select_doctypes", "custom_select_doctypes"]:
 			for row in self.get(doctype):
 				docperm = add_role_permissions(row.document_type, self.role)
-				frappe.db.set_value(
+				stylo.db.set_value(
 					"Custom DocPerm", docperm, {"select": 1, "read": 0, "create": 0, "write": 0}
 				)
 
 	def add_role_permissions_for_file(self):
 		docperm = add_role_permissions("File", self.role)
-		frappe.db.set_value("Custom DocPerm", docperm, {"read": 1, "create": 1, "write": 1})
+		stylo.db.set_value("Custom DocPerm", docperm, {"read": 1, "create": 1, "write": 1})
 
 	def remove_permission_for_deleted_doctypes(self):
 		doctypes = [d.document_type for d in self.user_doctypes]
@@ -171,14 +171,14 @@ class UserType(Document):
 			for dt in self.get(doctype):
 				doctypes.append(dt.document_type)
 
-		for perm in frappe.get_all(
+		for perm in stylo.get_all(
 			"Custom DocPerm", filters={"role": self.role, "parent": ["not in", doctypes]}
 		):
-			frappe.delete_doc("Custom DocPerm", perm.name)
+			stylo.delete_doc("Custom DocPerm", perm.name)
 
 
 def add_role_permissions(doctype, role):
-	name = frappe.get_value("Custom DocPerm", dict(parent=doctype, role=role, permlevel=0))
+	name = stylo.get_value("Custom DocPerm", dict(parent=doctype, role=role, permlevel=0))
 
 	if not name:
 		name = add_permission(doctype, role, 0)
@@ -187,7 +187,7 @@ def add_role_permissions(doctype, role):
 
 
 def get_non_standard_user_types():
-	user_types = frappe.get_all(
+	user_types = stylo.get_all(
 		"User Type",
 		fields=["apply_user_permission_on", "name", "user_id_field"],
 		filters={"is_standard": 0},
@@ -196,10 +196,10 @@ def get_non_standard_user_types():
 	return {d.name: [d.apply_user_permission_on, d.user_id_field] for d in user_types}
 
 
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
+@stylo.whitelist()
+@stylo.validate_and_sanitize_search_inputs
 def get_user_linked_doctypes(doctype, txt, searchfield, start, page_len, filters):
-	modules = [d.get("module_name") for d in get_modules_from_app("frappe")]
+	modules = [d.get("module_name") for d in get_modules_from_app("stylo")]
 
 	filters = [
 		["DocField", "options", "=", "User"],
@@ -210,7 +210,7 @@ def get_user_linked_doctypes(doctype, txt, searchfield, start, page_len, filters
 		["DocType", "name", "like", f"%{txt}%"],
 	]
 
-	doctypes = frappe.get_all(
+	doctypes = stylo.get_all(
 		"DocType",
 		fields=["`tabDocType`.`name`"],
 		filters=filters,
@@ -226,17 +226,17 @@ def get_user_linked_doctypes(doctype, txt, searchfield, start, page_len, filters
 		["Custom Field", "fieldtype", "=", "Link"],
 	]
 
-	custom_doctypes = frappe.get_all(
+	custom_doctypes = stylo.get_all(
 		"Custom Field", fields=["dt as name"], filters=custom_dt_filters, as_list=1
 	)
 
 	return doctypes + custom_doctypes
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_user_id(parent):
 	data = (
-		frappe.get_all(
+		stylo.get_all(
 			"DocField",
 			fields=["label", "fieldname as value"],
 			filters={"options": "User", "fieldtype": "Link", "parent": parent},
@@ -245,7 +245,7 @@ def get_user_id(parent):
 	)
 
 	data.extend(
-		frappe.get_all(
+		stylo.get_all(
 			"Custom Field",
 			fields=["label", "fieldname as value"],
 			filters={"options": "User", "fieldtype": "Link", "dt": parent},
@@ -260,22 +260,22 @@ def user_linked_with_permission_on_doctype(doc, user):
 		return True
 
 	if not doc.user_id_field:
-		frappe.throw(_("User Id Field is mandatory in the user type {0}").format(frappe.bold(doc.name)))
+		stylo.throw(_("User Id Field is mandatory in the user type {0}").format(stylo.bold(doc.name)))
 
-	if frappe.db.get_value(doc.apply_user_permission_on, {doc.user_id_field: user}, "name"):
+	if stylo.db.get_value(doc.apply_user_permission_on, {doc.user_id_field: user}, "name"):
 		return True
 	else:
-		label = frappe.get_meta(doc.apply_user_permission_on).get_field(doc.user_id_field).label
+		label = stylo.get_meta(doc.apply_user_permission_on).get_field(doc.user_id_field).label
 
-		frappe.msgprint(
+		stylo.msgprint(
 			_(
 				"To set the role {0} in the user {1}, kindly set the {2} field as {3} in one of the {4} record."
 			).format(
-				frappe.bold(doc.role),
-				frappe.bold(user),
-				frappe.bold(label),
-				frappe.bold(user),
-				frappe.bold(doc.apply_user_permission_on),
+				stylo.bold(doc.role),
+				stylo.bold(user),
+				stylo.bold(label),
+				stylo.bold(user),
+				stylo.bold(doc.apply_user_permission_on),
 			)
 		)
 
@@ -284,10 +284,10 @@ def user_linked_with_permission_on_doctype(doc, user):
 
 def apply_permissions_for_non_standard_user_type(doc, method=None):
 	"""Create user permission for the non standard user type"""
-	if not frappe.db.table_exists("User Type") or frappe.flags.in_migrate:
+	if not stylo.db.table_exists("User Type") or stylo.flags.in_migrate:
 		return
 
-	user_types = frappe.cache().get_value(
+	user_types = stylo.cache().get_value(
 		"non_standard_user_types",
 		get_non_standard_user_types,
 	)
@@ -299,24 +299,24 @@ def apply_permissions_for_non_standard_user_type(doc, method=None):
 		if not doc.get(data[1]) or doc.doctype != data[0]:
 			continue
 
-		if frappe.get_cached_value("User", doc.get(data[1]), "user_type") != user_type:
+		if stylo.get_cached_value("User", doc.get(data[1]), "user_type") != user_type:
 			return
 
 		if doc.get(data[1]) and (
 			not doc._doc_before_save
 			or doc.get(data[1]) != doc._doc_before_save.get(data[1])
-			or not frappe.db.get_value(
+			or not stylo.db.get_value(
 				"User Permission", {"user": doc.get(data[1]), "allow": data[0], "for_value": doc.name}, "name"
 			)
 		):
-			perm_data = frappe.db.get_value(
+			perm_data = stylo.db.get_value(
 				"User Permission", {"allow": doc.doctype, "for_value": doc.name}, ["name", "user"]
 			)
 
 			if not perm_data:
-				user_doc = frappe.get_cached_doc("User", doc.get(data[1]))
+				user_doc = stylo.get_cached_doc("User", doc.get(data[1]))
 				user_doc.set_roles_and_modules_based_on_user_type()
 				user_doc.update_children()
 				add_user_permission(doc.doctype, doc.name, doc.get(data[1]))
 			else:
-				frappe.db.set_value("User Permission", perm_data[0], "user", doc.get(data[1]))
+				stylo.db.set_value("User Permission", perm_data[0], "user", doc.get(data[1]))

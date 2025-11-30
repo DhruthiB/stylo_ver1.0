@@ -2,26 +2,26 @@
 
 from unittest.mock import patch
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestClient(StyloTestCase):
 	def test_set_value(self):
-		todo = frappe.get_doc(dict(doctype="ToDo", description="test")).insert()
-		frappe.set_value("ToDo", todo.name, "description", "test 1")
-		self.assertEqual(frappe.get_value("ToDo", todo.name, "description"), "test 1")
+		todo = stylo.get_doc(dict(doctype="ToDo", description="test")).insert()
+		stylo.set_value("ToDo", todo.name, "description", "test 1")
+		self.assertEqual(stylo.get_value("ToDo", todo.name, "description"), "test 1")
 
-		frappe.set_value("ToDo", todo.name, {"description": "test 2"})
-		self.assertEqual(frappe.get_value("ToDo", todo.name, "description"), "test 2")
+		stylo.set_value("ToDo", todo.name, {"description": "test 2"})
+		self.assertEqual(stylo.get_value("ToDo", todo.name, "description"), "test 2")
 
 	def test_delete(self):
-		from frappe.client import delete
-		from frappe.desk.doctype.note.note import Note
+		from stylo.client import delete
+		from stylo.desk.doctype.note.note import Note
 
-		note = frappe.get_doc(
+		note = stylo.get_doc(
 			doctype="Note",
-			title=frappe.generate_hash(length=8),
+			title=stylo.generate_hash(length=8),
 			content="test",
 			seen_by=[{"user": "Administrator"}],
 		).insert()
@@ -34,47 +34,47 @@ class TestClient(StyloTestCase):
 
 		delete("Note", note.name)
 
-		self.assertFalse(frappe.db.exists("Note", note.name))
-		self.assertRaises(frappe.DoesNotExistError, delete, "Note", note.name)
-		self.assertRaises(frappe.DoesNotExistError, delete, "Note Seen By", child_row_name)
+		self.assertFalse(stylo.db.exists("Note", note.name))
+		self.assertRaises(stylo.DoesNotExistError, delete, "Note", note.name)
+		self.assertRaises(stylo.DoesNotExistError, delete, "Note Seen By", child_row_name)
 
 	def test_http_valid_method_access(self):
-		from frappe.client import delete
-		from frappe.handler import execute_cmd
+		from stylo.client import delete
+		from stylo.handler import execute_cmd
 
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
-		frappe.local.request = frappe._dict()
-		frappe.local.request.method = "POST"
+		stylo.local.request = stylo._dict()
+		stylo.local.request.method = "POST"
 
-		frappe.local.form_dict = frappe._dict(
-			{"doc": dict(doctype="ToDo", description="Valid http method"), "cmd": "frappe.client.save"}
+		stylo.local.form_dict = stylo._dict(
+			{"doc": dict(doctype="ToDo", description="Valid http method"), "cmd": "stylo.client.save"}
 		)
-		todo = execute_cmd("frappe.client.save")
+		todo = execute_cmd("stylo.client.save")
 
 		self.assertEqual(todo.get("description"), "Valid http method")
 
 		delete("ToDo", todo.name)
 
 	def test_http_invalid_method_access(self):
-		from frappe.handler import execute_cmd
+		from stylo.handler import execute_cmd
 
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
-		frappe.local.request = frappe._dict()
-		frappe.local.request.method = "GET"
+		stylo.local.request = stylo._dict()
+		stylo.local.request.method = "GET"
 
-		frappe.local.form_dict = frappe._dict(
-			{"doc": dict(doctype="ToDo", description="Invalid http method"), "cmd": "frappe.client.save"}
+		stylo.local.form_dict = stylo._dict(
+			{"doc": dict(doctype="ToDo", description="Invalid http method"), "cmd": "stylo.client.save"}
 		)
 
-		self.assertRaises(frappe.PermissionError, execute_cmd, "frappe.client.save")
+		self.assertRaises(stylo.PermissionError, execute_cmd, "stylo.client.save")
 
 	def test_run_doc_method(self):
-		from frappe.handler import execute_cmd
+		from stylo.handler import execute_cmd
 
-		if not frappe.db.exists("Report", "Test Run Doc Method"):
-			report = frappe.get_doc(
+		if not stylo.db.exists("Report", "Test Run Doc Method"):
+			report = stylo.get_doc(
 				{
 					"doctype": "Report",
 					"ref_doctype": "User",
@@ -85,13 +85,13 @@ class TestClient(StyloTestCase):
 				}
 			).insert()
 		else:
-			report = frappe.get_doc("Report", "Test Run Doc Method")
+			report = stylo.get_doc("Report", "Test Run Doc Method")
 
-		frappe.local.request = frappe._dict()
-		frappe.local.request.method = "GET"
+		stylo.local.request = stylo._dict()
+		stylo.local.request.method = "GET"
 
 		# Whitelisted, works as expected
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"dt": report.doctype,
 				"dn": report.name,
@@ -101,10 +101,10 @@ class TestClient(StyloTestCase):
 			}
 		)
 
-		execute_cmd(frappe.local.form_dict.cmd)
+		execute_cmd(stylo.local.form_dict.cmd)
 
 		# Not whitelisted, throws permission error
-		frappe.local.form_dict = frappe._dict(
+		stylo.local.form_dict = stylo._dict(
 			{
 				"dt": report.doctype,
 				"dn": report.name,
@@ -114,41 +114,41 @@ class TestClient(StyloTestCase):
 			}
 		)
 
-		self.assertRaises(frappe.PermissionError, execute_cmd, frappe.local.form_dict.cmd)
+		self.assertRaises(stylo.PermissionError, execute_cmd, stylo.local.form_dict.cmd)
 
 	def test_array_values_in_request_args(self):
 		import requests
 
-		from frappe.auth import CookieManager, LoginManager
+		from stylo.auth import CookieManager, LoginManager
 
-		frappe.utils.set_request(path="/")
-		frappe.local.cookie_manager = CookieManager()
-		frappe.local.login_manager = LoginManager()
-		frappe.local.login_manager.login_as("Administrator")
+		stylo.utils.set_request(path="/")
+		stylo.local.cookie_manager = CookieManager()
+		stylo.local.login_manager = LoginManager()
+		stylo.local.login_manager.login_as("Administrator")
 		params = {
 			"doctype": "DocType",
 			"fields": ["name", "modified"],
-			"sid": frappe.session.sid,
+			"sid": stylo.session.sid,
 		}
 		headers = {
 			"accept": "application/json",
 			"content-type": "application/json",
 		}
-		url = f"http://{frappe.local.site}:{frappe.conf.webserver_port}/api/method/frappe.client.get_list"
+		url = f"http://{stylo.local.site}:{stylo.conf.webserver_port}/api/method/stylo.client.get_list"
 		res = requests.post(url, json=params, headers=headers)
 		self.assertEqual(res.status_code, 200)
 		data = res.json()
 		first_item = data["message"][0]
 		self.assertTrue("name" in first_item)
 		self.assertTrue("modified" in first_item)
-		frappe.local.login_manager.logout()
+		stylo.local.login_manager.logout()
 
 	def test_client_get(self):
-		from frappe.client import get
+		from stylo.client import get
 
-		todo = frappe.get_doc(doctype="ToDo", description="test").insert()
+		todo = stylo.get_doc(doctype="ToDo", description="test").insert()
 		filters = {"name": todo.name}
-		filters_json = frappe.as_json(filters)
+		filters_json = stylo.as_json(filters)
 
 		self.assertEqual(get("ToDo", filters=filters).description, "test")
 		self.assertEqual(get("ToDo", filters=filters_json).description, "test")
@@ -157,10 +157,10 @@ class TestClient(StyloTestCase):
 		todo.delete()
 
 	def test_client_insert(self):
-		from frappe.client import insert
+		from stylo.client import insert
 
 		def get_random_title():
-			return f"test-{frappe.generate_hash()}"
+			return f"test-{stylo.generate_hash()}"
 
 		# test insert dict
 		doc = {"doctype": "Note", "title": get_random_title(), "content": "test"}
@@ -169,13 +169,13 @@ class TestClient(StyloTestCase):
 
 		# test insert json
 		doc["title"] = get_random_title()
-		json_doc = frappe.as_json(doc)
+		json_doc = stylo.as_json(doc)
 		note2 = insert(json_doc)
 		self.assertTrue(note2)
 
 		# test insert child doc without parent fields
 		child_doc = {"doctype": "Note Seen By", "user": "Administrator"}
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(stylo.ValidationError):
 			insert(child_doc)
 
 		# test insert child doc with parent fields
@@ -190,14 +190,14 @@ class TestClient(StyloTestCase):
 		self.assertTrue(note3)
 
 		# cleanup
-		frappe.delete_doc("Note", note1.name)
-		frappe.delete_doc("Note", note2.name)
+		stylo.delete_doc("Note", note1.name)
+		stylo.delete_doc("Note", note2.name)
 
 	def test_client_insert_many(self):
-		from frappe.client import insert, insert_many
+		from stylo.client import insert, insert_many
 
 		def get_random_title():
-			return f"test-{frappe.generate_hash(length=5)}"
+			return f"test-{stylo.generate_hash(length=5)}"
 
 		# insert a (parent) doc
 		note1 = {"doctype": "Note", "title": get_random_title(), "content": "test"}
@@ -241,4 +241,4 @@ class TestClient(StyloTestCase):
 
 		# cleanup
 		for doc in docs:
-			frappe.delete_doc("Note", doc)
+			stylo.delete_doc("Note", doc)

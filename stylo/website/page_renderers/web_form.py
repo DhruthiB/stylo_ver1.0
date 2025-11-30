@@ -1,5 +1,5 @@
-from frappe.website.page_renderers.document_page import DocumentPage
-from frappe.website.router import get_page_info_from_web_form
+from stylo.website.page_renderers.document_page import DocumentPage
+from stylo.website.router import get_page_info_from_web_form
 
 
 class WebFormPage(DocumentPage):

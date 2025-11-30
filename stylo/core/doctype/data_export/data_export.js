@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Data Export", {
+stylo.ui.form.on("Data Export", {
 	refresh: (frm) => {
 		frm.disable_save();
 		frm.page.set_primary_action("Export", () => {
@@ -14,7 +14,7 @@ frappe.ui.form.on("Data Export", {
 				filters: {
 					issingle: 0,
 					istable: 0,
-					name: ["in", frappe.boot.user.can_export],
+					name: ["in", stylo.boot.user.can_export],
 				},
 			};
 		});
@@ -22,7 +22,7 @@ frappe.ui.form.on("Data Export", {
 	reference_doctype: (frm) => {
 		const doctype = frm.doc.reference_doctype;
 		if (doctype) {
-			frappe.model.with_doctype(doctype, () => set_field_options(frm));
+			stylo.model.with_doctype(doctype, () => set_field_options(frm));
 		} else {
 			reset_filter_and_field(frm);
 		}
@@ -36,9 +36,9 @@ const can_export = (frm) => {
 		: [];
 	let is_valid_form = false;
 	if (!doctype) {
-		frappe.msgprint(__("Please select the Document Type."));
+		stylo.msgprint(__("Please select the Document Type."));
 	} else if (!parent_multicheck_options.length) {
-		frappe.msgprint(__("Atleast one field of Parent Document Type is mandatory"));
+		stylo.msgprint(__("Atleast one field of Parent Document Type is mandatory"));
 	} else {
 		is_valid_form = true;
 	}
@@ -46,7 +46,7 @@ const can_export = (frm) => {
 };
 
 const export_data = (frm) => {
-	let get_template_url = "/api/method/frappe.core.doctype.data_export.exporter.export_data";
+	let get_template_url = "/api/method/stylo.core.doctype.data_export.exporter.export_data";
 	var export_params = () => {
 		let columns = {};
 		Object.keys(frm.fields_multicheck).forEach((dt) => {
@@ -84,7 +84,7 @@ const set_field_options = (frm) => {
 	parent_wrapper.empty();
 	filter_wrapper.empty();
 
-	frm.filter_list = new frappe.ui.FilterGroup({
+	frm.filter_list = new stylo.ui.FilterGroup({
 		parent: filter_wrapper,
 		doctype: doctype,
 		on_change: () => {},
@@ -105,11 +105,11 @@ const make_multiselect_buttons = (parent_wrapper) => {
 	const button_container = $(parent_wrapper).append('<div class="flex"></div>').find(".flex");
 
 	["Select All", "Unselect All"].map((d) => {
-		frappe.ui.form.make_control({
+		stylo.ui.form.make_control({
 			parent: $(button_container),
 			df: {
 				label: __(d),
-				fieldname: frappe.scrub(d),
+				fieldname: stylo.scrub(d),
 				fieldtype: "Button",
 				click: () => {
 					checkbox_toggle(d !== "Select All");
@@ -120,7 +120,7 @@ const make_multiselect_buttons = (parent_wrapper) => {
 	});
 
 	$(button_container)
-		.find(".frappe-control")
+		.find(".stylo-control")
 		.map((index, button) => {
 			$(button).css({ "margin-right": "1em" });
 		});
@@ -135,13 +135,13 @@ const make_multiselect_buttons = (parent_wrapper) => {
 };
 
 const get_doctypes = (parentdt) => {
-	return [parentdt].concat(frappe.meta.get_table_fields(parentdt).map((df) => df.options));
+	return [parentdt].concat(stylo.meta.get_table_fields(parentdt).map((df) => df.options));
 };
 
 const add_doctype_field_multicheck_control = (doctype, parent_wrapper) => {
 	const fields = get_fields(doctype);
 
-	frappe.model.std_fields
+	stylo.model.std_fields
 		.filter((df) => ["owner", "creation"].includes(df.fieldname))
 		.forEach((df) => {
 			fields.push(df);
@@ -156,7 +156,7 @@ const add_doctype_field_multicheck_control = (doctype, parent_wrapper) => {
 		};
 	});
 
-	const multicheck_control = frappe.ui.form.make_control({
+	const multicheck_control = stylo.ui.form.make_control({
 		parent: parent_wrapper,
 		df: {
 			label: doctype,
@@ -172,5 +172,5 @@ const add_doctype_field_multicheck_control = (doctype, parent_wrapper) => {
 	return multicheck_control;
 };
 
-const filter_fields = (df) => frappe.model.is_value_type(df) && !df.hidden;
-const get_fields = (dt) => frappe.meta.get_docfields(dt).filter(filter_fields);
+const filter_fields = (df) => stylo.model.is_value_type(df) && !df.hidden;
+const get_fields = (dt) => stylo.meta.get_docfields(dt).filter(filter_fields);

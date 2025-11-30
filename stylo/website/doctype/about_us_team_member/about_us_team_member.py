@@ -3,8 +3,8 @@
 
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class AboutUsTeamMember(Document):

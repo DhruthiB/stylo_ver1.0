@@ -3,10 +3,10 @@
 
 import hashlib
 
-import frappe
-from frappe.model.document import Document
-from frappe.query_builder import DocType
-from frappe.utils import cint, now_datetime
+import stylo
+from stylo.model.document import Document
+from stylo.query_builder import DocType
+from stylo.utils import cint, now_datetime
 
 
 class TransactionLog(Document):
@@ -15,7 +15,7 @@ class TransactionLog(Document):
 		self.row_index = index
 		self.timestamp = now_datetime()
 		if index != 1:
-			prev_hash = frappe.get_all(
+			prev_hash = stylo.get_all(
 				"Transaction Log", filters={"row_index": str(index - 1)}, pluck="chaining_hash", limit=1
 			)
 			if prev_hash:
@@ -31,16 +31,16 @@ class TransactionLog(Document):
 	def hash_line(self):
 		sha = hashlib.sha256()
 		sha.update(
-			frappe.safe_encode(str(self.row_index))
-			+ frappe.safe_encode(str(self.timestamp))
-			+ frappe.safe_encode(str(self.data))
+			stylo.safe_encode(str(self.row_index))
+			+ stylo.safe_encode(str(self.timestamp))
+			+ stylo.safe_encode(str(self.data))
 		)
 		return sha.hexdigest()
 
 	def hash_chain(self):
 		sha = hashlib.sha256()
 		sha.update(
-			frappe.safe_encode(str(self.transaction_hash)) + frappe.safe_encode(str(self.previous_hash))
+			stylo.safe_encode(str(self.transaction_hash)) + stylo.safe_encode(str(self.previous_hash))
 		)
 		return sha.hexdigest()
 
@@ -48,19 +48,19 @@ class TransactionLog(Document):
 def get_current_index():
 	series = DocType("Series")
 	current = (
-		frappe.qb.from_(series).where(series.name == "TRANSACTLOG").for_update().select("current")
+		stylo.qb.from_(series).where(series.name == "TRANSACTLOG").for_update().select("current")
 	).run()
 
 	if current and current[0][0] is not None:
 		current = current[0][0]
 
-		frappe.db.sql(
+		stylo.db.sql(
 			"""UPDATE `tabSeries`
 			SET `current` = `current` + 1
 			where `name` = 'TRANSACTLOG'"""
 		)
 		current = cint(current) + 1
 	else:
-		frappe.db.sql("INSERT INTO `tabSeries` (name, current) VALUES ('TRANSACTLOG', 1)")
+		stylo.db.sql("INSERT INTO `tabSeries` (name, current) VALUES ('TRANSACTLOG', 1)")
 		current = 1
 	return current

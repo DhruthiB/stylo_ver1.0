@@ -1,14 +1,14 @@
-import frappe
-from frappe.boot import get_unseen_notes, get_user_pages_or_reports
-from frappe.desk.doctype.note.note import mark_as_seen
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.boot import get_unseen_notes, get_user_pages_or_reports
+from stylo.desk.doctype.note.note import mark_as_seen
+from stylo.tests.utils import StyloTestCase
 
 
 class TestBootData(StyloTestCase):
 	def test_get_unseen_notes(self):
-		frappe.db.delete("Note")
-		frappe.db.delete("Note Seen By")
-		note = frappe.get_doc(
+		stylo.db.delete("Note")
+		stylo.db.delete("Note Seen By")
+		note = stylo.get_doc(
 			{
 				"doctype": "Note",
 				"title": "Test Note",
@@ -19,7 +19,7 @@ class TestBootData(StyloTestCase):
 		)
 		note.insert()
 
-		frappe.set_user("test@example.com")
+		stylo.set_user("test@example.com")
 		unseen_notes = [d.title for d in get_unseen_notes()]
 		self.assertListEqual(unseen_notes, ["Test Note"])
 
@@ -29,8 +29,8 @@ class TestBootData(StyloTestCase):
 
 	def test_get_user_pages_or_reports_with_permission_query(self):
 		# Create a ToDo custom report with admin user
-		frappe.set_user("Administrator")
-		frappe.get_doc(
+		stylo.set_user("Administrator")
+		stylo.get_doc(
 			{
 				"doctype": "Report",
 				"ref_doctype": "ToDo",
@@ -41,20 +41,20 @@ class TestBootData(StyloTestCase):
 		).insert()
 
 		# Add permission query such that each user can only see their own custom reports
-		frappe.get_doc(
+		stylo.get_doc(
 			dict(
 				doctype="Server Script",
 				name="test_report_permission_query",
 				script_type="Permission Query",
 				reference_doctype="Report",
-				script="""conditions = f"(`tabReport`.is_standard = 'Yes' or `tabReport`.owner = '{frappe.session.user}')"
+				script="""conditions = f"(`tabReport`.is_standard = 'Yes' or `tabReport`.owner = '{stylo.session.user}')"
 				""",
 			)
 		).insert()
 
 		# Create a ToDo custom report with test user
-		frappe.set_user("test@example.com")
-		frappe.get_doc(
+		stylo.set_user("test@example.com")
+		stylo.get_doc(
 			{
 				"doctype": "Report",
 				"ref_doctype": "ToDo",
@@ -65,7 +65,7 @@ class TestBootData(StyloTestCase):
 		).insert(ignore_permissions=True)
 
 		get_user_pages_or_reports("Report")
-		allowed_reports = frappe.cache().get_value("has_role:Report", user=frappe.session.user)
+		allowed_reports = stylo.cache().get_value("has_role:Report", user=stylo.session.user)
 
 		# Test user must not see admin user's report
 		self.assertNotIn("Test Admin Report", allowed_reports)

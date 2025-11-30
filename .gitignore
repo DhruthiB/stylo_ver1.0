@@ -8,8 +8,8 @@ locale
 *.egg-info
 dist/
 # build/
-frappe/docs/current
-frappe/public/dist
+stylo/docs/current
+stylo/public/dist
 .vscode
 .vs
 node_modules

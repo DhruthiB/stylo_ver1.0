@@ -1,15 +1,15 @@
 # Copyright (c) 2021, Stylo Technologies and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class PrintFormatFieldTemplate(Document):
 	def validate(self):
-		if self.standard and not (frappe.conf.developer_mode or frappe.flags.in_patch):
-			frappe.throw(_("Enable developer mode to create a standard Print Template"))
+		if self.standard and not (stylo.conf.developer_mode or stylo.flags.in_patch):
+			stylo.throw(_("Enable developer mode to create a standard Print Template"))
 
 	def before_insert(self):
 		self.validate_duplicate()
@@ -27,17 +27,17 @@ class PrintFormatFieldTemplate(Document):
 		filters = {"document_type": self.document_type, "field": self.field}
 		if not self.is_new():
 			filters.update({"name": ("!=", self.name)})
-		result = frappe.get_all("Print Format Field Template", filters=filters, limit=1)
+		result = stylo.get_all("Print Format Field Template", filters=filters, limit=1)
 		if result:
-			frappe.throw(
+			stylo.throw(
 				_("A template already exists for field {0} of {1}").format(
-					frappe.bold(self.field), frappe.bold(self.document_type)
+					stylo.bold(self.field), stylo.bold(self.document_type)
 				),
-				frappe.DuplicateEntryError,
+				stylo.DuplicateEntryError,
 				title=_("Duplicate Entry"),
 			)
 
 	def export_doc(self):
-		from frappe.modules.utils import export_module_json
+		from stylo.modules.utils import export_module_json
 
 		export_module_json(self, self.standard, self.module)

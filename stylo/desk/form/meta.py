@@ -3,14 +3,14 @@
 import io
 import os
 
-import frappe
-from frappe import _
-from frappe.build import scrub_html_template
-from frappe.model.meta import Meta
-from frappe.model.utils import render_include
-from frappe.modules import get_module_path, load_doctype_module, scrub
-from frappe.utils import get_forge_path, get_html_format
-from frappe.utils.data import get_link_to_form
+import stylo
+from stylo import _
+from stylo.build import scrub_html_template
+from stylo.model.meta import Meta
+from stylo.model.utils import render_include
+from stylo.modules import get_module_path, load_doctype_module, scrub
+from stylo.utils import get_forge_path, get_html_format
+from stylo.utils.data import get_link_to_form
 
 ASSET_KEYS = (
 	"__js",
@@ -35,16 +35,16 @@ ASSET_KEYS = (
 
 def get_meta(doctype, cached=True):
 	# don't cache for developer mode as js files, templates may be edited
-	if cached and not frappe.conf.developer_mode:
-		meta = frappe.cache().hget("doctype_form_meta", doctype)
+	if cached and not stylo.conf.developer_mode:
+		meta = stylo.cache().hget("doctype_form_meta", doctype)
 		if not meta:
 			meta = FormMeta(doctype)
-			frappe.cache().hset("doctype_form_meta", doctype, meta)
+			stylo.cache().hset("doctype_form_meta", doctype, meta)
 	else:
 		meta = FormMeta(doctype)
 
-	if frappe.local.lang != "en":
-		meta.set_translations(frappe.local.lang)
+	if stylo.local.lang != "en":
+		meta.set_translations(stylo.local.lang)
 
 	return meta
 
@@ -95,7 +95,7 @@ class FormMeta(Meta):
 		def _get_path(fname):
 			return os.path.join(path, scrub(fname))
 
-		system_country = frappe.get_system_settings("country")
+		system_country = stylo.get_system_settings("country")
 
 		self._add_code(_get_path(self.name + ".js"), "__js")
 		if system_country:
@@ -147,7 +147,7 @@ class FormMeta(Meta):
 		"""embed all require files"""
 		# custom script
 		client_scripts = (
-			frappe.get_all(
+			stylo.get_all(
 				"Client Script",
 				filters={"dt": self.name, "enabled": 1},
 				fields=["name", "script", "view"],
@@ -189,8 +189,8 @@ class FormMeta(Meta):
 		for df in self.get("fields", {"fieldtype": "Link", "options": ["!=", "[Select]"]}):
 			if df.options:
 				try:
-					search_fields = frappe.get_meta(df.options).search_fields
-				except frappe.DoesNotExistError:
+					search_fields = stylo.get_meta(df.options).search_fields
+				except stylo.DoesNotExistError:
 					self._show_missing_doctype_msg(df)
 
 				if search_fields:
@@ -201,10 +201,10 @@ class FormMeta(Meta):
 		# A link field is referring to non-existing doctype, this usually happens when
 		# customizations are removed or some custom app is removed but hasn't cleaned
 		# up after itself.
-		frappe.clear_last_message()
+		stylo.clear_last_message()
 
 		msg = _("Field {0} is referring to non-existing doctype {1}.").format(
-			frappe.bold(df.fieldname), frappe.bold(df.options)
+			stylo.bold(df.fieldname), stylo.bold(df.options)
 		)
 
 		if df.get("is_custom_field"):
@@ -213,18 +213,18 @@ class FormMeta(Meta):
 				custom_field_link
 			)
 
-		frappe.throw(msg, title=_("Missing DocType"))
+		stylo.throw(msg, title=_("Missing DocType"))
 
 	def add_linked_document_type(self):
 		for df in self.get("fields", {"fieldtype": "Link"}):
 			if df.options:
 				try:
-					df.linked_document_type = frappe.get_meta(df.options).document_type
-				except frappe.DoesNotExistError:
+					df.linked_document_type = stylo.get_meta(df.options).document_type
+				except stylo.DoesNotExistError:
 					self._show_missing_doctype_msg(df)
 
 	def load_print_formats(self):
-		print_formats = frappe.db.sql(
+		print_formats = stylo.db.sql(
 			"""select * FROM `tabPrint Format`
 			WHERE doc_type=%s AND docstatus<2 and disabled=0""",
 			(self.name,),
@@ -239,12 +239,12 @@ class FormMeta(Meta):
 		workflow_name = self.get_workflow()
 		workflow_docs = []
 
-		if workflow_name and frappe.db.exists("Workflow", workflow_name):
-			workflow = frappe.get_doc("Workflow", workflow_name)
+		if workflow_name and stylo.db.exists("Workflow", workflow_name):
+			workflow = stylo.get_doc("Workflow", workflow_name)
 			workflow_docs.append(workflow)
 
 			for d in workflow.get("states"):
-				workflow_docs.append(frappe.get_doc("Workflow State", d.state))
+				workflow_docs.append(stylo.get_doc("Workflow State", d.state))
 
 		self.set("__workflow_docs", workflow_docs)
 
@@ -255,14 +255,14 @@ class FormMeta(Meta):
 			templates = {}
 			if hasattr(module, "form_grid_templates"):
 				for key, path in module.form_grid_templates.items():
-					templates[key] = get_html_format(frappe.get_app_path(app, path))
+					templates[key] = get_html_format(stylo.get_app_path(app, path))
 
 				self.set("__form_grid_templates", templates)
 
 	def set_translations(self, lang):
-		from frappe.translate import extract_messages_from_code, make_dict_from_messages
+		from stylo.translate import extract_messages_from_code, make_dict_from_messages
 
-		self.set("__messages", frappe.get_lang_dict("doctype", self.name))
+		self.set("__messages", stylo.get_lang_dict("doctype", self.name))
 
 		# set translations for grid templates
 		if self.get("__form_grid_templates"):
@@ -279,22 +279,22 @@ class FormMeta(Meta):
 
 	def load_kanban_column_fields(self):
 		try:
-			values = frappe.get_list(
+			values = stylo.get_list(
 				"Kanban Board", fields=["field_name"], filters={"reference_doctype": self.name}
 			)
 
 			fields = [x["field_name"] for x in values]
 			fields = list(set(fields))
 			self.set("__kanban_column_fields", fields)
-		except frappe.PermissionError:
+		except stylo.PermissionError:
 			# no access to kanban board
 			pass
 
 
 def get_code_files_via_hooks(hook, name):
 	code_files = []
-	for app_name in frappe.get_installed_apps():
-		code_hook = frappe.get_hooks(hook, default={}, app_name=app_name)
+	for app_name in stylo.get_installed_apps():
+		code_hook = stylo.get_hooks(hook, default={}, app_name=app_name)
 		if not code_hook:
 			continue
 
@@ -303,13 +303,13 @@ def get_code_files_via_hooks(hook, name):
 			files = [files]
 
 		for file in files:
-			path = frappe.get_app_path(app_name, *file.strip("/").split("/"))
+			path = stylo.get_app_path(app_name, *file.strip("/").split("/"))
 			code_files.append(path)
 
 	return code_files
 
 
 def get_js(path):
-	js = frappe.read_file(path)
+	js = stylo.read_file(path)
 	if js:
 		return render_include(js)

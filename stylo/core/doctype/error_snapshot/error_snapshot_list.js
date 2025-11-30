@@ -1,4 +1,4 @@
-frappe.listview_settings["Error Snapshot"] = {
+stylo.listview_settings["Error Snapshot"] = {
 	add_fields: ["parent_error_snapshot", "relapses", "seen"],
 	filters: [
 		["parent_error_snapshot", "=", null],
@@ -12,8 +12,8 @@ frappe.listview_settings["Error Snapshot"] = {
 		}
 	},
 	onload: function (listview) {
-		frappe.require("logtypes.bundle.js", () => {
-			frappe.utils.logtypes.show_log_retention_message(cur_list.doctype);
+		stylo.require("logtypes.bundle.js", () => {
+			stylo.utils.logtypes.show_log_retention_message(cur_list.doctype);
 		});
 	},
 };

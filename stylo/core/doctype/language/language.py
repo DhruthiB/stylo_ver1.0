@@ -4,9 +4,9 @@
 import json
 import re
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class Language(Document):
@@ -17,14 +17,14 @@ class Language(Document):
 		validate_with_regex(new, "Name")
 
 	def on_update(self):
-		frappe.cache().delete_value("languages_with_name")
-		frappe.cache().delete_value("languages")
+		stylo.cache().delete_value("languages_with_name")
+		stylo.cache().delete_value("languages")
 
 
 def validate_with_regex(name, label):
 	pattern = re.compile("^[a-zA-Z]+[-_]*[a-zA-Z]+$")
 	if not pattern.match(name):
-		frappe.throw(
+		stylo.throw(
 			_(
 				"""{0} must begin and end with a letter and can only contain letters,
 				hyphen or underscore."""
@@ -34,23 +34,23 @@ def validate_with_regex(name, label):
 
 def export_languages_json():
 	"""Export list of all languages"""
-	languages = frappe.get_all("Language", fields=["name", "language_name"])
+	languages = stylo.get_all("Language", fields=["name", "language_name"])
 	languages = [{"name": d.language_name, "code": d.name} for d in languages]
 
 	languages.sort(key=lambda a: a["code"])
 
-	with open(frappe.get_app_path("frappe", "geo", "languages.json"), "w") as f:
-		f.write(frappe.as_json(languages))
+	with open(stylo.get_app_path("stylo", "geo", "languages.json"), "w") as f:
+		f.write(stylo.as_json(languages))
 
 
 def sync_languages():
-	"""Sync frappe/geo/languages.json with Language"""
-	with open(frappe.get_app_path("frappe", "geo", "languages.json")) as f:
+	"""Sync stylo/geo/languages.json with Language"""
+	with open(stylo.get_app_path("stylo", "geo", "languages.json")) as f:
 		data = json.loads(f.read())
 
 	for l in data:
-		if not frappe.db.exists("Language", l["code"]):
-			frappe.get_doc(
+		if not stylo.db.exists("Language", l["code"]):
+			stylo.get_doc(
 				{
 					"doctype": "Language",
 					"language_code": l["code"],
@@ -61,9 +61,9 @@ def sync_languages():
 
 
 def update_language_names():
-	"""Update frappe/geo/languages.json names (for use via patch)"""
-	with open(frappe.get_app_path("frappe", "geo", "languages.json")) as f:
+	"""Update stylo/geo/languages.json names (for use via patch)"""
+	with open(stylo.get_app_path("stylo", "geo", "languages.json")) as f:
 		data = json.loads(f.read())
 
 	for l in data:
-		frappe.db.set_value("Language", l["code"], "language_name", l["name"])
+		stylo.db.set_value("Language", l["code"], "language_name", l["name"])

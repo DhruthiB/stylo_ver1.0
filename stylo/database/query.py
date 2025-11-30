@@ -7,18 +7,18 @@ from typing import TYPE_CHECKING
 import sqlparse
 from pypika.queries import QueryBuilder, Table
 
-import frappe
-from frappe import _
-from frappe.database.operator_map import OPERATOR_MAP
-from frappe.database.schema import SPECIAL_CHAR_PATTERN
-from frappe.database.utils import DefaultOrderBy, get_doctype_name
-from frappe.query_builder import Criterion, Field, Order, functions
-from frappe.query_builder.functions import Function, SqlFunctions
-from frappe.query_builder.utils import PseudoColumnMapper
-from frappe.utils.data import MARIADB_SPECIFIC_COMMENT
+import stylo
+from stylo import _
+from stylo.database.operator_map import OPERATOR_MAP
+from stylo.database.schema import SPECIAL_CHAR_PATTERN
+from stylo.database.utils import DefaultOrderBy, get_doctype_name
+from stylo.query_builder import Criterion, Field, Order, functions
+from stylo.query_builder.functions import Function, SqlFunctions
+from stylo.query_builder.utils import PseudoColumnMapper
+from stylo.utils.data import MARIADB_SPECIFIC_COMMENT
 
 if TYPE_CHECKING:
-	from frappe.query_builder import DocType
+	from stylo.query_builder import DocType
 
 TAB_PATTERN = re.compile("^tab")
 WORDS_PATTERN = re.compile(r"\w+")
@@ -26,7 +26,7 @@ BRACKETS_PATTERN = re.compile(r"\(.*?\)|$")
 SQL_FUNCTIONS = [sql_function.value for sql_function in SqlFunctions]
 COMMA_PATTERN = re.compile(r",\s*(?![^()]*\))")
 
-# less restrictive version of frappe.core.doctype.doctype.doctype.START_WITH_LETTERS_PATTERN
+# less restrictive version of stylo.core.doctype.doctype.doctype.START_WITH_LETTERS_PATTERN
 # to allow table names like __Auth
 TABLE_NAME_PATTERN = re.compile(r"^[\w -]*$", flags=re.ASCII)
 
@@ -51,8 +51,8 @@ class Engine:
 		skip_locked: bool = False,
 		wait: bool = True,
 	) -> QueryBuilder:
-		self.is_mariadb = frappe.db.db_type == "mariadb"
-		self.is_postgres = frappe.db.db_type == "postgres"
+		self.is_mariadb = stylo.db.db_type == "mariadb"
+		self.is_postgres = stylo.db.db_type == "postgres"
 		self.validate_filters = validate_filters
 
 		if isinstance(table, Table):
@@ -61,18 +61,18 @@ class Engine:
 		else:
 			self.doctype = table
 			self.validate_doctype()
-			self.table = frappe.qb.DocType(table)
+			self.table = stylo.qb.DocType(table)
 
 		self.validate_filters = validate_filters
 
 		if update:
-			self.query = frappe.qb.update(self.table)
+			self.query = stylo.qb.update(self.table)
 		elif into:
-			self.query = frappe.qb.into(self.table)
+			self.query = stylo.qb.into(self.table)
 		elif delete:
-			self.query = frappe.qb.from_(self.table).delete()
+			self.query = stylo.qb.from_(self.table).delete()
 		else:
-			self.query = frappe.qb.from_(self.table)
+			self.query = stylo.qb.from_(self.table)
 			self.apply_fields(fields)
 
 		self.apply_filters(filters)
@@ -97,7 +97,7 @@ class Engine:
 
 	def validate_doctype(self):
 		if not TABLE_NAME_PATTERN.match(self.doctype):
-			frappe.throw(_("Invalid DocType: {0}").format(self.doctype))
+			stylo.throw(_("Invalid DocType: {0}").format(self.doctype))
 
 	def apply_fields(self, fields):
 		# add fields
@@ -173,16 +173,16 @@ class Engine:
 			self.query = dynamic_field.apply_join(self.query)
 			_field = dynamic_field.field
 		elif self.validate_filters and SPECIAL_CHAR_PATTERN.search(_field):
-			frappe.throw(_("Invalid filter: {0}").format(_field))
+			stylo.throw(_("Invalid filter: {0}").format(_field))
 		elif not doctype or doctype == self.doctype:
 			_field = self.table[field]
 		elif doctype:
-			_field = frappe.qb.DocType(doctype)[field]
+			_field = stylo.qb.DocType(doctype)[field]
 
 		# apply implicit join if child table is referenced
 		if doctype and doctype != self.doctype:
-			meta = frappe.get_meta(doctype)
-			table = frappe.qb.DocType(doctype)
+			meta = stylo.get_meta(doctype)
+			table = stylo.qb.DocType(doctype)
 			if meta.istable and not self.query.is_joined(table):
 				self.query = self.query.left_join(table).on(
 					(table.parent == self.table.name) & (table.parenttype == self.doctype)
@@ -199,7 +199,7 @@ class Engine:
 			hierarchy = _operator
 			docname = _value
 
-			_df = frappe.get_meta(self.doctype).get_field(field)
+			_df = stylo.get_meta(self.doctype).get_field(field)
 			ref_doctype = _df.options if _df else self.doctype
 
 			nodes = get_nested_set_hierarchy_result(ref_doctype, docname, hierarchy)
@@ -358,18 +358,18 @@ class Permission:
 
 		for dt in doctype:
 			dt = TAB_PATTERN.sub("", dt)
-			if not frappe.has_permission(
+			if not stylo.has_permission(
 				dt,
 				"select",
 				user=kwargs.get("user"),
 				parent_doctype=kwargs.get("parent_doctype"),
-			) and not frappe.has_permission(
+			) and not stylo.has_permission(
 				dt,
 				"read",
 				user=kwargs.get("user"),
 				parent_doctype=kwargs.get("parent_doctype"),
 			):
-				frappe.throw(_("Insufficient Permission for {0}").format(frappe.bold(dt)))
+				stylo.throw(_("Insufficient Permission for {0}").format(stylo.bold(dt)))
 
 	@staticmethod
 	def get_tables_from_query(query: str):
@@ -392,7 +392,7 @@ class DynamicTableField:
 	def __str__(self) -> str:
 		table_name = f"`tab{self.doctype}`"
 		fieldname = f"`{self.fieldname}`"
-		if frappe.db.db_type == "postgres":
+		if stylo.db.db_type == "postgres":
 			table_name = table_name.replace("`", '"')
 			fieldname = fieldname.replace("`", '"')
 		alias = f"AS {self.alias}" if self.alias else ""
@@ -411,11 +411,11 @@ class DynamicTableField:
 				return ChildTableField(child_doctype, child_field, doctype, alias=alias)
 			else:
 				linked_fieldname, fieldname = field.split(".")
-				linked_field = frappe.get_meta(doctype).get_field(linked_fieldname)
+				linked_field = stylo.get_meta(doctype).get_field(linked_fieldname)
 				linked_doctype = linked_field.options
 				if linked_field.fieldtype == "Link":
 					return LinkTableField(linked_doctype, fieldname, doctype, linked_fieldname, alias=alias)
-				elif linked_field.fieldtype in frappe.model.table_fields:
+				elif linked_field.fieldtype in stylo.model.table_fields:
 					return ChildTableField(linked_doctype, fieldname, doctype, alias=alias)
 
 	def apply_select(self, query: QueryBuilder) -> QueryBuilder:
@@ -434,17 +434,17 @@ class ChildTableField(DynamicTableField):
 		self.fieldname = fieldname
 		self.alias = alias
 		self.parent_doctype = parent_doctype
-		self.table = frappe.qb.DocType(self.doctype)
+		self.table = stylo.qb.DocType(self.doctype)
 		self.field = self.table[self.fieldname]
 
 	def apply_select(self, query: QueryBuilder) -> QueryBuilder:
-		table = frappe.qb.DocType(self.doctype)
+		table = stylo.qb.DocType(self.doctype)
 		query = self.apply_join(query)
 		return query.select(getattr(table, self.fieldname).as_(self.alias or None))
 
 	def apply_join(self, query: QueryBuilder) -> QueryBuilder:
-		table = frappe.qb.DocType(self.doctype)
-		main_table = frappe.qb.DocType(self.parent_doctype)
+		table = stylo.qb.DocType(self.doctype)
+		main_table = stylo.qb.DocType(self.parent_doctype)
 		if not query.is_joined(table):
 			query = query.left_join(table).on(
 				(table.parent == main_table.name) & (table.parenttype == self.parent_doctype)
@@ -463,17 +463,17 @@ class LinkTableField(DynamicTableField):
 	) -> None:
 		super().__init__(doctype, fieldname, parent_doctype, alias=alias)
 		self.link_fieldname = link_fieldname
-		self.table = frappe.qb.DocType(self.doctype)
+		self.table = stylo.qb.DocType(self.doctype)
 		self.field = self.table[self.fieldname]
 
 	def apply_select(self, query: QueryBuilder) -> QueryBuilder:
-		table = frappe.qb.DocType(self.doctype)
+		table = stylo.qb.DocType(self.doctype)
 		query = self.apply_join(query)
 		return query.select(getattr(table, self.fieldname).as_(self.alias or None))
 
 	def apply_join(self, query: QueryBuilder) -> QueryBuilder:
-		table = frappe.qb.DocType(self.doctype)
-		main_table = frappe.qb.DocType(self.parent_doctype)
+		table = stylo.qb.DocType(self.doctype)
+		main_table = stylo.qb.DocType(self.parent_doctype)
 		if not query.is_joined(table):
 			query = query.left_join(table).on(table.name == getattr(main_table, self.link_fieldname))
 		return query
@@ -486,8 +486,8 @@ class ChildQuery:
 		fields: list,
 		parent_doctype: str,
 	) -> None:
-		field = frappe.get_meta(parent_doctype).get_field(fieldname)
-		if field.fieldtype not in frappe.model.table_fields:
+		field = stylo.get_meta(parent_doctype).get_field(fieldname)
+		if field.fieldtype not in stylo.model.table_fields:
 			return
 		self.fieldname = fieldname
 		self.fields = fields
@@ -500,7 +500,7 @@ class ChildQuery:
 			"parentfield": self.fieldname,
 			"parent": ["in", parent_names],
 		}
-		return frappe.qb.get_query(
+		return stylo.qb.get_query(
 			self.doctype,
 			fields=[*self.fields, "parent", "parentfield"],
 			filters=filters,
@@ -524,15 +524,15 @@ def has_function(field):
 
 def get_nested_set_hierarchy_result(doctype: str, name: str, hierarchy: str) -> list[str]:
 	"""Get matching nodes based on operator."""
-	table = frappe.qb.DocType(doctype)
+	table = stylo.qb.DocType(doctype)
 	try:
-		lft, rgt = frappe.qb.from_(table).select("lft", "rgt").where(table.name == name).run()[0]
+		lft, rgt = stylo.qb.from_(table).select("lft", "rgt").where(table.name == name).run()[0]
 	except IndexError:
 		lft, rgt = None, None
 
 	if hierarchy in ("descendants of", "not descendants of", "descendants of (inclusive)"):
 		result = (
-			frappe.qb.from_(table)
+			stylo.qb.from_(table)
 			.select(table.name)
 			.where(table.lft > lft)
 			.where(table.rgt < rgt)
@@ -544,7 +544,7 @@ def get_nested_set_hierarchy_result(doctype: str, name: str, hierarchy: str) -> 
 	else:
 		# Get ancestor elements of a DocType with a tree structure
 		result = (
-			frappe.qb.from_(table)
+			stylo.qb.from_(table)
 			.select(table.name)
 			.where(table.lft < lft)
 			.where(table.rgt > rgt)

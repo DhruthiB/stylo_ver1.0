@@ -1,29 +1,29 @@
-frappe.pages["print-format-builder"].on_page_load = function (wrapper) {
-	frappe.print_format_builder = new frappe.PrintFormatBuilder(wrapper);
-	frappe.breadcrumbs.add("Setup", "Print Format");
+stylo.pages["print-format-builder"].on_page_load = function (wrapper) {
+	stylo.print_format_builder = new stylo.PrintFormatBuilder(wrapper);
+	stylo.breadcrumbs.add("Setup", "Print Format");
 };
 
-frappe.pages["print-format-builder"].on_page_show = function (wrapper) {
-	var route = frappe.get_route();
+stylo.pages["print-format-builder"].on_page_show = function (wrapper) {
+	var route = stylo.get_route();
 	if (route.length > 1) {
-		frappe.model.with_doc("Print Format", route[1], function () {
-			frappe.print_format_builder.print_format = frappe.get_doc("Print Format", route[1]);
-			frappe.print_format_builder.refresh();
+		stylo.model.with_doc("Print Format", route[1], function () {
+			stylo.print_format_builder.print_format = stylo.get_doc("Print Format", route[1]);
+			stylo.print_format_builder.refresh();
 		});
-	} else if (frappe.route_options) {
-		if (frappe.route_options.make_new) {
-			let { doctype, name, based_on, beta } = frappe.route_options;
-			frappe.route_options = null;
-			frappe.print_format_builder.setup_new_print_format(doctype, name, based_on, beta);
+	} else if (stylo.route_options) {
+		if (stylo.route_options.make_new) {
+			let { doctype, name, based_on, beta } = stylo.route_options;
+			stylo.route_options = null;
+			stylo.print_format_builder.setup_new_print_format(doctype, name, based_on, beta);
 		} else {
-			frappe.print_format_builder.print_format = frappe.route_options.doc;
-			frappe.route_options = null;
-			frappe.print_format_builder.refresh();
+			stylo.print_format_builder.print_format = stylo.route_options.doc;
+			stylo.route_options = null;
+			stylo.print_format_builder.refresh();
 		}
 	}
 };
 
-frappe.PrintFormatBuilder = class PrintFormatBuilder {
+stylo.PrintFormatBuilder = class PrintFormatBuilder {
 	constructor(parent) {
 		this.parent = parent;
 		this.make();
@@ -39,7 +39,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		}
 	}
 	make() {
-		this.page = frappe.ui.make_app_page({
+		this.page = stylo.ui.make_app_page({
 			parent: this.parent,
 			title: __("Print Format Builder"),
 		});
@@ -50,7 +50,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			this.page.sidebar
 		);
 		this.page.main = $(
-			'<div class="col-md-12 border print-format-builder-main frappe-card"></div>'
+			'<div class="col-md-12 border print-format-builder-main stylo-card"></div>'
 		).appendTo(this.page.main);
 
 		// future-bindings for buttons on sections / fields
@@ -62,7 +62,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		// $(this.page.main).parent().css({"margin-left": '16.67%'});
 	}
 	show_start() {
-		this.page.main.html(frappe.render_template("print_format_builder_start", {}));
+		this.page.main.html(stylo.render_template("print_format_builder_start", {}));
 		this.page.clear_actions();
 		this.page.set_title(__("Print Format Builder"));
 		this.start_edit_print_format();
@@ -71,7 +71,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 	start_edit_print_format() {
 		// print format control
 		var me = this;
-		this.print_format_input = frappe.ui.form.make_control({
+		this.print_format_input = stylo.ui.form.make_control({
 			parent: this.page.main.find(".print-format-selector"),
 			df: {
 				fieldtype: "Link",
@@ -89,14 +89,14 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		this.page.main.find(".btn-edit-print-format").on("click", function () {
 			var name = me.print_format_input.get_value();
 			if (!name) return;
-			frappe.model.with_doc("Print Format", name, function (doc) {
-				frappe.set_route("print-format-builder", name);
+			stylo.model.with_doc("Print Format", name, function (doc) {
+				stylo.set_route("print-format-builder", name);
 			});
 		});
 	}
 	start_new_print_format() {
 		var me = this;
-		this.doctype_input = frappe.ui.form.make_control({
+		this.doctype_input = stylo.ui.form.make_control({
 			parent: this.page.main.find(".doctype-selector"),
 			df: {
 				fieldtype: "Link",
@@ -110,7 +110,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			render_input: true,
 		});
 
-		this.name_input = frappe.ui.form.make_control({
+		this.name_input = stylo.ui.form.make_control({
 			parent: this.page.main.find(".name-selector"),
 			df: {
 				fieldtype: "Data",
@@ -123,15 +123,15 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			var doctype = me.doctype_input.get_value(),
 				name = me.name_input.get_value();
 			if (!(doctype && name)) {
-				frappe.msgprint(__("Both DocType and Name required"));
+				stylo.msgprint(__("Both DocType and Name required"));
 				return;
 			}
 			me.setup_new_print_format(doctype, name);
 		});
 	}
 	setup_new_print_format(doctype, name, based_on, beta) {
-		frappe.call({
-			method: "frappe.printing.page.print_format_builder.print_format_builder.create_custom_format",
+		stylo.call({
+			method: "stylo.printing.page.print_format_builder.print_format_builder.create_custom_format",
 			args: {
 				doctype: doctype,
 				name: name,
@@ -142,7 +142,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 				if (r.message) {
 					let print_format = r.message;
 					if (print_format.print_format_builder_beta) {
-						frappe.set_route("print-format-builder-beta", print_format.name);
+						stylo.set_route("print-format-builder-beta", print_format.name);
 					} else {
 						this.print_format = print_format;
 						this.refresh();
@@ -153,8 +153,8 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 	}
 	setup_print_format() {
 		var me = this;
-		frappe.model.with_doctype(this.print_format.doc_type, function (doctype) {
-			me.meta = frappe.get_meta(me.print_format.doc_type);
+		stylo.model.with_doctype(this.print_format.doc_type, function (doctype) {
+			me.meta = stylo.get_meta(me.print_format.doc_type);
 			me.setup_sidebar();
 			me.render_layout();
 			me.page.set_primary_action(__("Save"), function () {
@@ -171,7 +171,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			);
 			me.page.clear_inner_toolbar();
 			me.page.add_inner_button(__("Edit Properties"), function () {
-				frappe.set_route("Form", "Print Format", me.print_format.name);
+				stylo.set_route("Form", "Print Format", me.print_format.name);
 			});
 		});
 	}
@@ -179,7 +179,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		// prepend custom HTML field
 		var fields = [this.get_custom_html_field()].concat(this.meta.fields);
 		this.page.sidebar.html(
-			$(frappe.render_template("print_format_builder_sidebar", { fields: fields }))
+			$(stylo.render_template("print_format_builder_sidebar", { fields: fields }))
 		);
 		this.setup_field_filter();
 	}
@@ -194,7 +194,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		this.page.main.empty();
 		this.prepare_data();
 		$(
-			frappe.render_template("print_format_builder_layout", {
+			stylo.render_template("print_format_builder_layout", {
 				data: this.layout_data,
 				me: this,
 			})
@@ -270,7 +270,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 					me.custom_html_dict[f.custom_html_id] = f;
 				} else {
 					f = $.extend(
-						frappe.meta.get_docfield(me.print_format.doc_type, f.fieldname) || {},
+						stylo.meta.get_docfield(me.print_format.doc_type, f.fieldname) || {},
 						f
 					);
 				}
@@ -280,7 +280,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 				set_section(f.label);
 			} else if (f.fieldtype === "Column Break") {
 				set_column();
-			} else if (!in_list(frappe.model.layout_fields, f.fieldtype)) {
+			} else if (!in_list(stylo.model.layout_fields, f.fieldtype)) {
 				if (!column) set_column();
 
 				if (f.fieldtype === "Table") {
@@ -315,7 +315,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 	}
 	init_visible_columns(f) {
 		f.visible_columns = [];
-		$.each(frappe.get_meta(f.options).fields, function (i, _f) {
+		$.each(stylo.get_meta(f.options).fields, function (i, _f) {
 			if (
 				!in_list(["Section Break", "Column Break", "Tab Break"], _f.fieldtype) &&
 				!_f.print_hide &&
@@ -375,10 +375,10 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 					if (fieldname === "_custom_html") {
 						var field = me.get_custom_html_field();
 					} else {
-						var field = frappe.meta.get_docfield(me.print_format.doc_type, fieldname);
+						var field = stylo.meta.get_docfield(me.print_format.doc_type, fieldname);
 					}
 
-					var html = frappe.render_template("print_format_builder_field", {
+					var html = stylo.render_template("print_format_builder_field", {
 						field: field,
 						me: me,
 					});
@@ -407,7 +407,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			var label = section.attr("data-label");
 
 			// new dialog
-			var d = new frappe.ui.Dialog({
+			var d = new stylo.ui.Dialog({
 				title: "Edit Section",
 				fields: [
 					{
@@ -466,7 +466,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		this.page.main.find(".field-settings").on("click", (e) => {
 			const field = $(e.currentTarget).parent();
 			// new dialog
-			var d = new frappe.ui.Dialog({
+			var d = new stylo.ui.Dialog({
 				title: __("Set Properties"),
 				fields: [
 					{
@@ -581,7 +581,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			section.no_of_columns = 1;
 
 			var $section = $(
-				frappe.render_template("print_format_builder_section", {
+				stylo.render_template("print_format_builder_section", {
 					section: section,
 					me: me,
 				})
@@ -618,13 +618,13 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 				widths[parts[0]] = parts[1] || "";
 			});
 
-			var d = new frappe.ui.Dialog({
+			var d = new stylo.ui.Dialog({
 				title: __("Select Table Columns for {0}", [label]),
 			});
 
 			var $body = $(d.body);
 
-			var doc_fields = frappe.get_meta(doctype).fields;
+			var doc_fields = stylo.get_meta(doctype).fields;
 			var docfields_by_name = {};
 
 			// docfields by fieldname
@@ -652,7 +652,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			});
 			// render checkboxes
 			$(
-				frappe.render_template("print_format_builder_column_selector", {
+				stylo.render_template("print_format_builder_column_selector", {
 					fields: fields,
 					column_names: column_names,
 					widths: widths,
@@ -723,7 +723,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 	}
 	get_edit_html_dialog(title, label, $content) {
 		var me = this;
-		var d = new frappe.ui.Dialog({
+		var d = new stylo.ui.Dialog({
 			title: title,
 			fields: [
 				{
@@ -828,8 +828,8 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 		});
 
 		// save format_data
-		frappe.call({
-			method: "frappe.client.set_value",
+		stylo.call({
+			method: "stylo.client.set_value",
 			args: {
 				doctype: "Print Format",
 				name: this.print_format.name,
@@ -841,7 +841,7 @@ frappe.PrintFormatBuilder = class PrintFormatBuilder {
 			callback: function (r) {
 				me.print_format = r.message;
 				locals["Print Format"][me.print_format.name] = r.message;
-				frappe.show_alert({ message: __("Saved"), indicator: "green" });
+				stylo.show_alert({ message: __("Saved"), indicator: "green" });
 			},
 		});
 	}

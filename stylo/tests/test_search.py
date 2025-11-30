@@ -4,12 +4,12 @@
 import re
 from functools import partial
 
-import frappe
-from frappe.app import make_form_dict
-from frappe.desk.search import get_names_for_mentions, search_link, search_widget
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.serve import get_response
+import stylo
+from stylo.app import make_form_dict
+from stylo.desk.search import get_names_for_mentions, search_link, search_widget
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.serve import get_response
 
 
 class TestSearch(StyloTestCase):
@@ -21,7 +21,7 @@ class TestSearch(StyloTestCase):
 	def test_search_field_sanitizer(self):
 		# pass
 		search_link("DocType", "User", query=None, filters=None, page_length=20, searchfield="name")
-		result = frappe.response["results"][0]
+		result = stylo.response["results"][0]
 		self.assertTrue("User" in result["value"])
 
 		# raise exception on injection
@@ -34,7 +34,7 @@ class TestSearch(StyloTestCase):
 			"select`sid`from`tabSessions`",
 		):
 			self.assertRaises(
-				frappe.DataError,
+				stylo.DataError,
 				search_link,
 				"DocType",
 				"User",
@@ -46,9 +46,9 @@ class TestSearch(StyloTestCase):
 
 	def test_only_enabled_in_mention(self):
 		email = "test_disabled_user_in_mentions@example.com"
-		frappe.delete_doc("User", email)
-		if not frappe.db.exists("User", email):
-			user = frappe.new_doc("User")
+		stylo.delete_doc("User", email)
+		if not stylo.db.exists("User", email):
+			user = stylo.new_doc("User")
 			user.update(
 				{
 					"email": email,
@@ -75,7 +75,7 @@ class TestSearch(StyloTestCase):
 			page_length=20,
 			searchfield=None,
 		)
-		result = frappe.response["results"]
+		result = stylo.response["results"]
 
 		# Check whether the result is sorted or not
 		self.assertEqual(self.parent_doctype_name, result[0]["value"])
@@ -86,46 +86,46 @@ class TestSearch(StyloTestCase):
 	# Search for the word "pay", part of the word "pays" (country) in french.
 	def test_link_search_in_foreign_language(self):
 		try:
-			frappe.local.lang = "fr"
+			stylo.local.lang = "fr"
 			search_widget(doctype="DocType", txt="pay", page_length=20)
-			output = frappe.response["values"]
+			output = stylo.response["values"]
 
 			result = [["found" for x in y if x == "Country"] for y in output]
 			self.assertTrue(["found"] in result)
 		finally:
-			frappe.local.lang = "en"
+			stylo.local.lang = "en"
 
 	def test_doctype_search_in_foreign_language(self):
 		def do_search(txt: str):
 			search_link(
 				doctype="DocType",
 				txt=txt,
-				query="frappe.core.report.permitted_documents_for_user.permitted_documents_for_user.query_doctypes",
+				query="stylo.core.report.permitted_documents_for_user.permitted_documents_for_user.query_doctypes",
 				filters={"user": "Administrator"},
 				page_length=20,
 				searchfield=None,
 			)
-			return frappe.response["results"]
+			return stylo.response["results"]
 
 		try:
-			frappe.local.lang = "en"
+			stylo.local.lang = "en"
 			results = do_search("user")
 			self.assertIn("User", [x["value"] for x in results])
 
-			frappe.local.lang = "fr"
+			stylo.local.lang = "fr"
 			results = do_search("utilisateur")
 			self.assertIn("User", [x["value"] for x in results])
 
-			frappe.local.lang = "de"
+			stylo.local.lang = "de"
 			results = do_search("nutzer")
 			self.assertIn("User", [x["value"] for x in results])
 		finally:
-			frappe.local.lang = "en"
+			stylo.local.lang = "en"
 
 	def test_validate_and_sanitize_search_inputs(self):
 		# should raise error if searchfield is injectable
 		self.assertRaises(
-			frappe.DataError,
+			stylo.DataError,
 			get_data,
 			*("User", "Random", "select * from tabSessions) --", "1", "10", dict()),
 		)
@@ -148,14 +148,14 @@ class TestSearch(StyloTestCase):
 		# return empty string if passed doctype is invalid
 		self.assertListEqual(get_data("Random DocType", "Random", "email", "2", "10", dict()), [])
 
-		# should not fail if function is called via frappe.call with extra arguments
+		# should not fail if function is called via stylo.call with extra arguments
 		args = ("Random DocType", "Random", "email", "2", "10", dict())
 		kwargs = {"as_dict": False}
-		self.assertListEqual(frappe.call("frappe.tests.test_search.get_data", *args, **kwargs), [])
+		self.assertListEqual(stylo.call("stylo.tests.test_search.get_data", *args, **kwargs), [])
 
 		# should not fail if query has @ symbol in it
 		search_link("User", "user@random", searchfield="name")
-		self.assertListEqual(frappe.response["results"], [])
+		self.assertListEqual(stylo.response["results"], [])
 
 	def test_reference_doctype(self):
 		"""search query methods should get reference_doctype if they want"""
@@ -165,7 +165,7 @@ class TestSearch(StyloTestCase):
 			filters=None,
 			page_length=20,
 			reference_doctype="ToDo",
-			query="frappe.tests.test_search.query_with_reference_doctype",
+			query="stylo.tests.test_search.query_with_reference_doctype",
 		)
 		self.assertListEqual(results, [])
 
@@ -178,22 +178,22 @@ class TestSearch(StyloTestCase):
 			self.assertIn("es", row["value"])
 
 		# Assume that "es" is used at least 10 times, it should now be first
-		frappe.db.set_value("Language", "es", "idx", 10)
+		stylo.db.set_value("Language", "es", "idx", 10)
 		self.assertEqual("es", search(txt="es")[0]["value"])
 
 
 def test_search(*args, **kwargs):
 	search_link(*args, **kwargs)
-	return frappe.response["results"]
+	return stylo.response["results"]
 
 
-@frappe.validate_and_sanitize_search_inputs
+@stylo.validate_and_sanitize_search_inputs
 def get_data(doctype, txt, searchfield, start, page_len, filters):
 	return [doctype, txt, searchfield, start, page_len, filters]
 
 
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
+@stylo.whitelist()
+@stylo.validate_and_sanitize_search_inputs
 def query_with_reference_doctype(doctype, txt, searchfield, start, page_len, filters, reference_doctype=None):
 	return []
 
@@ -205,8 +205,8 @@ def setup_test_link_field_order(TestCase):
 	TestCase.parent_doctype_name = "All Territories"
 
 	# Create Tree doctype
-	if not frappe.db.exists("DocType", TestCase.tree_doctype_name):
-		TestCase.tree_doc = frappe.get_doc(
+	if not stylo.db.exists("DocType", TestCase.tree_doctype_name):
+		TestCase.tree_doc = stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": TestCase.tree_doctype_name,
@@ -220,17 +220,17 @@ def setup_test_link_field_order(TestCase):
 		TestCase.tree_doc.search_fields = "parent_test_tree_order"
 		TestCase.tree_doc.save()
 	else:
-		TestCase.tree_doc = frappe.get_doc("DocType", TestCase.tree_doctype_name)
+		TestCase.tree_doc = stylo.get_doc("DocType", TestCase.tree_doctype_name)
 
 	# Create root for the tree doctype
-	if not frappe.db.exists(TestCase.tree_doctype_name, {"random": TestCase.parent_doctype_name}):
-		frappe.get_doc(
+	if not stylo.db.exists(TestCase.tree_doctype_name, {"random": TestCase.parent_doctype_name}):
+		stylo.get_doc(
 			{"doctype": TestCase.tree_doctype_name, "random": TestCase.parent_doctype_name, "is_group": 1}
 		).insert(ignore_if_duplicate=True)
 
 	# Create children for the root
 	for child_name in TestCase.child_doctypes_names:
-		temp = frappe.get_doc(
+		temp = stylo.get_doc(
 			{
 				"doctype": TestCase.tree_doctype_name,
 				"random": child_name,
@@ -245,7 +245,7 @@ def teardown_test_link_field_order(TestCase):
 	for child_doctype in TestCase.child_doctype_list:
 		child_doctype.delete()
 
-	frappe.delete_doc(
+	stylo.delete_doc(
 		TestCase.tree_doctype_name,
 		TestCase.parent_doctype_name,
 		ignore_permissions=True,
@@ -258,11 +258,11 @@ def teardown_test_link_field_order(TestCase):
 
 class TestWebsiteSearch(StyloTestCase):
 	def get(self, path, user="Guest"):
-		frappe.set_user(user)
+		stylo.set_user(user)
 		set_request(method="GET", path=path)
-		make_form_dict(frappe.local.request)
+		make_form_dict(stylo.local.request)
 		response = get_response()
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		return response
 
 	def test_basic_search(self):

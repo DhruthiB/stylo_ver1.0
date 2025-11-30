@@ -1,7 +1,7 @@
 // Copyright (c) 2019, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Notification Settings", {
+stylo.ui.form.on("Notification Settings", {
 	onload: (frm) => {
 		frm.set_query("subscribed_documents", () => {
 			return {
@@ -13,9 +13,9 @@ frappe.ui.form.on("Notification Settings", {
 	},
 
 	refresh: (frm) => {
-		if (frappe.user.has_role("System Manager")) {
+		if (stylo.user.has_role("System Manager")) {
 			frm.add_custom_button(__("Go to Notification Settings List"), () => {
-				frappe.set_route("List", "Notification Settings");
+				stylo.set_route("List", "Notification Settings");
 			});
 		}
 	},

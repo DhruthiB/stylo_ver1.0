@@ -1,17 +1,17 @@
-frappe.pages["recorder"].on_page_load = function (wrapper) {
-	frappe.ui.make_app_page({
+stylo.pages["recorder"].on_page_load = function (wrapper) {
+	stylo.ui.make_app_page({
 		parent: wrapper,
 		title: __("Recorder"),
 		single_column: true,
 		card_layout: true,
 	});
 
-	frappe.recorder = new Recorder(wrapper);
+	stylo.recorder = new Recorder(wrapper);
 	$(wrapper).bind("show", function () {
-		frappe.recorder.show();
+		stylo.recorder.show();
 	});
 
-	frappe.require("recorder.bundle.js");
+	stylo.require("recorder.bundle.js");
 };
 
 class Recorder {

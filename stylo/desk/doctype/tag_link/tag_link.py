@@ -1,8 +1,8 @@
 # Copyright (c) 2019, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class TagLink(Document):
@@ -10,4 +10,4 @@ class TagLink(Document):
 
 
 def on_doctype_update():
-	frappe.db.add_index("Tag Link", ["document_type", "document_name"])
+	stylo.db.add_index("Tag Link", ["document_type", "document_name"])

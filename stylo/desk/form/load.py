@@ -4,19 +4,19 @@
 import json
 from urllib.parse import quote
 
-import frappe
-import frappe.defaults
-import frappe.desk.form.meta
-import frappe.utils
-from frappe import _, _dict
-from frappe.desk.form.document_follow import is_document_followed
-from frappe.model.utils import is_virtual_doctype
-from frappe.model.utils.user_settings import get_user_settings
-from frappe.permissions import check_doctype_permission, get_doc_permissions
-from frappe.utils.data import cstr
+import stylo
+import stylo.defaults
+import stylo.desk.form.meta
+import stylo.utils
+from stylo import _, _dict
+from stylo.desk.form.document_follow import is_document_followed
+from stylo.model.utils import is_virtual_doctype
+from stylo.model.utils.user_settings import get_user_settings
+from stylo.permissions import check_doctype_permission, get_doc_permissions
+from stylo.utils.data import cstr
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def getdoc(doctype, name, user=None):
 	"""
 	Loads a doclist for a given document. This method is called directly from the client.
@@ -30,18 +30,18 @@ def getdoc(doctype, name, user=None):
 	if not name:
 		name = doctype
 
-	if not is_virtual_doctype(doctype) and not frappe.db.exists(doctype, name):
+	if not is_virtual_doctype(doctype) and not stylo.db.exists(doctype, name):
 		check_doctype_permission(doctype)
 		return []
 
-	doc = frappe.get_doc(doctype, name)
+	doc = stylo.get_doc(doctype, name)
 
 	if not doc.has_permission("read"):
 		check_doctype_permission(doctype)
-		frappe.flags.error_message = _("Insufficient Permission for {0}").format(
-			frappe.bold(_(doctype) + " " + name)
+		stylo.flags.error_message = _("Insufficient Permission for {0}").format(
+			stylo.bold(_(doctype) + " " + name)
 		)
-		raise frappe.PermissionError(("read", doctype, name))
+		raise stylo.PermissionError(("read", doctype, name))
 
 	run_onload(doc)
 
@@ -54,12 +54,12 @@ def getdoc(doctype, name, user=None):
 
 	doc.add_seen()
 	set_link_titles(doc)
-	if frappe.response.docs is None:
-		frappe.local.response = _dict({"docs": []})
-	frappe.response.docs.append(doc)
+	if stylo.response.docs is None:
+		stylo.local.response = _dict({"docs": []})
+	stylo.response.docs.append(doc)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def getdoctype(doctype, with_parent=False, cached_timestamp=None):
 	"""load doctype"""
 
@@ -67,37 +67,37 @@ def getdoctype(doctype, with_parent=False, cached_timestamp=None):
 	parent_dt = None
 
 	# with parent (called from report builder)
-	if with_parent and (parent_dt := frappe.model.meta.get_parent_dt(doctype)):
+	if with_parent and (parent_dt := stylo.model.meta.get_parent_dt(doctype)):
 		docs = get_meta_bundle(parent_dt)
-		frappe.response["parent_dt"] = parent_dt
+		stylo.response["parent_dt"] = parent_dt
 
 	if not docs:
 		docs = get_meta_bundle(doctype)
 
-	frappe.response["user_settings"] = get_user_settings(parent_dt or doctype)
+	stylo.response["user_settings"] = get_user_settings(parent_dt or doctype)
 
 	if cached_timestamp and docs[0].modified == cached_timestamp:
 		return "use_cache"
 
-	frappe.response.docs.extend(docs)
+	stylo.response.docs.extend(docs)
 
 
 def get_meta_bundle(doctype):
-	bundle = [frappe.desk.form.meta.get_meta(doctype)]
+	bundle = [stylo.desk.form.meta.get_meta(doctype)]
 	for df in bundle[0].fields:
-		if df.fieldtype in frappe.model.table_fields:
-			bundle.append(frappe.desk.form.meta.get_meta(df.options, not frappe.conf.developer_mode))
+		if df.fieldtype in stylo.model.table_fields:
+			bundle.append(stylo.desk.form.meta.get_meta(df.options, not stylo.conf.developer_mode))
 	return bundle
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_docinfo(doc=None, doctype=None, name=None):
-	from frappe.share import _get_users as get_docshares
+	from stylo.share import _get_users as get_docshares
 
 	if not doc:
-		doc = frappe.get_doc(doctype, name)
+		doc = stylo.get_doc(doctype, name)
 		if not doc.has_permission("read"):
-			raise frappe.PermissionError
+			raise stylo.PermissionError
 
 	all_communications = _get_communications(doc.doctype, doc.name, limit=21)
 	automated_messages = [
@@ -107,7 +107,7 @@ def get_docinfo(doc=None, doctype=None, name=None):
 		msg for msg in all_communications if msg["communication_type"] != "Automated Message"
 	]
 
-	docinfo = frappe._dict(user_info={})
+	docinfo = stylo._dict(user_info={})
 
 	add_comments(doc, docinfo)
 
@@ -127,7 +127,7 @@ def get_docinfo(doc=None, doctype=None, name=None):
 			"energy_point_logs": get_point_logs(doc.doctype, doc.name),
 			"additional_timeline_content": get_additional_timeline_content(doc.doctype, doc.name),
 			"milestones": get_milestones(doc.doctype, doc.name),
-			"is_document_followed": is_document_followed(doc.doctype, doc.name, frappe.session.user),
+			"is_document_followed": is_document_followed(doc.doctype, doc.name, stylo.session.user),
 			"tags": get_tags(doc.doctype, doc.name),
 			"document_email": get_document_email(doc.doctype, doc.name),
 		}
@@ -135,7 +135,7 @@ def get_docinfo(doc=None, doctype=None, name=None):
 
 	update_user_info(docinfo)
 
-	frappe.response["docinfo"] = docinfo
+	stylo.response["docinfo"] = docinfo
 
 
 def add_comments(doc, docinfo):
@@ -148,7 +148,7 @@ def add_comments(doc, docinfo):
 	docinfo.like_logs = []
 	docinfo.workflow_logs = []
 
-	comments = frappe.get_all(
+	comments = stylo.get_all(
 		"Comment",
 		fields=["name", "creation", "content", "owner", "comment_type"],
 		filters={"reference_doctype": doc.doctype, "reference_name": doc.name},
@@ -156,7 +156,7 @@ def add_comments(doc, docinfo):
 
 	for c in comments:
 		if c.comment_type == "Comment":
-			c.content = frappe.utils.markdown(c.content)
+			c.content = stylo.utils.markdown(c.content)
 			docinfo.comments.append(c)
 
 		elif c.comment_type in ("Shared", "Unshared"):
@@ -177,13 +177,13 @@ def add_comments(doc, docinfo):
 		elif c.comment_type == "Workflow":
 			docinfo.workflow_logs.append(c)
 
-		frappe.utils.add_user_info(c.owner, docinfo.user_info)
+		stylo.utils.add_user_info(c.owner, docinfo.user_info)
 
 	return comments
 
 
 def get_milestones(doctype, name):
-	return frappe.get_all(
+	return stylo.get_all(
 		"Milestone",
 		fields=["creation", "owner", "track_field", "value"],
 		filters=dict(reference_type=doctype, reference_name=name),
@@ -191,7 +191,7 @@ def get_milestones(doctype, name):
 
 
 def get_attachments(dt, dn):
-	return frappe.get_all(
+	return stylo.get_all(
 		"File",
 		fields=["name", "file_name", "file_url", "is_private"],
 		filters={"attached_to_name": dn, "attached_to_doctype": dt},
@@ -199,7 +199,7 @@ def get_attachments(dt, dn):
 
 
 def get_versions(doc):
-	return frappe.get_all(
+	return stylo.get_all(
 		"Version",
 		filters=dict(ref_doctype=doc.doctype, docname=str(doc.name)),
 		fields=["name", "owner", "creation", "data"],
@@ -208,18 +208,18 @@ def get_versions(doc):
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_communications(doctype, name, start=0, limit=20):
-	from frappe.utils import cint
+	from stylo.utils import cint
 
-	doc = frappe.get_doc(doctype, name)
+	doc = stylo.get_doc(doctype, name)
 	if not doc.has_permission("read"):
-		raise frappe.PermissionError
+		raise stylo.PermissionError
 
 	return _get_communications(doctype, name, cint(start), cint(limit))
 
 
-def get_comments(doctype: str, name: str, comment_type: str | list[str] = "Comment") -> list[frappe._dict]:
+def get_comments(doctype: str, name: str, comment_type: str | list[str] = "Comment") -> list[stylo._dict]:
 	if isinstance(comment_type, list):
 		comment_types = comment_type
 
@@ -235,7 +235,7 @@ def get_comments(doctype: str, name: str, comment_type: str | list[str] = "Comme
 	else:
 		comment_types = [comment_type]
 
-	comments = frappe.get_all(
+	comments = stylo.get_all(
 		"Comment",
 		fields=["name", "creation", "content", "owner", "comment_type"],
 		filters={
@@ -248,13 +248,13 @@ def get_comments(doctype: str, name: str, comment_type: str | list[str] = "Comme
 	# convert to markdown (legacy ?)
 	for c in comments:
 		if c.comment_type == "Comment":
-			c.content = frappe.utils.markdown(c.content)
+			c.content = stylo.utils.markdown(c.content)
 
 	return comments
 
 
 def get_point_logs(doctype, docname):
-	return frappe.get_all(
+	return stylo.get_all(
 		"Energy Point Log",
 		filters={"reference_doctype": doctype, "reference_name": docname, "type": ["!=", "Review"]},
 		fields=["*"],
@@ -266,7 +266,7 @@ def _get_communications(doctype, name, start=0, limit=20):
 	for c in communications:
 		if c.communication_type in ("Communication", "Automated Message"):
 			c.attachments = json.dumps(
-				frappe.get_all(
+				stylo.get_all(
 					"File",
 					fields=["file_url", "is_private"],
 					filters={"attached_to_doctype": "Communication", "attached_to_name": c.name},
@@ -321,7 +321,7 @@ def get_communication_data(
 		{conditions}
 	"""
 
-	communications = frappe.db.sql(
+	communications = stylo.db.sql(
 		"""
 		SELECT *
 		FROM (({part1}) UNION ({part2})) AS combined
@@ -330,7 +330,7 @@ def get_communication_data(
 		LIMIT %(limit)s
 		OFFSET %(start)s
 	""".format(part1=part1, part2=part2, group_by=(group_by or "")),
-		dict(doctype=doctype, name=name, start=frappe.utils.cint(start), limit=limit),
+		dict(doctype=doctype, name=name, start=stylo.utils.cint(start), limit=limit),
 		as_dict=as_dict,
 	)
 
@@ -338,7 +338,7 @@ def get_communication_data(
 
 
 def get_assignments(dt, dn):
-	return frappe.get_all(
+	return stylo.get_all(
 		"ToDo",
 		fields=["name", "allocated_to as owner", "description", "status"],
 		filters={
@@ -351,15 +351,15 @@ def get_assignments(dt, dn):
 
 
 def run_onload(doc):
-	doc.set("__onload", frappe._dict())
+	doc.set("__onload", stylo._dict())
 	doc.run_method("onload")
 
 
 def get_view_logs(doctype, docname):
 	"""get and return the latest view logs if available"""
 	logs = []
-	if hasattr(frappe.get_meta(doctype), "track_views") and frappe.get_meta(doctype).track_views:
-		view_logs = frappe.get_all(
+	if hasattr(stylo.get_meta(doctype), "track_views") and stylo.get_meta(doctype).track_views:
+		view_logs = stylo.get_all(
 			"View Log",
 			filters={
 				"reference_doctype": doctype,
@@ -377,7 +377,7 @@ def get_view_logs(doctype, docname):
 def get_tags(doctype, name):
 	tags = [
 		tag.tag
-		for tag in frappe.get_all(
+		for tag in stylo.get_all(
 			"Tag Link", filters={"document_type": doctype, "document_name": name}, fields=["tag"]
 		)
 	]
@@ -395,19 +395,19 @@ def get_document_email(doctype, name):
 
 
 def get_automatic_email_link():
-	return frappe.db.get_value(
+	return stylo.db.get_value(
 		"Email Account", {"enable_incoming": 1, "enable_automatic_linking": 1}, "email_id"
 	)
 
 
 def get_additional_timeline_content(doctype, docname):
 	contents = []
-	hooks = frappe.get_hooks().get("additional_timeline_content", {})
+	hooks = stylo.get_hooks().get("additional_timeline_content", {})
 	methods_for_all_doctype = hooks.get("*", [])
 	methods_for_current_doctype = hooks.get(doctype, [])
 
 	for method in methods_for_all_doctype + methods_for_current_doctype:
-		contents.extend(frappe.get_attr(method)(doctype, docname) or [])
+		contents.extend(stylo.get_attr(method)(doctype, docname) or [])
 
 	return contents
 
@@ -424,7 +424,7 @@ def get_title_values_for_link_and_dynamic_link_fields(doc, link_fields=None):
 	link_titles = {}
 
 	if not link_fields:
-		meta = frappe.get_meta(doc.doctype)
+		meta = stylo.get_meta(doc.doctype)
 		link_fields = meta.get_link_fields() + meta.get_dynamic_link_fields()
 
 	for field in link_fields:
@@ -435,11 +435,11 @@ def get_title_values_for_link_and_dynamic_link_fields(doc, link_fields=None):
 
 		doctype = field.options if field.fieldtype == "Link" else doc.get(field.options)
 
-		meta = frappe.get_meta(doctype) if doctype else None
+		meta = stylo.get_meta(doctype) if doctype else None
 		if not meta or not meta.title_field or not meta.show_title_field_in_link:
 			continue
 
-		link_title = frappe.db.get_value(doctype, link_docname, meta.title_field, cache=True, order_by=None)
+		link_title = stylo.db.get_value(doctype, link_docname, meta.title_field, cache=True, order_by=None)
 		link_titles.update({doctype + "::" + link_docname: link_title})
 
 	return link_titles
@@ -449,7 +449,7 @@ def get_title_values_for_table_and_multiselect_fields(doc, table_fields=None):
 	link_titles = {}
 
 	if not table_fields:
-		meta = frappe.get_meta(doc.doctype)
+		meta = stylo.get_meta(doc.doctype)
 		table_fields = meta.get_table_fields()
 
 	for field in table_fields:
@@ -463,31 +463,31 @@ def get_title_values_for_table_and_multiselect_fields(doc, table_fields=None):
 
 
 def send_link_titles(link_titles):
-	"""Append link titles dict in `frappe.local.response`."""
-	if "_link_titles" not in frappe.local.response:
-		frappe.local.response["_link_titles"] = {}
+	"""Append link titles dict in `stylo.local.response`."""
+	if "_link_titles" not in stylo.local.response:
+		stylo.local.response["_link_titles"] = {}
 
-	frappe.local.response["_link_titles"].update(link_titles)
+	stylo.local.response["_link_titles"].update(link_titles)
 
 
 def update_user_info(docinfo):
 	for d in docinfo.communications:
-		frappe.utils.add_user_info(d.sender, docinfo.user_info)
+		stylo.utils.add_user_info(d.sender, docinfo.user_info)
 
 	for d in docinfo.shared:
-		frappe.utils.add_user_info(d.user, docinfo.user_info)
+		stylo.utils.add_user_info(d.user, docinfo.user_info)
 
 	for d in docinfo.assignments:
-		frappe.utils.add_user_info(d.owner, docinfo.user_info)
+		stylo.utils.add_user_info(d.owner, docinfo.user_info)
 
 	for d in docinfo.views:
-		frappe.utils.add_user_info(d.owner, docinfo.user_info)
+		stylo.utils.add_user_info(d.owner, docinfo.user_info)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_user_info_for_viewers(users):
 	user_info = {}
 	for user in json.loads(users):
-		frappe.utils.add_user_info(user, user_info)
+		stylo.utils.add_user_info(user, user_info)
 
 	return user_info

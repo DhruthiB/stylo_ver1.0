@@ -1,21 +1,21 @@
 # Copyright (c) 2022, Stylo Technologies and Contributors
 # See license.txt
 
-import frappe
-from frappe.core.doctype.document_naming_settings.document_naming_settings import (
+import stylo
+from stylo.core.doctype.document_naming_settings.document_naming_settings import (
 	DocumentNamingSettings,
 )
-from frappe.model.naming import NamingSeries, get_default_naming_series
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import cint
+from stylo.model.naming import NamingSeries, get_default_naming_series
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import cint
 
 
 class TestNamingSeries(StyloTestCase):
 	def setUp(self):
-		self.dns: DocumentNamingSettings = frappe.get_doc("Document Naming Settings")
+		self.dns: DocumentNamingSettings = stylo.get_doc("Document Naming Settings")
 
 	def tearDown(self):
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 	def get_valid_serieses(self):
 		VALID_SERIES = ["SINV-", "SI-.{field}.", "SI-#.###", ""]
@@ -36,7 +36,7 @@ class TestNamingSeries(StyloTestCase):
 		naming_info = self.dns.get_transactions_and_prefixes()
 		self.assertIn("Webhook", naming_info["transactions"])
 
-		existing_naming_series = frappe.get_meta("Webhook").get_field("naming_series").options
+		existing_naming_series = stylo.get_meta("Webhook").get_field("naming_series").options
 
 		for series in existing_naming_series.split("\n"):
 			self.assertIn(NamingSeries(series).get_prefix(), naming_info["prefixes"])
@@ -50,7 +50,7 @@ class TestNamingSeries(StyloTestCase):
 		test_series = "KOOHBEW.###"
 		self.dns.naming_series_options = self.dns.get_options() + "\n" + test_series
 		self.dns.update_series()
-		self.assertIn(test_series, frappe.get_meta("Webhook").get_naming_series_options())
+		self.assertIn(test_series, stylo.get_meta("Webhook").get_naming_series_options())
 
 	def test_update_series_counter(self):
 		for series in self.get_valid_serieses():

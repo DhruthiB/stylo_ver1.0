@@ -1,8 +1,8 @@
 import random
 
-import frappe
+import stylo
 
-settings = frappe._dict(
+settings = stylo._dict(
 	prob={
 		"default": {"make": 0.6, "qty": (1, 5)},
 	}
@@ -39,7 +39,7 @@ def get_random(doctype, filters=None, doc=False):
 	else:
 		condition = ""
 
-	out = frappe.db.multisql(
+	out = stylo.db.multisql(
 		{
 			"mariadb": f"""select name from `tab{doctype}` {condition}
 		order by RAND() limit 1 offset 0""",
@@ -51,7 +51,7 @@ def get_random(doctype, filters=None, doc=False):
 	out = out and out[0][0] or None
 
 	if doc and out:
-		return frappe.get_doc(doctype, out)
+		return stylo.get_doc(doctype, out)
 	else:
 		return out
 

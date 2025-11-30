@@ -1,7 +1,7 @@
 // Copyright (c) 2019, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Tag Link", {
+stylo.ui.form.on("Tag Link", {
 	// refresh: function(frm) {
 	// }
 });

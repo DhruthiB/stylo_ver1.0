@@ -1,7 +1,7 @@
 // Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
-frappe.listview_settings["User"] = {
+stylo.listview_settings["User"] = {
 	add_fields: ["enabled", "user_type", "user_image"],
 	filters: [["enabled", "=", 1]],
 	prepare_data: function (data) {
@@ -16,4 +16,4 @@ frappe.listview_settings["User"] = {
 	},
 };
 
-frappe.help.youtube_id["User"] = "8Slw1hsTmUI";
+stylo.help.youtube_id["User"] = "8Slw1hsTmUI";

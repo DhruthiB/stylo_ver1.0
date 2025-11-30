@@ -5,20 +5,20 @@ import re
 
 from jinja2.exceptions import TemplateSyntaxError
 
-import frappe
-from frappe import _
-from frappe.utils import get_datetime, now, quoted, strip_html
-from frappe.utils.jinja import render_template
-from frappe.utils.safe_exec import safe_exec
-from frappe.website.doctype.website_slideshow.website_slideshow import get_slideshow
-from frappe.website.utils import (
+import stylo
+from stylo import _
+from stylo.utils import get_datetime, now, quoted, strip_html
+from stylo.utils.jinja import render_template
+from stylo.utils.safe_exec import safe_exec
+from stylo.website.doctype.website_slideshow.website_slideshow import get_slideshow
+from stylo.website.utils import (
 	extract_title,
 	find_first_image,
 	get_comment_list,
 	get_html_content_based_on_type,
 	get_sidebar_items,
 )
-from frappe.website.website_generator import WebsiteGenerator
+from stylo.website.website_generator import WebsiteGenerator
 
 H_TAG_PATTERN = re.compile("<h.>")
 
@@ -45,7 +45,7 @@ class WebPage(WebsiteGenerator):
 		context.title = self.title
 
 		if self.context_script:
-			_locals = dict(context=frappe._dict())
+			_locals = dict(context=stylo._dict())
 			safe_exec(self.context_script, None, _locals)
 			context.update(_locals["context"])
 
@@ -89,8 +89,8 @@ class WebPage(WebsiteGenerator):
 			or ("{{" in context.main_section)
 		)
 		if is_jinja:
-			frappe.flags.web_block_scripts = {}
-			frappe.flags.web_block_styles = {}
+			stylo.flags.web_block_scripts = {}
+			stylo.flags.web_block_styles = {}
 			try:
 				context["main_section"] = render_template(context.main_section, context)
 				if "<!-- static -->" not in context.main_section:
@@ -98,13 +98,13 @@ class WebPage(WebsiteGenerator):
 			except TemplateSyntaxError:
 				raise
 			finally:
-				frappe.flags.web_block_scripts = {}
-				frappe.flags.web_block_styles = {}
+				stylo.flags.web_block_scripts = {}
+				stylo.flags.web_block_styles = {}
 
 	def set_breadcrumbs(self, context):
 		"""Build breadcrumbs template"""
 		if self.breadcrumbs:
-			context.parents = frappe.safe_eval(self.breadcrumbs, {"_": _})
+			context.parents = stylo.safe_eval(self.breadcrumbs, {"_": _})
 		if "no_breadcrumbs" not in context:
 			if "<!-- no-breadcrumbs -->" in context.main_section:
 				context.no_breadcrumbs = 1
@@ -155,10 +155,10 @@ class WebPage(WebsiteGenerator):
 
 	def check_for_redirect(self, context):
 		if "<!-- redirect:" in context.main_section:
-			frappe.local.flags.redirect_location = (
+			stylo.local.flags.redirect_location = (
 				context.main_section.split("<!-- redirect:", 2)[1].split("-->", 1)[0].strip()
 			)
-			raise frappe.Redirect
+			raise stylo.Redirect
 
 	def set_metatags(self, context):
 		if not context.metatags:
@@ -172,19 +172,19 @@ class WebPage(WebsiteGenerator):
 	def validate_dates(self):
 		if self.end_date:
 			if self.start_date and get_datetime(self.end_date) < get_datetime(self.start_date):
-				frappe.throw(_("End Date cannot be before Start Date!"))
+				stylo.throw(_("End Date cannot be before Start Date!"))
 
 			# If the current date is past end date, and
 			# web page is published, empty the end date
 			if self.published and now() > self.end_date:
 				self.end_date = None
 
-				frappe.msgprint(_("Clearing end date, as it cannot be in the past for published pages."))
+				stylo.msgprint(_("Clearing end date, as it cannot be in the past for published pages."))
 
 
 def check_publish_status():
 	# called via daily scheduler
-	web_pages = frappe.get_all("Web Page", fields=["name", "published", "start_date", "end_date"])
+	web_pages = stylo.get_all("Web Page", fields=["name", "published", "start_date", "end_date"])
 	now_date = get_datetime(now())
 
 	for page in web_pages:
@@ -194,23 +194,23 @@ def check_publish_status():
 		if page.published:
 			# Unpublish pages that are outside the set date ranges
 			if (start_date and now_date < start_date) or (end_date and now_date > end_date):
-				frappe.db.set_value("Web Page", page.name, "published", 0)
+				stylo.db.set_value("Web Page", page.name, "published", 0)
 		else:
 			# Publish pages that are inside the set date ranges
 			if start_date:
 				if not end_date or (end_date and now_date < end_date):
-					frappe.db.set_value("Web Page", page.name, "published", 1)
+					stylo.db.set_value("Web Page", page.name, "published", 1)
 
 
 def get_web_blocks_html(blocks):
 	"""Converts a list of blocks into Raw HTML and extracts out their scripts for deduplication"""
 
-	out = frappe._dict(html="", scripts={}, styles={})
+	out = stylo._dict(html="", scripts={}, styles={})
 	extracted_scripts = {}
 	extracted_styles = {}
 	for block in blocks:
-		web_template = frappe.get_cached_doc("Web Template", block.web_template)
-		rendered_html = frappe.render_template(
+		web_template = stylo.get_cached_doc("Web Template", block.web_template)
+		rendered_html = stylo.render_template(
 			"templates/includes/web_block.html",
 			context={
 				"web_block": block,

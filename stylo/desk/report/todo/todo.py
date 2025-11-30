@@ -1,15 +1,15 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.utils import getdate
+import stylo
+from stylo import _
+from stylo.utils import getdate
 
 
 def execute(filters=None):
 	priority_map = {"High": 3, "Medium": 2, "Low": 1}
 
-	todo_list = frappe.get_list(
+	todo_list = stylo.get_list(
 		"ToDo",
 		fields=[
 			"name",
@@ -44,7 +44,7 @@ def execute(filters=None):
 
 	result = []
 	for todo in todo_list:
-		if todo.owner == frappe.session.user or todo.assigned_by == frappe.session.user:
+		if todo.owner == stylo.session.user or todo.assigned_by == stylo.session.user:
 			if todo.reference_type:
 				todo.reference = """<a href="/app/Form/{}/{}">{}: {}</a>""".format(
 					todo.reference_type,

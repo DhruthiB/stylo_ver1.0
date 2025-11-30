@@ -5,12 +5,12 @@ import json
 import os
 import subprocess
 
-import frappe
-from frappe.desk.form.load import get_attachments
-from frappe.model.document import Document
-from frappe.model.sync import get_doc_files
-from frappe.modules.import_file import import_doc, import_file_by_path
-from frappe.utils import get_files_path
+import stylo
+from stylo.desk.form.load import get_attachments
+from stylo.model.document import Document
+from stylo.model.sync import get_doc_files
+from stylo.modules.import_file import import_doc, import_file_by_path
+from stylo.utils import get_files_path
 
 
 class PackageImport(Document):
@@ -22,14 +22,14 @@ class PackageImport(Document):
 		attachment = get_attachments(self.doctype, self.name)
 
 		if not attachment:
-			frappe.throw(frappe._("Please attach the package"))
+			stylo.throw(stylo._("Please attach the package"))
 
 		attachment = attachment[0]
 
 		# get package_name from file (package_name-0.0.0.tar.gz)
 		package_name = attachment.file_name.split(".", 1)[0].rsplit("-", 1)[0]
-		if not os.path.exists(frappe.get_site_path("packages")):
-			os.makedirs(frappe.get_site_path("packages"))
+		if not os.path.exists(stylo.get_site_path("packages")):
+			os.makedirs(stylo.get_site_path("packages"))
 
 		# extract
 		subprocess.check_output(
@@ -38,17 +38,17 @@ class PackageImport(Document):
 				"xzf",
 				get_files_path(attachment.file_name, is_private=attachment.is_private),
 				"-C",
-				frappe.get_site_path("packages"),
+				stylo.get_site_path("packages"),
 			]
 		)
 
-		package_path = frappe.get_site_path("packages", package_name)
+		package_path = stylo.get_site_path("packages", package_name)
 
 		# import Package
 		with open(os.path.join(package_path, package_name + ".json")) as packagefile:
 			doc_dict = json.loads(packagefile.read())
 
-		frappe.flags.package = import_doc(doc_dict)
+		stylo.flags.package = import_doc(doc_dict)
 
 		# collect modules
 		files = []

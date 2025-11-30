@@ -2,12 +2,12 @@ import os
 
 import click
 
-import frappe
-from frappe.database.db_manager import DbManager
+import stylo
+from stylo.database.db_manager import DbManager
 
 
 def get_mariadb_variables():
-	return frappe._dict(frappe.db.sql("show variables"))
+	return stylo._dict(stylo.db.sql("show variables"))
 
 
 def get_mariadb_version(version_string: str = ""):
@@ -19,10 +19,10 @@ def get_mariadb_version(version_string: str = ""):
 
 
 def setup_database(force, source_sql, verbose, no_mariadb_socket=False):
-	frappe.local.session = frappe._dict({"user": "Administrator"})
+	stylo.local.session = stylo._dict({"user": "Administrator"})
 
-	db_name = frappe.local.conf.db_name
-	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
+	db_name = stylo.local.conf.db_name
+	root_conn = get_root_connection(stylo.flags.root_login, stylo.flags.root_password)
 	dbman = DbManager(root_conn)
 	dbman_kwargs = {}
 	if no_mariadb_socket:
@@ -34,7 +34,7 @@ def setup_database(force, source_sql, verbose, no_mariadb_socket=False):
 	else:
 		raise Exception(f"Database {db_name} already exists")
 
-	dbman.create_user(db_name, frappe.conf.db_password, **dbman_kwargs)
+	dbman.create_user(db_name, stylo.conf.db_password, **dbman_kwargs)
 	if verbose:
 		print("Created user %s" % db_name)
 
@@ -54,7 +54,7 @@ def setup_database(force, source_sql, verbose, no_mariadb_socket=False):
 
 
 def setup_help_database(help_db_name):
-	dbman = DbManager(get_root_connection(frappe.flags.root_login, frappe.flags.root_password))
+	dbman = DbManager(get_root_connection(stylo.flags.root_login, stylo.flags.root_password))
 	dbman.drop_database(help_db_name)
 
 	# make database
@@ -71,8 +71,8 @@ def setup_help_database(help_db_name):
 
 
 def drop_user_and_database(db_name, root_login, root_password):
-	frappe.local.db = get_root_connection(root_login, root_password)
-	dbman = DbManager(frappe.local.db)
+	stylo.local.db = get_root_connection(root_login, root_password)
+	dbman = DbManager(stylo.local.db)
 	dbman.drop_database(db_name)
 	dbman.delete_user(db_name, host="%")
 	dbman.delete_user(db_name)
@@ -81,13 +81,13 @@ def drop_user_and_database(db_name, root_login, root_password):
 def bootstrap_database(db_name, verbose, source_sql=None):
 	import sys
 
-	frappe.connect(db_name=db_name)
+	stylo.connect(db_name=db_name)
 	check_compatible_versions()
 
 	import_db_from_sql(source_sql, verbose)
 
-	frappe.connect(db_name=db_name)
-	if "tabDefaultValue" not in frappe.db.get_tables(cached=False):
+	stylo.connect(db_name=db_name)
+	if "tabDefaultValue" not in stylo.db.get_tables(cached=False):
 		from click import secho
 
 		secho(
@@ -102,10 +102,10 @@ def bootstrap_database(db_name, verbose, source_sql=None):
 def import_db_from_sql(source_sql=None, verbose=False):
 	if verbose:
 		print("Starting database import...")
-	db_name = frappe.conf.db_name
+	db_name = stylo.conf.db_name
 	if not source_sql:
 		source_sql = os.path.join(os.path.dirname(__file__), "framework_mariadb.sql")
-	DbManager(frappe.local.db).restore_database(db_name, source_sql, db_name, frappe.conf.db_password)
+	DbManager(stylo.local.db).restore_database(db_name, source_sql, db_name, stylo.conf.db_password)
 	if verbose:
 		print("Imported from database %s" % source_sql)
 
@@ -135,16 +135,16 @@ def check_compatible_versions():
 def get_root_connection(root_login, root_password):
 	import getpass
 
-	if not frappe.local.flags.root_connection:
+	if not stylo.local.flags.root_connection:
 		if not root_login:
 			root_login = "root"
 
 		if not root_password:
-			root_password = frappe.conf.get("root_password") or None
+			root_password = stylo.conf.get("root_password") or None
 
 		if not root_password:
 			root_password = getpass.getpass("MySQL root password: ")
 
-		frappe.local.flags.root_connection = frappe.database.get_db(user=root_login, password=root_password)
+		stylo.local.flags.root_connection = stylo.database.get_db(user=root_login, password=root_password)
 
-	return frappe.local.flags.root_connection
+	return stylo.local.flags.root_connection

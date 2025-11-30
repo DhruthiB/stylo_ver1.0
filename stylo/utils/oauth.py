@@ -6,22 +6,22 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-import frappe
-import frappe.utils
-from frappe import _
-from frappe.utils.password import get_decrypted_password
+import stylo
+import stylo.utils
+from stylo import _
+from stylo.utils.password import get_decrypted_password
 
 if TYPE_CHECKING:
-	from frappe.core.doctype.user.user import User
+	from stylo.core.doctype.user.user import User
 
 
-class SignupDisabledError(frappe.PermissionError):
+class SignupDisabledError(stylo.PermissionError):
 	...
 
 
 def get_oauth2_providers() -> dict[str, dict]:
 	out = {}
-	providers = frappe.get_all("Social Login Key", fields=["*"])
+	providers = stylo.get_all("Social Login Key", fields=["*"])
 	for provider in providers:
 		authorize_url, access_token_url = provider.authorize_url, provider.access_token_url
 		if provider.custom_base_url:
@@ -49,11 +49,11 @@ def get_oauth2_providers() -> dict[str, dict]:
 def get_oauth_keys(provider: str) -> dict[str, str]:
 	"""get client_id and client_secret from database or conf"""
 
-	if keys := frappe.conf.get(f"{provider}_login"):
+	if keys := stylo.conf.get(f"{provider}_login"):
 		return {"client_id": keys["client_id"], "client_secret": keys["client_secret"]}
 
 	return {
-		"client_id": frappe.db.get_value("Social Login Key", provider, "client_id"),
+		"client_id": stylo.db.get_value("Social Login Key", provider, "client_id"),
 		"client_secret": get_decrypted_password("Social Login Key", provider, "client_secret"),
 	}
 
@@ -62,8 +62,8 @@ def get_oauth2_authorize_url(provider: str, redirect_to: str) -> str:
 	flow = get_oauth2_flow(provider)
 
 	state = {
-		"site": frappe.utils.get_url(),
-		"token": frappe.generate_hash(),
+		"site": stylo.utils.get_url(),
+		"token": stylo.generate_hash(),
 		"redirect_to": redirect_to,
 	}
 
@@ -97,7 +97,7 @@ def get_oauth2_flow(provider: str):
 
 
 def get_redirect_uri(provider: str) -> str:
-	keys = frappe.conf.get(f"{provider}_login")
+	keys = stylo.conf.get(f"{provider}_login")
 
 	if keys and keys.get("redirect_uri"):
 		# this should be a fully qualified redirect uri
@@ -107,7 +107,7 @@ def get_redirect_uri(provider: str) -> str:
 	redirect_uri = oauth2_providers[provider]["redirect_uri"]
 
 	# this uses the site's url + the relative redirect uri
-	return frappe.utils.get_url(redirect_uri)
+	return stylo.utils.get_url(redirect_uri)
 
 
 def login_via_oauth2(provider: str, code: str, state: str, decoder: Callable | None = None):
@@ -155,7 +155,7 @@ def get_info_via_oauth(provider: str, code: str, decoder: Callable | None = None
 			info["email"] = email_dict.get("email")
 
 	if not (info.get("email_verified") or info.get("email")):
-		frappe.throw(_("Email not verified with {0}").format(provider.title()))
+		stylo.throw(_("Email not verified with {0}").format(provider.title()))
 
 	return info
 
@@ -177,13 +177,13 @@ def login_oauth_user(
 		state = json.loads(state.decode("utf-8"))
 
 	if not (state and state["token"]):
-		frappe.respond_as_web_page(_("Invalid Request"), _("Token is missing"), http_status_code=417)
+		stylo.respond_as_web_page(_("Invalid Request"), _("Token is missing"), http_status_code=417)
 		return
 
 	user = get_email(data)
 
 	if not user:
-		frappe.respond_as_web_page(
+		stylo.respond_as_web_page(
 			_("Invalid Request"), _("Please ensure that your profile has an email address")
 		)
 		return
@@ -193,29 +193,29 @@ def login_oauth_user(
 			return
 
 	except SignupDisabledError:
-		return frappe.respond_as_web_page(
+		return stylo.respond_as_web_page(
 			"Signup is Disabled",
 			"Sorry. Signup from Website is disabled.",
 			success=False,
 			http_status_code=403,
 		)
 
-	frappe.local.login_manager.user = user
-	frappe.local.login_manager.post_login()
+	stylo.local.login_manager.user = user
+	stylo.local.login_manager.post_login()
 
 	# because of a GET request!
-	frappe.db.commit()
+	stylo.db.commit()
 
-	if frappe.utils.cint(generate_login_token):
-		login_token = frappe.generate_hash(length=32)
-		frappe.cache().set_value(f"login_token:{login_token}", frappe.local.session.sid, expires_in_sec=120)
+	if stylo.utils.cint(generate_login_token):
+		login_token = stylo.generate_hash(length=32)
+		stylo.cache().set_value(f"login_token:{login_token}", stylo.local.session.sid, expires_in_sec=120)
 
-		frappe.response["login_token"] = login_token
+		stylo.response["login_token"] = login_token
 
 	else:
 		redirect_to = state.get("redirect_to")
 		redirect_post_login(
-			desk_user=frappe.local.response.get("message") == "Logged In",
+			desk_user=stylo.local.response.get("message") == "Logged In",
 			redirect_to=redirect_to,
 			provider=provider,
 		)
@@ -223,15 +223,15 @@ def login_oauth_user(
 
 def get_user_record(user: str, data: dict) -> "User":
 	try:
-		return frappe.get_doc("User", user)
-	except frappe.DoesNotExistError:
-		if frappe.get_website_settings("disable_signup"):
+		return stylo.get_doc("User", user)
+	except stylo.DoesNotExistError:
+		if stylo.get_website_settings("disable_signup"):
 			raise SignupDisabledError
 
-	user: "User" = frappe.new_doc("User")
+	user: "User" = stylo.new_doc("User")
 
 	if gender := data.get("gender", "").title():
-		frappe.get_doc({"doctype": "Gender", "gender": gender}).insert(
+		stylo.get_doc({"doctype": "Gender", "gender": gender}).insert(
 			ignore_permissions=True, ignore_if_duplicate=True
 		)
 
@@ -243,7 +243,7 @@ def get_user_record(user: str, data: dict) -> "User":
 			"email": get_email(data),
 			"gender": gender,
 			"enabled": 1,
-			"new_password": frappe.generate_hash(),
+			"new_password": stylo.generate_hash(),
 			"location": data.get("location"),
 			"user_type": "Website User",
 			"user_image": data.get("picture") or data.get("avatar_url"),
@@ -261,7 +261,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 	update_user_record = user.is_new()
 
 	if not user.enabled:
-		frappe.respond_as_web_page(_("Not Allowed"), _("User {0} is disabled").format(user.email))
+		stylo.respond_as_web_page(_("Not Allowed"), _("User {0} is disabled").format(user.email))
 		return False
 
 	if not user.get_social_login_userid(provider):
@@ -274,13 +274,13 @@ def update_oauth_user(user: str, data: dict, provider: str):
 				user.set_social_login_userid(provider, userid=data["id"])
 			case "github":
 				user.set_social_login_userid(provider, userid=data["id"], username=data.get("login"))
-			case "frappe" | "office_365":
+			case "stylo" | "office_365":
 				user.set_social_login_userid(provider, userid=data["sub"])
 			case "salesforce":
 				user.set_social_login_userid(provider, userid="/".join(data["sub"].split("/")[-2:]))
 			case _:
 				user_id_property = (
-					frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
+					stylo.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
 				)
 				user.set_social_login_userid(provider, userid=data[user_id_property])
 
@@ -288,7 +288,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 		user.flags.ignore_permissions = True
 		user.flags.no_welcome_mail = True
 
-		if default_role := frappe.db.get_single_value("Portal Settings", "default_role"):
+		if default_role := stylo.db.get_single_value("Portal Settings", "default_role"):
 			user.add_roles(default_role)
 
 		user.save()
@@ -307,10 +307,10 @@ def get_email(data: dict) -> str:
 
 
 def redirect_post_login(desk_user: bool, redirect_to: str | None = None, provider: str | None = None):
-	frappe.local.response["type"] = "redirect"
+	stylo.local.response["type"] = "redirect"
 
 	if not redirect_to:
 		desk_uri = "/app/workspace" if provider == "facebook" else "/app"
-		redirect_to = frappe.utils.get_url(desk_uri if desk_user else "/me")
+		redirect_to = stylo.utils.get_url(desk_uri if desk_user else "/me")
 
-	frappe.local.response["location"] = redirect_to
+	stylo.local.response["location"] = redirect_to

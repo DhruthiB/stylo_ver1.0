@@ -1,9 +1,9 @@
 # Copyright (c) 2019, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.core.doctype.data_import.exporter import Exporter
-from frappe.core.doctype.data_import.test_importer import create_doctype_if_not_exists
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.data_import.exporter import Exporter
+from stylo.core.doctype.data_import.test_importer import create_doctype_if_not_exists
+from stylo.tests.utils import StyloTestCase
 
 doctype_name = "DocType for Export"
 
@@ -13,8 +13,8 @@ class TestExporter(StyloTestCase):
 		create_doctype_if_not_exists(doctype_name)
 
 	def test_exports_specified_fields(self):
-		if not frappe.db.exists(doctype_name, "Test"):
-			doc = frappe.get_doc(
+		if not stylo.db.exists(doctype_name, "Test"):
+			doc = stylo.get_doc(
 				doctype=doctype_name,
 				title="Test",
 				description="Test Description",
@@ -33,7 +33,7 @@ class TestExporter(StyloTestCase):
 				],
 			).insert()
 		else:
-			doc = frappe.get_doc(doctype_name, "Test")
+			doc = stylo.get_doc(doctype_name, "Test")
 
 		e = Exporter(
 			doctype_name,
@@ -95,6 +95,6 @@ class TestExporter(StyloTestCase):
 		)
 		e.build_response()
 
-		self.assertTrue(frappe.response["result"])
-		self.assertEqual(frappe.response["doctype"], doctype_name)
-		self.assertEqual(frappe.response["type"], "csv")
+		self.assertTrue(stylo.response["result"])
+		self.assertEqual(stylo.response["doctype"], doctype_name)
+		self.assertEqual(stylo.response["type"], "csv")

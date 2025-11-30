@@ -1,3 +1,3 @@
-frappe.listview_settings["Contact"] = {
+stylo.listview_settings["Contact"] = {
 	add_fields: ["image"],
 };

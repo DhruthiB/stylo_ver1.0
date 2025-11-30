@@ -4,11 +4,11 @@
 
 import hljs from "./syntax_highlight";
 
-frappe.provide("website");
-frappe.provide("frappe.awesome_bar_path");
+stylo.provide("website");
+stylo.provide("stylo.awesome_bar_path");
 window.cur_frm = null;
 
-$.extend(frappe, {
+$.extend(stylo, {
 	boot: {
 		lang: "en",
 	},
@@ -24,7 +24,7 @@ $.extend(frappe, {
 	},
 	add_asset_to_head(link) {
 		return new Promise((resolve) => {
-			if (frappe._assets_loaded.includes(link)) return resolve();
+			if (stylo._assets_loaded.includes(link)) return resolve();
 			let el;
 			if (link.split(".").pop() === "js") {
 				el = document.createElement("script");
@@ -38,7 +38,7 @@ $.extend(frappe, {
 			}
 			document.getElementsByTagName("head")[0].appendChild(el);
 			el.onload = () => {
-				frappe._assets_loaded.push(link);
+				stylo._assets_loaded.push(link);
 				resolve();
 			};
 		});
@@ -48,7 +48,7 @@ $.extend(frappe, {
 	},
 	xcall: function (method, params) {
 		return new Promise((resolve, reject) => {
-			frappe.call({
+			stylo.call({
 				method: method,
 				args: params,
 				callback: (r) => {
@@ -70,9 +70,9 @@ $.extend(frappe, {
 			};
 		}
 
-		frappe.prepare_call(opts);
+		stylo.prepare_call(opts);
 		if (opts.freeze) {
-			frappe.freeze();
+			stylo.freeze();
 		}
 		return $.ajax({
 			type: opts.type || "POST",
@@ -80,15 +80,15 @@ $.extend(frappe, {
 			data: opts.args,
 			dataType: "json",
 			headers: {
-				"X-Stylo-CSRF-Token": frappe.csrf_token,
+				"X-Stylo-CSRF-Token": stylo.csrf_token,
 				"X-Stylo-CMD": (opts.args && opts.args.cmd) || "" || "",
 			},
 			statusCode: opts.statusCode || {
 				404: function () {
-					frappe.msgprint(__("Not found"));
+					stylo.msgprint(__("Not found"));
 				},
 				403: function () {
-					frappe.msgprint(__("Not permitted"));
+					stylo.msgprint(__("Not permitted"));
 				},
 				200: function (data) {
 					if (opts.callback) opts.callback(data);
@@ -97,7 +97,7 @@ $.extend(frappe, {
 			},
 		}).always(function (data) {
 			if (opts.freeze) {
-				frappe.unfreeze();
+				stylo.unfreeze();
 			}
 
 			// executed before statusCode functions
@@ -108,7 +108,7 @@ $.extend(frappe, {
 					data = {};
 				}
 			}
-			frappe.process_response(opts, data);
+			stylo.process_response(opts, data);
 		});
 	},
 	prepare_call: function (opts) {
@@ -160,7 +160,7 @@ $.extend(frappe, {
 			if (opts.error_msg) {
 				$(opts.error_msg).html(server_messages).toggle(true);
 			} else {
-				frappe.msgprint(server_messages);
+				stylo.msgprint(server_messages);
 			}
 		}
 
@@ -194,7 +194,7 @@ $.extend(frappe, {
 	},
 	show_message: function (text, icon) {
 		if (!icon) icon = "fa fa-refresh fa-spin";
-		frappe.hide_message();
+		stylo.hide_message();
 		$('<div class="message-overlay"></div>')
 			.html(
 				'<div class="content"><i class="' +
@@ -206,18 +206,18 @@ $.extend(frappe, {
 			.appendTo(document.body);
 	},
 	send_message: function (opts, btn) {
-		return frappe.call({
+		return stylo.call({
 			type: "POST",
-			method: "frappe.www.contact.send_message",
+			method: "stylo.www.contact.send_message",
 			btn: btn,
 			args: opts,
 			callback: opts.callback,
 		});
 	},
 	has_permission: function (doctype, docname, perm_type, callback) {
-		return frappe.call({
+		return stylo.call({
 			type: "GET",
-			method: "frappe.client.has_permission",
+			method: "stylo.client.has_permission",
 			no_spinner: true,
 			args: { doctype: doctype, docname: docname, perm_type: perm_type },
 			callback: function (r) {
@@ -230,19 +230,19 @@ $.extend(frappe, {
 		});
 	},
 	render_user: function () {
-		if (frappe.is_user_logged_in()) {
+		if (stylo.is_user_logged_in()) {
 			$(".btn-login-area").toggle(false);
 			$(".logged-in").toggle(true);
-			$(".user-image").attr("src", frappe.get_cookie("user_image"));
+			$(".user-image").attr("src", stylo.get_cookie("user_image"));
 
 			$(".user-image-wrapper").html(
-				frappe.avatar(null, "avatar-medium", null, null, null, true)
+				stylo.avatar(null, "avatar-medium", null, null, null, true)
 			);
 			$(".user-image-sidebar").html(
-				frappe.avatar(null, "avatar-medium", null, null, null, true)
+				stylo.avatar(null, "avatar-medium", null, null, null, true)
 			);
 			$(".user-image-myaccount").html(
-				frappe.avatar(null, "avatar-large", null, null, null, true)
+				stylo.avatar(null, "avatar-large", null, null, null, true)
 			);
 		}
 	},
@@ -265,15 +265,15 @@ $.extend(frappe, {
 		} else {
 			$("#freeze").addClass("in");
 		}
-		frappe.freeze_count++;
+		stylo.freeze_count++;
 	},
 	unfreeze: function () {
-		if (!frappe.freeze_count) return; // anything open?
-		frappe.freeze_count--;
-		if (!frappe.freeze_count) {
+		if (!stylo.freeze_count) return; // anything open?
+		stylo.freeze_count--;
+		if (!stylo.freeze_count) {
 			var freeze = $("#freeze").removeClass("in");
 			setTimeout(function () {
-				if (!frappe.freeze_count) {
+				if (!stylo.freeze_count) {
 					freeze.remove();
 				}
 			}, 150);
@@ -281,7 +281,7 @@ $.extend(frappe, {
 	},
 
 	trigger_ready: function () {
-		frappe.ready_events.forEach(function (fn) {
+		stylo.ready_events.forEach(function (fn) {
 			fn();
 		});
 	},
@@ -293,7 +293,7 @@ $.extend(frappe, {
 		// set in select
 		$(".filter").each(function () {
 			var key = $(this).attr("data-key");
-			var val = frappe.utils.get_url_arg(key).replace(/\+/g, " ");
+			var val = stylo.utils.get_url_arg(key).replace(/\+/g, " ");
 
 			if (val) $(this).val(val);
 		});
@@ -314,25 +314,25 @@ $.extend(frappe, {
 		});
 	},
 	bind_navbar_search: function () {
-		frappe.get_navbar_search().on("keypress", function (e) {
+		stylo.get_navbar_search().on("keypress", function (e) {
 			var val = $(this).val();
 			if (e.which === 13 && val) {
 				$(this).val("").blur();
-				frappe.do_search(val);
+				stylo.do_search(val);
 				return false;
 			}
 		});
 	},
 	do_search: function (val) {
 		var path =
-			(frappe.awesome_bar_path && frappe.awesome_bar_path[location.pathname]) ||
+			(stylo.awesome_bar_path && stylo.awesome_bar_path[location.pathname]) ||
 			window.search_path ||
 			location.pathname;
 
 		window.location.href = path + "?txt=" + encodeURIComponent(val);
 	},
 	set_search_path: function (path) {
-		frappe.awesome_bar_path[location.pathname] = path;
+		stylo.awesome_bar_path[location.pathname] = path;
 	},
 	make_navbar_active: function () {
 		var pathname = window.location.pathname;
@@ -349,7 +349,7 @@ $.extend(frappe, {
 		return $(".navbar .search, .sidebar .search");
 	},
 	is_user_logged_in: function () {
-		return frappe.get_cookie("user_id") !== "Guest" && frappe.session.user !== "Guest";
+		return stylo.get_cookie("user_id") !== "Guest" && stylo.session.user !== "Guest";
 	},
 	add_switch_to_desk: function () {
 		$(".switch-to-desk").removeClass("hidden");
@@ -416,14 +416,14 @@ $.extend(frappe, {
 		});
 	},
 	show_language_picker() {
-		if (frappe.session.user === "Guest" && window.show_language_picker) {
-			frappe
-				.call("frappe.translate.get_all_languages", {
+		if (stylo.session.user === "Guest" && window.show_language_picker) {
+			stylo
+				.call("stylo.translate.get_all_languages", {
 					with_language_name: true,
 				})
 				.then((res) => {
 					let language_list = res.message;
-					let language = frappe.get_cookie("preferred_language");
+					let language = stylo.get_cookie("preferred_language");
 					let language_codes = [];
 					let language_switcher = $("#language-switcher .form-control");
 					language_list.forEach((language_doc) => {
@@ -462,7 +462,7 @@ $.extend(frappe, {
 	},
 });
 
-frappe.setup_search = function (target, search_scope) {
+stylo.setup_search = function (target, search_scope) {
 	if (typeof target === "string") {
 		target = $(target);
 	}
@@ -504,15 +504,15 @@ frappe.setup_search = function (target, search_scope) {
 
 	$input.on(
 		"input",
-		frappe.utils.debounce(() => {
+		stylo.utils.debounce(() => {
 			if (!$input.val()) {
 				clear_dropdown();
 				return;
 			}
 
-			frappe
+			stylo
 				.call({
-					method: "frappe.search.web_search",
+					method: "stylo.search.web_search",
 					args: {
 						scope: search_scope || null,
 						query: $input.val(),
@@ -604,7 +604,7 @@ frappe.setup_search = function (target, search_scope) {
 // Utility functions
 window.valid_email = function (id) {
 	// eslint-disable-next-line
-	// copied regex from frappe/utils.js validate_type
+	// copied regex from stylo/utils.js validate_type
 	return /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))$/.test(
 		id.toLowerCase()
 	);
@@ -633,7 +633,7 @@ window.is_html = function is_html(txt) {
 };
 
 window.ask_to_login = function ask_to_login() {
-	if (!frappe.is_user_logged_in()) {
+	if (!stylo.is_user_logged_in()) {
 		if (localStorage) {
 			localStorage.setItem(
 				"last_visited",
@@ -646,21 +646,21 @@ window.ask_to_login = function ask_to_login() {
 
 // check if logged in?
 $(document).ready(function () {
-	window.full_name = frappe.get_cookie("full_name");
-	var logged_in = frappe.is_user_logged_in();
+	window.full_name = stylo.get_cookie("full_name");
+	var logged_in = stylo.is_user_logged_in();
 	$("#website-login").toggleClass("hide", logged_in ? true : false);
 	$("#website-post-login").toggleClass("hide", logged_in ? false : true);
 	$(".logged-in").toggleClass("hide", logged_in ? false : true);
 
-	frappe.bind_navbar_search();
+	stylo.bind_navbar_search();
 
 	// switch to app link
-	if (frappe.get_cookie("system_user") === "yes" && logged_in) {
-		frappe.add_switch_to_desk();
+	if (stylo.get_cookie("system_user") === "yes" && logged_in) {
+		stylo.add_switch_to_desk();
 	}
 
-	frappe.render_user();
-	frappe.setup_lazy_images();
+	stylo.render_user();
+	stylo.setup_lazy_images();
 
 	$(document).trigger("page-change");
 });
@@ -675,15 +675,15 @@ $(document).on("page-change", function () {
 		$(this).parent().parent().parent().addClass("open");
 	});
 
-	$.extend(frappe, frappe.get_cookies());
-	frappe.session = { user: frappe.user_id };
+	$.extend(stylo, stylo.get_cookies());
+	stylo.session = { user: stylo.user_id };
 
-	frappe.datetime.refresh_when();
-	frappe.trigger_ready();
-	frappe.bind_filters();
-	frappe.highlight_code_blocks();
-	frappe.add_link_to_headings();
-	frappe.make_navbar_active();
+	stylo.datetime.refresh_when();
+	stylo.trigger_ready();
+	stylo.bind_filters();
+	stylo.highlight_code_blocks();
+	stylo.add_link_to_headings();
+	stylo.make_navbar_active();
 	// scroll to hash
 	if (window.location.hash) {
 		var element = document.getElementById(window.location.hash.substring(1));
@@ -691,8 +691,8 @@ $(document).on("page-change", function () {
 	}
 });
 
-frappe.ready(function () {
-	frappe.show_language_picker();
-	frappe.setup_videos();
-	frappe.socketio.init(window.socketio_port);
+stylo.ready(function () {
+	stylo.show_language_picker();
+	stylo.setup_videos();
+	stylo.socketio.init(window.socketio_port);
 });

@@ -1,8 +1,8 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class DocField(Document):
@@ -17,7 +17,7 @@ class DocField(Document):
 		if self.fieldtype == "Table MultiSelect":
 			table_doctype = self.options
 
-			link_doctype = frappe.db.get_value(
+			link_doctype = stylo.db.get_value(
 				"DocField",
 				{"fieldtype": "Link", "parenttype": "DocType", "parent": table_doctype, "in_list_view": 1},
 				"options",

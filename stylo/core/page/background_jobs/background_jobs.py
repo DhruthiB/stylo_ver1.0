@@ -3,10 +3,10 @@
 
 from typing import TYPE_CHECKING
 
-import frappe
-from frappe.utils import convert_utc_to_user_timezone
-from frappe.utils.background_jobs import get_queues, get_workers
-from frappe.utils.scheduler import is_scheduler_inactive
+import stylo
+from stylo.utils import convert_utc_to_user_timezone
+from stylo.utils.background_jobs import get_queues, get_workers
+from stylo.utils.scheduler import is_scheduler_inactive
 
 if TYPE_CHECKING:
 	from rq.job import Job
@@ -14,12 +14,12 @@ if TYPE_CHECKING:
 JOB_COLORS = {"queued": "orange", "failed": "red", "started": "blue", "finished": "green"}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_info(view=None, queue_timeout=None, job_status=None) -> list[dict]:
 	jobs = []
 
 	def add_job(job: "Job", queue: str) -> None:
-		if job.kwargs.get("site") == frappe.local.site:
+		if job.kwargs.get("site") == stylo.local.site:
 			job_info = {
 				"job_name": job.kwargs.get("kwargs", {}).get("playbook_method")
 				or job.kwargs.get("kwargs", {}).get("job_type")
@@ -50,7 +50,7 @@ def get_info(view=None, queue_timeout=None, job_status=None) -> list[dict]:
 		for worker in workers:
 			current_job = worker.get_current_job()
 			if current_job:
-				if hasattr(current_job, "kwargs") and current_job.kwargs.get("site") == frappe.local.site:
+				if hasattr(current_job, "kwargs") and current_job.kwargs.get("site") == stylo.local.site:
 					add_job(current_job, current_job.origin)
 				else:
 					jobs.append({"queue": worker.name, "job_name": "busy", "status": "", "creation": ""})
@@ -60,7 +60,7 @@ def get_info(view=None, queue_timeout=None, job_status=None) -> list[dict]:
 	return jobs
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def remove_failed_jobs():
 	queues = get_queues()
 	for queue in queues:
@@ -70,7 +70,7 @@ def remove_failed_jobs():
 			fail_registry.remove(job, delete_job=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_scheduler_status():
 	if is_scheduler_inactive():
 		return {"status": "inactive"}

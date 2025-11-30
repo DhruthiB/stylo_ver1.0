@@ -1,14 +1,14 @@
 # Copyright (c) 2020, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.geo.utils import get_coords
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.geo.utils import get_coords
+from stylo.tests.utils import StyloTestCase
 
 
 class TestGeoUtils(StyloTestCase):
 	def setUp(self):
-		self.todo = frappe.get_doc(
+		self.todo = stylo.get_doc(
 			dict(doctype="ToDo", description="Test description", assigned_by="Administrator")
 		).insert()
 
@@ -22,7 +22,7 @@ class TestGeoUtils(StyloTestCase):
 				}
 			],
 		}
-		self.test_location = frappe.get_doc(
+		self.test_location = stylo.get_doc(
 			{"name": "Test Location", "doctype": "Location", "location": str(self.test_location_dict)}
 		)
 
@@ -41,10 +41,10 @@ class TestGeoUtils(StyloTestCase):
 		self.assertEqual(coords, {"type": "FeatureCollection", "features": []})
 
 	def test_get_coords_from_not_existable_location(self):
-		self.assertRaises(frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "location_field")
+		self.assertRaises(stylo.ValidationError, get_coords, "ToDo", self.test_filter_todo, "location_field")
 
 	def test_get_coords_from_not_existable_coords(self):
-		self.assertRaises(frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "coordinates")
+		self.assertRaises(stylo.ValidationError, get_coords, "ToDo", self.test_filter_todo, "coordinates")
 
 	def tearDown(self):
 		self.todo.delete()

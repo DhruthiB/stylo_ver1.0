@@ -3,43 +3,43 @@
 import datetime
 import json
 
-import frappe
-import frappe.desk.query_report
-from frappe import _, scrub
-from frappe.core.doctype.custom_role.custom_role import get_custom_allowed_roles
-from frappe.core.doctype.page.page import delete_custom_role
-from frappe.desk.reportview import append_totals_row
-from frappe.model.document import Document
-from frappe.modules import make_boilerplate
-from frappe.modules.export_file import export_to_files
-from frappe.utils import cint, cstr
-from frappe.utils.safe_exec import check_safe_sql_query, safe_exec
+import stylo
+import stylo.desk.query_report
+from stylo import _, scrub
+from stylo.core.doctype.custom_role.custom_role import get_custom_allowed_roles
+from stylo.core.doctype.page.page import delete_custom_role
+from stylo.desk.reportview import append_totals_row
+from stylo.model.document import Document
+from stylo.modules import make_boilerplate
+from stylo.modules.export_file import export_to_files
+from stylo.utils import cint, cstr
+from stylo.utils.safe_exec import check_safe_sql_query, safe_exec
 
 
 class Report(Document):
 	def validate(self):
 		"""only administrator can save standard report"""
 		if not self.module:
-			self.module = frappe.db.get_value("DocType", self.ref_doctype, "module")
+			self.module = stylo.db.get_value("DocType", self.ref_doctype, "module")
 
 		if not self.is_standard:
 			self.is_standard = "No"
 			if (
-				frappe.session.user == "Administrator"
-				and getattr(frappe.local.conf, "developer_mode", 0) == 1
+				stylo.session.user == "Administrator"
+				and getattr(stylo.local.conf, "developer_mode", 0) == 1
 			):
 				self.is_standard = "Yes"
 
 		if self.is_standard == "No":
 			# allow only script manager to edit scripts
 			if self.report_type != "Report Builder":
-				frappe.only_for("Script Manager", True)
+				stylo.only_for("Script Manager", True)
 
-			if frappe.db.get_value("Report", self.name, "is_standard") == "Yes":
-				frappe.throw(_("Cannot edit a standard report. Please duplicate and create a new report"))
+			if stylo.db.get_value("Report", self.name, "is_standard") == "Yes":
+				stylo.throw(_("Cannot edit a standard report. Please duplicate and create a new report"))
 
-		if self.is_standard == "Yes" and frappe.session.user != "Administrator":
-			frappe.throw(_("Only Administrator can save a standard report. Please rename and save."))
+		if self.is_standard == "Yes" and stylo.session.user != "Administrator":
+			stylo.throw(_("Only Administrator can save a standard report. Please rename and save."))
 
 		if self.report_type == "Report Builder":
 			self.update_report_json()
@@ -53,28 +53,28 @@ class Report(Document):
 	def on_trash(self):
 		if (
 			self.is_standard == "Yes"
-			and not cint(getattr(frappe.local.conf, "developer_mode", 0))
-			and not frappe.flags.in_patch
+			and not cint(getattr(stylo.local.conf, "developer_mode", 0))
+			and not stylo.flags.in_patch
 		):
-			frappe.throw(_("You are not allowed to delete Standard Report"))
+			stylo.throw(_("You are not allowed to delete Standard Report"))
 		delete_custom_role("report", self.name)
 
 	def get_columns(self):
 		return [d.as_dict(no_default_fields=True, no_child_table_fields=True) for d in self.columns]
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def set_doctype_roles(self):
 		if not self.get("roles") and self.is_standard == "No":
-			meta = frappe.get_meta(self.ref_doctype)
+			meta = stylo.get_meta(self.ref_doctype)
 			if not meta.istable:
 				roles = [{"role": d.role} for d in meta.permissions if d.permlevel == 0]
 				self.set("roles", roles)
 
 	def is_permitted(self):
 		"""Returns true if Has Role is not set or the user is allowed."""
-		from frappe.utils import has_common
+		from stylo.utils import has_common
 
-		allowed = [d.role for d in frappe.get_all("Has Role", fields=["role"], filters={"parent": self.name})]
+		allowed = [d.role for d in stylo.get_all("Has Role", fields=["role"], filters={"parent": self.name})]
 
 		custom_roles = get_custom_allowed_roles("report", self.name)
 
@@ -84,7 +84,7 @@ class Report(Document):
 		if not allowed:
 			return True
 
-		if has_common(frappe.get_roles(), allowed):
+		if has_common(stylo.get_roles(), allowed):
 			return True
 
 	def update_report_json(self):
@@ -92,10 +92,10 @@ class Report(Document):
 			self.json = "{}"
 
 	def export_doc(self):
-		if frappe.flags.in_import:
+		if stylo.flags.in_import:
 			return
 
-		if self.is_standard == "Yes" and (frappe.local.conf.get("developer_mode") or 0) == 1:
+		if self.is_standard == "Yes" and (stylo.local.conf.get("developer_mode") or 0) == 1:
 			export_to_files(record_list=[["Report", self.name]], record_module=self.module, create_init=True)
 
 			self.create_report_py()
@@ -107,12 +107,12 @@ class Report(Document):
 
 	def execute_query_report(self, filters):
 		if not self.query:
-			frappe.throw(_("Must specify a Query to run"), title=_("Report Document Error"))
+			stylo.throw(_("Must specify a Query to run"), title=_("Report Document Error"))
 
 		check_safe_sql_query(self.query)
 
-		result = [list(t) for t in frappe.db.sql(self.query, filters)]
-		columns = self.get_columns() or [cstr(c[0]) for c in frappe.db.get_description()]
+		result = [list(t) for t in stylo.db.sql(self.query, filters)]
+		columns = self.get_columns() or [cstr(c[0]) for c in stylo.db.get_description()]
 
 		return [columns, result]
 
@@ -131,22 +131,22 @@ class Report(Document):
 
 		# automatically set as prepared
 		execution_time = (datetime.datetime.now() - start_time).total_seconds()
-		if execution_time > threshold and not self.prepared_report and not frappe.conf.developer_mode:
-			frappe.enqueue(enable_prepared_report, report=self.name)
+		if execution_time > threshold and not self.prepared_report and not stylo.conf.developer_mode:
+			stylo.enqueue(enable_prepared_report, report=self.name)
 
-		frappe.cache().hset("report_execution_time", self.name, execution_time)
+		stylo.cache().hset("report_execution_time", self.name, execution_time)
 
 		return res
 
 	def execute_module(self, filters):
 		# report in python module
-		module = self.module or frappe.db.get_value("DocType", self.ref_doctype, "module")
+		module = self.module or stylo.db.get_value("DocType", self.ref_doctype, "module")
 		method_name = get_report_module_dotted_path(module, self.name) + ".execute"
-		return frappe.get_attr(method_name)(frappe._dict(filters))
+		return stylo.get_attr(method_name)(stylo._dict(filters))
 
 	def execute_script(self, filters):
 		# server script
-		loc = {"filters": frappe._dict(filters), "data": None, "result": None}
+		loc = {"filters": stylo._dict(filters), "data": None, "result": None}
 		safe_exec(self.report_script, None, loc)
 		if loc["data"]:
 			return loc["data"]
@@ -178,7 +178,7 @@ class Report(Document):
 		self, filters=None, user=None, ignore_prepared_report=False, are_default_filters=True
 	):
 		columns, result = [], []
-		data = frappe.desk.query_report.run(
+		data = stylo.desk.query_report.run(
 			self.name,
 			filters=filters,
 			user=user,
@@ -188,7 +188,7 @@ class Report(Document):
 
 		for d in data.get("columns"):
 			if isinstance(d, dict):
-				col = frappe._dict(d)
+				col = stylo._dict(d)
 				if not col.fieldname:
 					col.fieldname = col.label
 				columns.append(col)
@@ -202,7 +202,7 @@ class Report(Document):
 							fieldtype, options = fieldtype.split("/")
 
 				columns.append(
-					frappe._dict(label=parts[0], fieldtype=fieldtype, fieldname=parts[0], options=options)
+					stylo._dict(label=parts[0], fieldtype=fieldtype, fieldname=parts[0], options=options)
 				)
 
 		result += data.get("result")
@@ -215,7 +215,7 @@ class Report(Document):
 		result = []
 		order_by, group_by, group_by_args = self.get_standard_report_order_by(params)
 
-		_result = frappe.get_list(
+		_result = stylo.get_list(
 			self.ref_doctype,
 			fields=[
 				get_group_by_field(group_by_args, c[1])
@@ -254,7 +254,7 @@ class Report(Document):
 			columns = params.get("fields")
 		else:
 			columns = [["name", self.ref_doctype]]
-			for df in frappe.get_meta(self.ref_doctype).fields:
+			for df in stylo.get_meta(self.ref_doctype).fields:
 				if df.in_list_view:
 					columns.append([df.fieldname, self.ref_doctype])
 
@@ -292,7 +292,7 @@ class Report(Document):
 
 		group_by = None
 		if params.get("group_by"):
-			group_by_args = frappe._dict(params["group_by"])
+			group_by_args = stylo._dict(params["group_by"])
 			group_by = group_by_args["group_by"]
 			order_by = "_aggregate_column desc"
 
@@ -302,7 +302,7 @@ class Report(Document):
 		_columns = []
 
 		for fieldname, doctype in columns:
-			meta = frappe.get_meta(doctype)
+			meta = stylo.get_meta(doctype)
 
 			if meta.get_field(fieldname):
 				field = meta.get_field(fieldname)
@@ -312,7 +312,7 @@ class Report(Document):
 				else:
 					label = meta.get_label(fieldname)
 
-				field = frappe._dict(fieldname=fieldname, label=label)
+				field = stylo._dict(fieldname=fieldname, label=label)
 
 				# since name is the primary key for a document, it will always be a Link datatype
 				if fieldname == "name":
@@ -326,39 +326,39 @@ class Report(Document):
 		data = []
 		for row in result:
 			if isinstance(row, list | tuple):
-				_row = frappe._dict()
+				_row = stylo._dict()
 				for i, val in enumerate(row):
 					_row[columns[i].get("fieldname")] = val
 			elif isinstance(row, dict):
 				# no need to convert from dict to dict
-				_row = frappe._dict(row)
+				_row = stylo._dict(row)
 			data.append(_row)
 
 		return data
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def toggle_disable(self, disable):
 		if not self.has_permission("write"):
-			frappe.throw(_("You are not allowed to edit the report."))
+			stylo.throw(_("You are not allowed to edit the report."))
 
 		self.db_set("disabled", cint(disable))
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def enable_prepared_report(self):
 		enable_prepared_report(self.name)
-		frappe.msgprint(_("Prepared Report Enabled"))
+		stylo.msgprint(_("Prepared Report Enabled"))
 
 
 def is_prepared_report_disabled(report):
 	return (
-		frappe.db.get_value("Report", report, "disable_prepared_report")
-		and not frappe.db.get_value("Report", report, "prepared_report")
+		stylo.db.get_value("Report", report, "disable_prepared_report")
+		and not stylo.db.get_value("Report", report, "prepared_report")
 	) or 0
 
 
 def get_report_module_dotted_path(module, report_name):
 	return (
-		frappe.local.module_app[scrub(module)]
+		stylo.local.module_app[scrub(module)]
 		+ "."
 		+ scrub(module)
 		+ ".report."
@@ -388,5 +388,5 @@ def get_group_by_column_label(args, meta):
 
 
 def enable_prepared_report(report: str):
-	frappe.db.set_value("Report", report, "prepared_report", 1)
-	frappe.db.set_value("Report", report, "disable_prepared_report", 0)
+	stylo.db.set_value("Report", report, "prepared_report", 1)
+	stylo.db.set_value("Report", report, "disable_prepared_report", 0)

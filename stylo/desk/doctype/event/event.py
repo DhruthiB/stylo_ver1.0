@@ -4,15 +4,15 @@
 
 import json
 
-import frappe
-from frappe import _
-from frappe.contacts.doctype.contact.contact import get_default_contact
-from frappe.desk.doctype.notification_settings.notification_settings import (
+import stylo
+from stylo import _
+from stylo.contacts.doctype.contact.contact import get_default_contact
+from stylo.desk.doctype.notification_settings.notification_settings import (
 	is_email_notifications_enabled_for_type,
 )
-from frappe.desk.reportview import get_filters_cond
-from frappe.model.document import Document
-from frappe.utils import (
+from stylo.desk.reportview import get_filters_cond
+from stylo.model.document import Document
+from stylo.utils import (
 	add_days,
 	add_months,
 	cint,
@@ -24,7 +24,7 @@ from frappe.utils import (
 	now_datetime,
 	nowdate,
 )
-from frappe.utils.user import get_enabled_system_users
+from stylo.utils.user import get_enabled_system_users
 
 weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 communication_mapping = {
@@ -49,10 +49,10 @@ class Event(Document):
 			self.validate_from_to_dates("starts_on", "ends_on")
 
 		if self.repeat_on == "Daily" and self.ends_on and getdate(self.starts_on) != getdate(self.ends_on):
-			frappe.throw(_("Daily Events should finish on the Same Day."))
+			stylo.throw(_("Daily Events should finish on the Same Day."))
 
 		if self.sync_with_google_calendar and not self.google_calendar:
-			frappe.throw(_("Select Google Calendar to which event should be synced."))
+			stylo.throw(_("Select Google Calendar to which event should be synced."))
 
 		if not self.sync_with_google_calendar:
 			self.add_video_conferencing = 0
@@ -64,12 +64,12 @@ class Event(Document):
 		self.sync_communication()
 
 	def on_trash(self):
-		communications = frappe.get_all(
+		communications = stylo.get_all(
 			"Communication", dict(reference_doctype=self.doctype, reference_name=self.name)
 		)
 		if communications:
 			for communication in communications:
-				frappe.delete_doc_if_exists("Communication", communication.name)
+				stylo.delete_doc_if_exists("Communication", communication.name)
 
 	def sync_communication(self):
 		if self.event_participants:
@@ -80,17 +80,17 @@ class Event(Document):
 					["Communication Link", "link_doctype", "=", participant.reference_doctype],
 					["Communication Link", "link_name", "=", participant.reference_docname],
 				]
-				if comms := frappe.get_all("Communication", filters=filters, fields=["name"], distinct=True):
+				if comms := stylo.get_all("Communication", filters=filters, fields=["name"], distinct=True):
 					for comm in comms:
-						communication = frappe.get_doc("Communication", comm.name)
+						communication = stylo.get_doc("Communication", comm.name)
 						self.update_communication(participant, communication)
 				else:
-					meta = frappe.get_meta(participant.reference_doctype)
+					meta = stylo.get_meta(participant.reference_doctype)
 					if hasattr(meta, "allow_events_in_timeline") and meta.allow_events_in_timeline == 1:
 						self.create_communication(participant)
 
 	def create_communication(self, participant):
-		communication = frappe.new_doc("Communication")
+		communication = stylo.new_doc("Communication")
 		self.update_communication(participant, communication)
 		self.communication = communication.name
 
@@ -100,7 +100,7 @@ class Event(Document):
 		communication.content = self.description if self.description else self.subject
 		communication.communication_date = self.starts_on
 		communication.sender = self.owner
-		communication.sender_full_name = frappe.utils.get_fullname(self.owner)
+		communication.sender_full_name = stylo.utils.get_fullname(self.owner)
 		communication.reference_doctype = self.doctype
 		communication.reference_name = self.name
 		communication.communication_medium = (
@@ -147,13 +147,13 @@ class Event(Document):
 				participant_contact = participant.reference_docname
 
 			participant.email = (
-				frappe.get_value("Contact", participant_contact, "email_id") if participant_contact else None
+				stylo.get_value("Contact", participant_contact, "email_id") if participant_contact else None
 			)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def delete_communication(event, reference_doctype, reference_docname):
-	deleted_participant = frappe.get_doc(reference_doctype, reference_docname)
+	deleted_participant = stylo.get_doc(reference_doctype, reference_docname)
 	if isinstance(event, str):
 		event = json.loads(event)
 
@@ -164,12 +164,12 @@ def delete_communication(event, reference_doctype, reference_docname):
 		["Communication Link", "link_name", "=", deleted_participant.reference_docname],
 	]
 
-	comms = frappe.get_list("Communication", filters=filters, fields=["name"])
+	comms = stylo.get_list("Communication", filters=filters, fields=["name"])
 
 	if comms:
 		deletion = []
 		for comm in comms:
-			delete = frappe.get_doc("Communication", comm.name).delete()
+			delete = stylo.get_doc("Communication", comm.name).delete()
 			deletion.append(delete)
 
 		return deletion
@@ -179,8 +179,8 @@ def delete_communication(event, reference_doctype, reference_docname):
 
 def get_permission_query_conditions(user):
 	if not user:
-		user = frappe.session.user
-	return f"""(`tabEvent`.`event_type`='Public' or `tabEvent`.`owner`={frappe.db.escape(user)})"""
+		user = stylo.session.user
+	return f"""(`tabEvent`.`event_type`='Public' or `tabEvent`.`owner`={stylo.db.escape(user)})"""
 
 
 def has_permission(doc, user):
@@ -203,28 +203,28 @@ def send_event_digest():
 	for user in users:
 		events = get_events(today, today, user.name, for_reminder=True)
 		if events:
-			frappe.set_user_lang(user.name, user.language)
+			stylo.set_user_lang(user.name, user.language)
 
 			for e in events:
 				e.starts_on = format_datetime(e.starts_on, "hh:mm a")
 				if e.all_day:
 					e.starts_on = "All Day"
 
-			frappe.sendmail(
+			stylo.sendmail(
 				recipients=user.email,
-				subject=frappe._("Upcoming Events for Today"),
+				subject=stylo._("Upcoming Events for Today"),
 				template="upcoming_events",
 				args={
 					"events": events,
 				},
-				header=[frappe._("Events in Today's Calendar"), "blue"],
+				header=[stylo._("Events in Today's Calendar"), "blue"],
 			)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_events(start, end, user=None, for_reminder=False, filters=None):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
 	if isinstance(filters, str):
 		filters = json.loads(filters)
@@ -235,7 +235,7 @@ def get_events(start, end, user=None, for_reminder=False, filters=None):
 	if "`tabEvent Participants`" in filter_condition:
 		tables.append("`tabEvent Participants`")
 
-	events = frappe.db.sql(
+	events = stylo.db.sql(
 		"""
 		SELECT `tabEvent`.name,
 				`tabEvent`.subject,
@@ -412,7 +412,7 @@ def get_events(start, end, user=None, for_reminder=False, filters=None):
 
 
 def delete_events(ref_type, ref_name, delete_event=False):
-	participations = frappe.get_all(
+	participations = stylo.get_all(
 		"Event Participants",
 		filters={"reference_doctype": ref_type, "reference_docname": ref_name, "parenttype": "Event"},
 		fields=["parent", "name"],
@@ -421,22 +421,22 @@ def delete_events(ref_type, ref_name, delete_event=False):
 	if participations:
 		for participation in participations:
 			if delete_event:
-				frappe.delete_doc("Event", participation.parent, for_reload=True)
+				stylo.delete_doc("Event", participation.parent, for_reload=True)
 			else:
-				total_participants = frappe.get_all(
+				total_participants = stylo.get_all(
 					"Event Participants", filters={"parenttype": "Event", "parent": participation.parent}
 				)
 
 				if len(total_participants) <= 1:
-					frappe.db.delete("Event", {"name": participation.parent})
-					frappe.db.delete("Event Participants", {"name": participation.name})
+					stylo.db.delete("Event", {"name": participation.parent})
+					stylo.db.delete("Event Participants", {"name": participation.name})
 
 
 # Close events if ends_on or repeat_till is less than now_datetime
 def set_status_of_events():
-	events = frappe.get_list("Event", filters={"status": "Open"}, fields=["name", "ends_on", "repeat_till"])
+	events = stylo.get_list("Event", filters={"status": "Open"}, fields=["name", "ends_on", "repeat_till"])
 	for event in events:
 		if (event.ends_on and getdate(event.ends_on) < getdate(nowdate())) or (
 			event.repeat_till and getdate(event.repeat_till) < getdate(nowdate())
 		):
-			frappe.db.set_value("Event", event.name, "status", "Closed")
+			stylo.db.set_value("Event", event.name, "status", "Closed")

@@ -1,10 +1,10 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import cint, get_fullname
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import cint, get_fullname
 
 exclude_from_linked_with = True
 
@@ -27,26 +27,26 @@ class DocShare(Document):
 
 	def get_doc(self):
 		if not getattr(self, "_doc", None):
-			self._doc = frappe.get_doc(self.share_doctype, self.share_name)
+			self._doc = stylo.get_doc(self.share_doctype, self.share_name)
 		return self._doc
 
 	def validate_user(self):
 		if self.everyone:
 			self.user = None
 		elif not self.user:
-			frappe.throw(_("User is mandatory for Share"), frappe.MandatoryError)
+			stylo.throw(_("User is mandatory for Share"), stylo.MandatoryError)
 
 	def check_share_permission(self):
-		if not self.flags.ignore_share_permission and not frappe.has_permission(
+		if not self.flags.ignore_share_permission and not stylo.has_permission(
 			self.share_doctype, "share", self.get_doc()
 		):
-			frappe.throw(_('You need to have "Share" permission'), frappe.PermissionError)
+			stylo.throw(_('You need to have "Share" permission'), stylo.PermissionError)
 
 	def check_is_submittable(self):
-		if self.submit and not cint(frappe.db.get_value("DocType", self.share_doctype, "is_submittable")):
-			frappe.throw(
+		if self.submit and not cint(stylo.db.get_value("DocType", self.share_doctype, "is_submittable")):
+			stylo.throw(
 				_("Cannot share {0} with submit permission as the doctype {1} is not submittable").format(
-					frappe.bold(self.share_name), frappe.bold(self.share_doctype)
+					stylo.bold(self.share_name), stylo.bold(self.share_doctype)
 				)
 			)
 
@@ -75,5 +75,5 @@ class DocShare(Document):
 
 def on_doctype_update():
 	"""Add index in `tabDocShare` for `(user, share_doctype)`"""
-	frappe.db.add_index("DocShare", ["user", "share_doctype"])
-	frappe.db.add_index("DocShare", ["share_doctype", "share_name"])
+	stylo.db.add_index("DocShare", ["user", "share_doctype"])
+	stylo.db.add_index("DocShare", ["share_doctype", "share_name"])

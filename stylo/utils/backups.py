@@ -14,9 +14,9 @@ import click
 from cryptography.fernet import Fernet
 
 # imports - module imports
-import frappe
-from frappe import conf
-from frappe.utils import cint, get_file_size, get_url, now, now_datetime
+import stylo
+from stylo import conf
+from stylo.utils import cint, get_file_size, get_url, now, now_datetime
 
 # backup variable for backwards compatibility
 verbose = False
@@ -75,9 +75,9 @@ class BackupGenerator:
 		if not self.db_type:
 			self.db_type = "mariadb"
 
-		self.db_port = self.db_port or frappe.db.default_port
+		self.db_port = self.db_port or stylo.db.default_port
 
-		site = frappe.local.site or frappe.generate_hash(length=8)
+		site = stylo.local.site or stylo.generate_hash(length=8)
 		self.site_slug = site.replace(".", "_")
 		self.verbose = verbose
 		self.setup_backup_directory()
@@ -113,14 +113,14 @@ class BackupGenerator:
 
 	def setup_backup_tables(self):
 		"""Sets self.backup_includes, self.backup_excludes based on passed args"""
-		existing_tables = frappe.db.get_tables()
+		existing_tables = stylo.db.get_tables()
 
 		def get_tables(doctypes):
 			tables = []
 			for doctype in doctypes:
 				if not doctype:
 					continue
-				table = frappe.utils.get_table_name(doctype)
+				table = stylo.utils.get_table_name(doctype)
 				if table in existing_tables:
 					tables.append(table)
 			return tables
@@ -129,12 +129,12 @@ class BackupGenerator:
 			"include": get_tables(self.include_doctypes.strip().split(",")),
 			"exclude": get_tables(self.exclude_doctypes.strip().split(",")),
 		}
-		specified_tables = get_tables(frappe.conf.get("backup", {}).get("includes", []))
+		specified_tables = get_tables(stylo.conf.get("backup", {}).get("includes", []))
 		include_tables = (specified_tables + base_tables) if specified_tables else []
 
 		conf_tables = {
 			"include": include_tables,
-			"exclude": get_tables(frappe.conf.get("backup", {}).get("excludes", [])),
+			"exclude": get_tables(stylo.conf.get("backup", {}).get("excludes", [])),
 		}
 
 		self.backup_includes = passed_tables["include"]
@@ -192,7 +192,7 @@ class BackupGenerator:
 			if not ignore_files:
 				self.backup_files()
 
-			if frappe.get_system_settings("encrypt_backup"):
+			if stylo.get_system_settings("encrypt_backup"):
 				self.backup_encryption()
 
 		else:
@@ -204,7 +204,7 @@ class BackupGenerator:
 	def set_backup_file_name(self):
 		partial = "-partial" if self.partial else ""
 		ext = "tgz" if self.compress_files else "tar"
-		enc = "-enc" if frappe.get_system_settings("encrypt_backup") else ""
+		enc = "-enc" if stylo.get_system_settings("encrypt_backup") else ""
 		self.todays_date = now_datetime().strftime("%Y%m%d_%H%M%S")
 
 		for_conf = f"{self.todays_date}-{self.site_slug}-site_config_backup{enc}.json"
@@ -239,7 +239,7 @@ class BackupGenerator:
 						filelocation=path,
 					)
 
-					frappe.utils.execute_in_shell(command)
+					stylo.utils.execute_in_shell(command)
 					os.rename(path + ".gpg", path)
 
 				except Exception as err:
@@ -251,7 +251,7 @@ class BackupGenerator:
 	def get_recent_backup(self, older_than, partial=False):
 		backup_path = get_backup_path()
 
-		if not frappe.get_system_settings("encrypt_backup"):
+		if not stylo.get_system_settings("encrypt_backup"):
 			file_type_slugs = {
 				"database": "*-{{}}-{}database.sql.gz".format("*" if partial else ""),
 				"public": "*-{}-files.tar",
@@ -332,7 +332,7 @@ class BackupGenerator:
 
 	def print_summary(self):
 		backup_summary = self.get_summary()
-		print(f"Backup Summary for {frappe.local.site} at {now()}")
+		print(f"Backup Summary for {stylo.local.site} at {now()}")
 
 		title = max(len(x) for x in backup_summary)
 		path = max(len(x["path"]) for x in backup_summary.values())
@@ -343,7 +343,7 @@ class BackupGenerator:
 
 	def backup_files(self):
 		for folder in ("public", "private"):
-			files_path = frappe.get_site_path(folder, "files")
+			files_path = stylo.get_site_path(folder, "files")
 			backup_path = self.backup_path_files if folder == "public" else self.backup_path_private_files
 
 			if self.compress_files:
@@ -351,20 +351,20 @@ class BackupGenerator:
 			else:
 				cmd_string = "tar -cf {0} {1}"
 
-			frappe.utils.execute_in_shell(
+			stylo.utils.execute_in_shell(
 				cmd_string.format(backup_path, files_path), verbose=self.verbose, low_priority=True
 			)
 
 	def copy_site_config(self):
 		site_config_backup_path = self.backup_path_conf
-		site_config_path = os.path.join(frappe.get_site_path(), "site_config.json")
+		site_config_path = os.path.join(stylo.get_site_path(), "site_config.json")
 
 		with open(site_config_backup_path, "w") as n, open(site_config_path) as c:
 			n.write(c.read())
 
 	def take_dump(self):
-		import frappe.utils
-		from frappe.utils.change_log import get_app_branch
+		import stylo.utils
+		from stylo.utils.change_log import get_app_branch
 
 		db_exc = {
 			"mariadb": ("mysqldump", which("mysqldump")),
@@ -374,19 +374,19 @@ class BackupGenerator:
 
 		if not (gzip_exc and db_exc[1]):
 			_exc = "gzip" if not gzip_exc else db_exc[0]
-			frappe.throw(
-				f"{_exc} not found in PATH! This is required to take a backup.", exc=frappe.ExecutableNotFound
+			stylo.throw(
+				f"{_exc} not found in PATH! This is required to take a backup.", exc=stylo.ExecutableNotFound
 			)
 		db_exc = db_exc[0]
 
 		database_header_content = [
-			f"Backup generated by Stylo {frappe.__version__} on branch {get_app_branch('frappe') or 'N/A'}",
+			f"Backup generated by Stylo {stylo.__version__} on branch {get_app_branch('stylo') or 'N/A'}",
 			"",
 		]
 
 		# escape reserved characters
-		args = frappe._dict(
-			[item[0], frappe.utils.esc(str(item[1]), "$ ")] for item in self.__dict__.copy().items()
+		args = stylo._dict(
+			[item[0], stylo.utils.esc(str(item[1]), "$ ")] for item in self.__dict__.copy().items()
 		)
 
 		if self.backup_includes:
@@ -399,7 +399,7 @@ class BackupGenerator:
 				print("".join(backup_info), "\n")
 			database_header_content.extend(
 				[
-					f"Partial Backup of Stylo Site {frappe.local.site}",
+					f"Partial Backup of Stylo Site {stylo.local.site}",
 					("Backup contains: " if self.backup_includes else "Backup excludes: ") + backup_info[1],
 					"",
 				]
@@ -431,7 +431,7 @@ class BackupGenerator:
 				args["include"] = " ".join([f"'{x}'" for x in self.backup_includes])
 			elif self.backup_excludes:
 				args["exclude"] = " ".join(
-					[f"--ignore-table='{frappe.conf.db_name}.{table}'" for table in self.backup_excludes]
+					[f"--ignore-table='{stylo.conf.db_name}.{table}'" for table in self.backup_excludes]
 				)
 
 			cmd_string = (
@@ -458,13 +458,13 @@ class BackupGenerator:
 		if self.verbose:
 			print(command.replace(args.password, "*" * 10) + "\n")
 
-		frappe.utils.execute_in_shell(command, low_priority=True, check_exit_code=True)
+		stylo.utils.execute_in_shell(command, low_priority=True, check_exit_code=True)
 
 	def send_email(self):
 		"""
 		Sends the link to backup file located at erpnext/backups
 		"""
-		from frappe.email import get_system_managers
+		from stylo.email import get_system_managers
 
 		recipient_list = get_system_managers()
 		db_backup_url = get_url(os.path.join("backups", os.path.basename(self.backup_path_db)))
@@ -483,11 +483,11 @@ download only after 24 hours."""
 		datetime_str = datetime.fromtimestamp(os.stat(self.backup_path_db).st_ctime)
 		subject = datetime_str.strftime("%d/%m/%Y %H:%M:%S") + """ - Backup ready to be downloaded"""
 
-		frappe.sendmail(recipients=recipient_list, message=msg, subject=subject)
+		stylo.sendmail(recipients=recipient_list, message=msg, subject=subject)
 		return recipient_list
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def fetch_latest_backups(partial=False):
 	"""Fetches paths of the latest backup taken in the last 30 days
 	Only for: System Managers
@@ -495,14 +495,14 @@ def fetch_latest_backups(partial=False):
 	Returns:
 	        dict: relative Backup Paths
 	"""
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	odb = BackupGenerator(
-		frappe.conf.db_name,
-		frappe.conf.db_name,
-		frappe.conf.db_password,
-		db_host=frappe.db.host,
-		db_type=frappe.conf.db_type,
-		db_port=frappe.conf.db_port,
+		stylo.conf.db_name,
+		stylo.conf.db_name,
+		stylo.conf.db_password,
+		db_host=stylo.db.host,
+		db_type=stylo.conf.db_type,
+		db_port=stylo.conf.db_port,
 	)
 	database, public, private, config = odb.get_recent_backup(older_than=24 * 30, partial=partial)
 
@@ -562,12 +562,12 @@ def new_backup(
 ):
 	delete_temp_backups()
 	odb = BackupGenerator(
-		frappe.conf.db_name,
-		frappe.conf.db_name,
-		frappe.conf.db_password,
-		db_host=frappe.db.host,
-		db_port=frappe.db.port,
-		db_type=frappe.conf.db_type,
+		stylo.conf.db_name,
+		stylo.conf.db_name,
+		stylo.conf.db_password,
+		db_host=stylo.db.host,
+		db_port=stylo.db.port,
+		db_type=stylo.conf.db_type,
 		backup_path=backup_path,
 		backup_path_db=backup_path_db,
 		backup_path_files=backup_path_files,
@@ -587,7 +587,7 @@ def delete_temp_backups(older_than=24):
 	"""
 	Cleans up the backup_link_path directory by deleting older files
 	"""
-	older_than = cint(frappe.conf.keep_backups_for_hours) or older_than
+	older_than = cint(stylo.conf.keep_backups_for_hours) or older_than
 	backup_path = get_backup_path()
 	if os.path.exists(backup_path):
 		file_list = os.listdir(get_backup_path())
@@ -624,20 +624,20 @@ def is_file_old(file_path, older_than=24):
 
 
 def get_backup_path():
-	backup_path = frappe.utils.get_site_path(conf.get("backup_path", "private/backups"))
+	backup_path = stylo.utils.get_site_path(conf.get("backup_path", "private/backups"))
 	return backup_path
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_backup_encryption_key():
-	frappe.only_for("System Manager")
-	return frappe.conf.get(BACKUP_ENCRYPTION_CONFIG_KEY)
+	stylo.only_for("System Manager")
+	return stylo.conf.get(BACKUP_ENCRYPTION_CONFIG_KEY)
 
 
 def get_or_generate_backup_encryption_key():
-	from frappe.installer import update_site_config
+	from stylo.installer import update_site_config
 
-	key = frappe.conf.get(BACKUP_ENCRYPTION_CONFIG_KEY)
+	key = stylo.conf.get(BACKUP_ENCRYPTION_CONFIG_KEY)
 	if key:
 		return key
 
@@ -671,7 +671,7 @@ class Backup:
 				file_location=file_path_with_ext,
 				decrypted_file=self.file_path,
 			)
-		frappe.utils.execute_in_shell(command)
+		stylo.utils.execute_in_shell(command)
 
 	def decryption_rollback(self):
 		"""
@@ -716,7 +716,7 @@ def backup(
 if __name__ == "__main__":
 	import sys
 
-	from frappe.utils.commands import warn
+	from stylo.utils.commands import warn
 
 	warn(
 		"Calling the backup script directly is deprecated. "

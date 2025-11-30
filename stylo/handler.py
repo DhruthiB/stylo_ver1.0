@@ -7,22 +7,22 @@ from typing import TYPE_CHECKING
 
 from werkzeug.wrappers import Response
 
-import frappe
-import frappe.sessions
-import frappe.utils
-from frappe import _, is_whitelisted
-from frappe.core.doctype.file.utils import find_file_by_url
-from frappe.core.doctype.server_script.server_script_utils import get_server_script_map
-from frappe.monitor import add_data_to_monitor
-from frappe.permissions import check_doctype_permission
-from frappe.utils import cint
-from frappe.utils.csvutils import build_csv_response
-from frappe.utils.image import optimize_image
-from frappe.utils.response import build_response
+import stylo
+import stylo.sessions
+import stylo.utils
+from stylo import _, is_whitelisted
+from stylo.core.doctype.file.utils import find_file_by_url
+from stylo.core.doctype.server_script.server_script_utils import get_server_script_map
+from stylo.monitor import add_data_to_monitor
+from stylo.permissions import check_doctype_permission
+from stylo.utils import cint
+from stylo.utils.csvutils import build_csv_response
+from stylo.utils.image import optimize_image
+from stylo.utils.response import build_response
 
 if TYPE_CHECKING:
-	from frappe.core.doctype.file.file import File
-	from frappe.core.doctype.user.user import User
+	from stylo.core.doctype.file.file import File
+	from stylo.core.doctype.user.user import User
 
 ALLOWED_MIMETYPES = (
 	"image/png",
@@ -43,7 +43,7 @@ ALLOWED_MIMETYPES = (
 def handle():
 	"""handle request"""
 
-	cmd = frappe.local.form_dict.cmd
+	cmd = stylo.local.form_dict.cmd
 	data = None
 
 	if cmd != "login":
@@ -56,14 +56,14 @@ def handle():
 			return data
 
 		# add the response to `message` label
-		frappe.response["message"] = data
+		stylo.response["message"] = data
 
 	return build_response("json")
 
 
 def execute_cmd(cmd, from_async=False):
 	"""execute a request as python module"""
-	cmd = frappe.override_whitelisted_method(cmd)
+	cmd = stylo.override_whitelisted_method(cmd)
 
 	# via server script
 	server_script = get_server_script_map().get("_api", {}).get(cmd)
@@ -73,7 +73,7 @@ def execute_cmd(cmd, from_async=False):
 	try:
 		method = get_attr(cmd)
 	except Exception as e:
-		frappe.throw(_("Failed to get method for command {0} with {1}").format(cmd, e))
+		stylo.throw(_("Failed to get method for command {0} with {1}").format(cmd, e))
 
 	if from_async:
 		method = method.queue
@@ -82,119 +82,119 @@ def execute_cmd(cmd, from_async=False):
 		is_whitelisted(method)
 		is_valid_http_method(method)
 
-	return frappe.call(method, **frappe.form_dict)
+	return stylo.call(method, **stylo.form_dict)
 
 
 def run_server_script(server_script):
-	response = frappe.get_doc("Server Script", server_script).execute_method()
+	response = stylo.get_doc("Server Script", server_script).execute_method()
 
 	# some server scripts return output using flags (empty dict by default),
-	# while others directly modify frappe.response
-	# return flags if not empty dict (this overwrites frappe.response.message)
+	# while others directly modify stylo.response
+	# return flags if not empty dict (this overwrites stylo.response.message)
 	if response != {}:
 		return response
 
 
 def is_valid_http_method(method):
-	if frappe.flags.in_safe_exec:
+	if stylo.flags.in_safe_exec:
 		return
 
-	http_method = frappe.local.request.method
+	http_method = stylo.local.request.method
 
-	if http_method not in frappe.allowed_http_methods_for_whitelisted_func[method]:
+	if http_method not in stylo.allowed_http_methods_for_whitelisted_func[method]:
 		throw_permission_error()
 
 
 def throw_permission_error():
-	frappe.throw(_("Not permitted"), frappe.PermissionError)
+	stylo.throw(_("Not permitted"), stylo.PermissionError)
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def logout():
-	frappe.local.login_manager.logout()
-	frappe.db.commit()
+	stylo.local.login_manager.logout()
+	stylo.db.commit()
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def web_logout():
-	frappe.local.login_manager.logout()
-	frappe.db.commit()
-	frappe.respond_as_web_page(
+	stylo.local.login_manager.logout()
+	stylo.db.commit()
+	stylo.respond_as_web_page(
 		_("Logged Out"), _("You have been successfully logged out"), indicator_color="green"
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def uploadfile():
 	ret = None
-	check_write_permission(frappe.form_dict.doctype, frappe.form_dict.docname)
+	check_write_permission(stylo.form_dict.doctype, stylo.form_dict.docname)
 
 	try:
-		if frappe.form_dict.get("from_form"):
+		if stylo.form_dict.get("from_form"):
 			try:
-				ret = frappe.get_doc(
+				ret = stylo.get_doc(
 					{
 						"doctype": "File",
-						"attached_to_name": frappe.form_dict.docname,
-						"attached_to_doctype": frappe.form_dict.doctype,
-						"attached_to_field": frappe.form_dict.docfield,
-						"file_url": frappe.form_dict.file_url,
-						"file_name": frappe.form_dict.filename,
-						"is_private": frappe.utils.cint(frappe.form_dict.is_private),
-						"content": frappe.form_dict.filedata,
+						"attached_to_name": stylo.form_dict.docname,
+						"attached_to_doctype": stylo.form_dict.doctype,
+						"attached_to_field": stylo.form_dict.docfield,
+						"file_url": stylo.form_dict.file_url,
+						"file_name": stylo.form_dict.filename,
+						"is_private": stylo.utils.cint(stylo.form_dict.is_private),
+						"content": stylo.form_dict.filedata,
 						"decode": True,
 					}
 				)
 				ret.save()
-			except frappe.DuplicateEntryError:
+			except stylo.DuplicateEntryError:
 				# ignore pass
 				ret = None
-				frappe.db.rollback()
+				stylo.db.rollback()
 		else:
-			if frappe.form_dict.get("method"):
-				method = frappe.get_attr(frappe.form_dict.method)
+			if stylo.form_dict.get("method"):
+				method = stylo.get_attr(stylo.form_dict.method)
 				is_whitelisted(method)
 				ret = method()
 	except Exception:
-		frappe.errprint(frappe.utils.get_traceback())
-		frappe.response["http_status_code"] = 500
+		stylo.errprint(stylo.utils.get_traceback())
+		stylo.response["http_status_code"] = 500
 		ret = None
 
 	return ret
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def upload_file():
 	user = None
-	if frappe.session.user == "Guest":
-		if frappe.get_system_settings("allow_guests_to_upload_files"):
+	if stylo.session.user == "Guest":
+		if stylo.get_system_settings("allow_guests_to_upload_files"):
 			ignore_permissions = True
 		else:
-			raise frappe.PermissionError
+			raise stylo.PermissionError
 	else:
-		user: "User" = frappe.get_doc("User", frappe.session.user)
+		user: "User" = stylo.get_doc("User", stylo.session.user)
 		ignore_permissions = False
 
-	files = frappe.request.files
-	is_private = frappe.form_dict.is_private
-	doctype = frappe.form_dict.doctype
-	docname = frappe.form_dict.docname
-	fieldname = frappe.form_dict.fieldname
-	file_url = frappe.form_dict.file_url
-	folder = frappe.form_dict.folder or "Home"
-	method = frappe.form_dict.method
-	filename = frappe.form_dict.file_name
-	optimize = frappe.form_dict.optimize
+	files = stylo.request.files
+	is_private = stylo.form_dict.is_private
+	doctype = stylo.form_dict.doctype
+	docname = stylo.form_dict.docname
+	fieldname = stylo.form_dict.fieldname
+	file_url = stylo.form_dict.file_url
+	folder = stylo.form_dict.folder or "Home"
+	method = stylo.form_dict.method
+	filename = stylo.form_dict.file_name
+	optimize = stylo.form_dict.optimize
 	content = None
 
 	if not ignore_permissions:
 		check_write_permission(doctype, docname)
 
-	if library_file := frappe.form_dict.get("library_file_name"):
-		frappe.has_permission("File", doc=library_file, throw=True)
-		doc = frappe.get_value(
+	if library_file := stylo.form_dict.get("library_file_name"):
+		stylo.has_permission("File", doc=library_file, throw=True)
+		doc = stylo.get_value(
 			"File",
-			frappe.form_dict.library_file_name,
+			stylo.form_dict.library_file_name,
 			["is_private", "file_url", "file_name"],
 			as_dict=True,
 		)
@@ -210,27 +210,27 @@ def upload_file():
 		content_type = guess_type(filename)[0]
 		if optimize and content_type and content_type.startswith("image/"):
 			args = {"content": content, "content_type": content_type}
-			if frappe.form_dict.max_width:
-				args["max_width"] = int(frappe.form_dict.max_width)
-			if frappe.form_dict.max_height:
-				args["max_height"] = int(frappe.form_dict.max_height)
+			if stylo.form_dict.max_width:
+				args["max_width"] = int(stylo.form_dict.max_width)
+			if stylo.form_dict.max_height:
+				args["max_height"] = int(stylo.form_dict.max_height)
 			content = optimize_image(**args)
 
-	frappe.local.uploaded_file_url = file_url
-	frappe.local.uploaded_file = content
-	frappe.local.uploaded_filename = filename
+	stylo.local.uploaded_file_url = file_url
+	stylo.local.uploaded_file = content
+	stylo.local.uploaded_filename = filename
 
-	if content is not None and (frappe.session.user == "Guest" or (user and not user.has_desk_access())):
+	if content is not None and (stylo.session.user == "Guest" or (user and not user.has_desk_access())):
 		filetype = guess_type(filename)[0]
 		if filetype not in ALLOWED_MIMETYPES:
-			frappe.throw(_("You can only upload JPG, PNG, PDF, TXT or Microsoft documents."))
+			stylo.throw(_("You can only upload JPG, PNG, PDF, TXT or Microsoft documents."))
 
 	if method:
-		method = frappe.get_attr(method)
+		method = stylo.get_attr(method)
 		is_whitelisted(method)
 		return method()
 	else:
-		return frappe.get_doc(
+		return stylo.get_doc(
 			{
 				"doctype": "File",
 				"attached_to_doctype": doctype,
@@ -250,50 +250,50 @@ def check_write_permission(doctype: str | None = None, name: str | None = None):
 		return
 
 	if not name:
-		frappe.has_permission(doctype, "write", throw=True)
+		stylo.has_permission(doctype, "write", throw=True)
 		return
 
 	try:
-		doc = frappe.get_doc(doctype, name)
-	except frappe.DoesNotExistError:
+		doc = stylo.get_doc(doctype, name)
+	except stylo.DoesNotExistError:
 		# doc has not been inserted yet, name is set to "new-some-doctype"
 		# If doc inserts fine then only this attachment will be linked see file/utils.py:relink_mismatched_files
-		frappe.new_doc(doctype).check_permission("write")
+		stylo.new_doc(doctype).check_permission("write")
 		return
 
 	doc.check_permission("write")
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def download_file(file_url: str):
 	"""
 	Download file using token and REST API. Valid session or
 	token is required to download private files.
 
 	Method : GET
-	Endpoints : download_file, frappe.core.doctype.file.file.download_file
+	Endpoints : download_file, stylo.core.doctype.file.file.download_file
 	URL Params : file_name = /path/to/file relative to site path
 	"""
 	file = find_file_by_url(file_url)
 	if not file:
-		raise frappe.PermissionError
+		raise stylo.PermissionError
 
-	frappe.local.response.filename = os.path.basename(file_url)
-	frappe.local.response.filecontent = file.get_content()
-	frappe.local.response.type = "download"
+	stylo.local.response.filename = os.path.basename(file_url)
+	stylo.local.response.filecontent = file.get_content()
+	stylo.local.response.type = "download"
 
 
 def get_attr(cmd):
 	"""get method object from cmd"""
 	if "." in cmd:
-		method = frappe.get_attr(cmd)
+		method = stylo.get_attr(cmd)
 	else:
 		method = globals()[cmd]
-	frappe.log("method:" + cmd)
+	stylo.log("method:" + cmd)
 	return method
 
 
-@frappe.whitelist(allow_guest=True)
+@stylo.whitelist(allow_guest=True)
 def ping():
 	return "pong"
 
@@ -308,11 +308,11 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 	if dt:  # not called from a doctype (from a page)
 		if not dn:
 			dn = dt  # single
-		doc = frappe.get_doc(dt, dn)
+		doc = stylo.get_doc(dt, dn)
 
 	else:
-		docs = frappe.parse_json(docs)
-		doc = frappe.get_doc(docs)
+		docs = stylo.parse_json(docs)
+		doc = stylo.get_doc(docs)
 		doc._original_modified = doc.modified
 		doc.check_if_latest()
 
@@ -320,7 +320,7 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 		throw_permission_error()
 
 	try:
-		args = frappe.parse_json(args)
+		args = stylo.parse_json(args)
 	except ValueError:
 		pass
 
@@ -340,16 +340,16 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 	else:
 		response = doc.run_method(method, **args)
 
-	frappe.response.docs.append(doc)
+	stylo.response.docs.append(doc)
 	if response is None:
 		return
 
 	# build output as csv
-	if cint(frappe.form_dict.get("as_csv")):
+	if cint(stylo.form_dict.get("as_csv")):
 		build_csv_response(response, _(doc.doctype).replace(" ", ""))
 		return
 
-	frappe.response["message"] = response
+	stylo.response["message"] = response
 
 	add_data_to_monitor(methodname=method)
 

@@ -3,15 +3,15 @@
 
 from types import FunctionType, MethodType, ModuleType
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils.safe_exec import NamespaceDict, get_safe_globals, safe_exec
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils.safe_exec import NamespaceDict, get_safe_globals, safe_exec
 
 
 class ServerScript(Document):
 	def validate(self):
-		frappe.only_for("Script Manager", True)
+		stylo.only_for("Script Manager", True)
 		self.sync_scheduled_jobs()
 		self.clear_scheduled_events()
 		self.check_if_compilable_in_restricted_context()
@@ -20,20 +20,20 @@ class ServerScript(Document):
 		self.sync_scheduler_events()
 
 	def clear_cache(self):
-		frappe.cache().delete_value("server_script_map")
+		stylo.cache().delete_value("server_script_map")
 		return super().clear_cache()
 
 	def on_trash(self):
 		if self.script_type == "Scheduler Event":
 			for job in self.scheduled_jobs:
-				frappe.delete_doc("Scheduled Job Type", job.name)
+				stylo.delete_doc("Scheduled Job Type", job.name)
 
 	def get_code_fields(self):
 		return {"script": "py"}
 
 	@property
 	def scheduled_jobs(self) -> list[dict[str, str]]:
-		return frappe.get_all(
+		return stylo.get_all(
 			"Scheduled Job Type",
 			filters={"server_script": self.name},
 			fields=["name", "stopped"],
@@ -46,7 +46,7 @@ class ServerScript(Document):
 
 		for scheduled_job in self.scheduled_jobs:
 			if bool(scheduled_job.stopped) != bool(self.disabled):
-				job = frappe.get_doc("Scheduled Job Type", scheduled_job.name)
+				job = stylo.get_doc("Scheduled Job Type", scheduled_job.name)
 				job.stopped = self.disabled
 				job.save()
 
@@ -65,7 +65,7 @@ class ServerScript(Document):
 			and (self.has_value_changed("event_frequency") or self.has_value_changed("cron_format"))
 		) or (self.has_value_changed("script_type") and self.script_type != "Scheduler Event"):
 			for scheduled_job in self.scheduled_jobs:
-				frappe.delete_doc("Scheduled Job Type", scheduled_job.name, delete_permanently=1)
+				stylo.delete_doc("Scheduled Job Type", scheduled_job.name, delete_permanently=1)
 
 	def check_if_compilable_in_restricted_context(self):
 		"""Check compilation errors and send them back as warnings."""
@@ -74,29 +74,29 @@ class ServerScript(Document):
 		try:
 			compile_restricted(self.script)
 		except Exception as e:
-			frappe.msgprint(str(e), title=_("Compilation warning"))
+			stylo.msgprint(str(e), title=_("Compilation warning"))
 
 	def execute_method(self) -> dict:
 		"""Specific to API endpoint Server Scripts
 
 		Raises:
-		        frappe.DoesNotExistError: If self.script_type is not API
-		        frappe.PermissionError: If self.allow_guest is unset for API accessed by Guest user
+		        stylo.DoesNotExistError: If self.script_type is not API
+		        stylo.PermissionError: If self.allow_guest is unset for API accessed by Guest user
 
 		Returns:
-		        dict: Evaluates self.script with frappe.utils.safe_exec.safe_exec and returns the flags set in it's safe globals
+		        dict: Evaluates self.script with stylo.utils.safe_exec.safe_exec and returns the flags set in it's safe globals
 		"""
 		# wrong report type!
 		if self.script_type != "API":
-			raise frappe.DoesNotExistError
+			raise stylo.DoesNotExistError
 
 		# validate if guest is allowed
-		if frappe.session.user == "Guest" and not self.allow_guest:
-			raise frappe.PermissionError
+		if stylo.session.user == "Guest" and not self.allow_guest:
+			raise stylo.PermissionError
 
 		# output can be stored in flags
 		_globals, _locals = safe_exec(self.script)
-		return _globals.frappe.flags
+		return _globals.stylo.flags
 
 	def execute_doc(self, doc: Document):
 		"""Specific to Document Event triggered Server Scripts
@@ -110,10 +110,10 @@ class ServerScript(Document):
 		"""Specific to Scheduled Jobs via Server Scripts
 
 		Raises:
-		        frappe.DoesNotExistError: If script type is not a scheduler event
+		        stylo.DoesNotExistError: If script type is not a scheduler event
 		"""
 		if self.script_type != "Scheduler Event":
-			raise frappe.DoesNotExistError
+			raise stylo.DoesNotExistError
 
 		safe_exec(self.script)
 
@@ -131,14 +131,14 @@ class ServerScript(Document):
 		if locals["conditions"]:
 			return locals["conditions"]
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def get_autocompletion_items(self):
 		"""Generates a list of a autocompletion strings from the context dict
 		that is used while executing a Server Script.
 
 		Returns:
 		        list: Returns list of autocompletion items.
-		        For e.g., ["frappe.utils.cint", "frappe.get_all", ...]
+		        For e.g., ["stylo.utils.cint", "stylo.get_all", ...]
 		"""
 
 		def get_keys(obj):
@@ -170,11 +170,11 @@ class ServerScript(Document):
 					out.append([key, score])
 			return out
 
-		items = frappe.cache().get_value("server_script_autocompletion_items")
+		items = stylo.cache().get_value("server_script_autocompletion_items")
 		if not items:
 			items = get_keys(get_safe_globals())
 			items = [{"value": d[0], "score": d[1]} for d in items]
-			frappe.cache().set_value("server_script_autocompletion_items", items)
+			stylo.cache().set_value("server_script_autocompletion_items", items)
 		return items
 
 
@@ -185,11 +185,11 @@ def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | 
 	        script_name (str): Name of the Server Script document
 	        frequency (str): Event label compatible with the Stylo scheduler
 	"""
-	method = frappe.scrub(f"{script_name}-{frequency}")
-	scheduled_script = frappe.db.get_value("Scheduled Job Type", {"method": method})
+	method = stylo.scrub(f"{script_name}-{frequency}")
+	scheduled_script = stylo.db.get_value("Scheduled Job Type", {"method": method})
 
 	if not scheduled_script:
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "Scheduled Job Type",
 				"method": method,
@@ -199,10 +199,10 @@ def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | 
 			}
 		).insert()
 
-		frappe.msgprint(_("Enabled scheduled execution for script {0}").format(script_name))
+		stylo.msgprint(_("Enabled scheduled execution for script {0}").format(script_name))
 
 	else:
-		doc = frappe.get_doc("Scheduled Job Type", scheduled_script)
+		doc = stylo.get_doc("Scheduled Job Type", scheduled_script)
 
 		if doc.frequency == frequency:
 			return
@@ -211,4 +211,4 @@ def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | 
 		doc.cron_format = cron_format
 		doc.save()
 
-		frappe.msgprint(_("Scheduled execution for script {0} has updated").format(script_name))
+		stylo.msgprint(_("Scheduled execution for script {0} has updated").format(script_name))

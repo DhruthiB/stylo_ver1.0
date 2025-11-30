@@ -1,12 +1,12 @@
-import frappe
-from frappe import _
-from frappe.core.utils import get_parent_doc
-from frappe.desk.doctype.notification_settings.notification_settings import (
+import stylo
+from stylo import _
+from stylo.core.utils import get_parent_doc
+from stylo.desk.doctype.notification_settings.notification_settings import (
 	is_email_notifications_enabled_for_type,
 )
-from frappe.desk.doctype.todo.todo import ToDo
-from frappe.email.doctype.email_account.email_account import EmailAccount
-from frappe.utils import get_formatted_email, get_url, parse_addr
+from stylo.desk.doctype.todo.todo import ToDo
+from stylo.email.doctype.email_account.email_account import EmailAccount
+from stylo.utils import get_formatted_email, get_url, parse_addr
 
 
 class CommunicationEmailMixin:
@@ -72,8 +72,8 @@ class CommunicationEmailMixin:
 		if include_sender:
 			sender = self.sender_mailid
 			# if user has selected send_me_a_copy, use their email as sender
-			if frappe.session.user not in frappe.STANDARD_USERS:
-				sender = frappe.db.get_value("User", frappe.session.user, "email")
+			if stylo.session.user not in stylo.STANDARD_USERS:
+				sender = stylo.db.get_value("User", stylo.session.user, "email")
 			cc.append(sender)
 
 		if is_inbound_mail_communcation:
@@ -95,7 +95,7 @@ class CommunicationEmailMixin:
 		if is_inbound_mail_communcation:
 			cc = cc - set(self.cc_list() + self.to_list())
 
-		self._final_cc = [m for m in cc if m and m not in frappe.STANDARD_USERS]
+		self._final_cc = [m for m in cc if m and m not in stylo.STANDARD_USERS]
 		return self._final_cc
 
 	def get_mail_cc_with_displayname(self, is_inbound_mail_communcation=False, include_sender=False):
@@ -123,7 +123,7 @@ class CommunicationEmailMixin:
 		if is_inbound_mail_communcation:
 			bcc = bcc - set(self.bcc_list() + self.to_list())
 
-		self._final_bcc = [m for m in bcc if m not in frappe.STANDARD_USERS]
+		self._final_bcc = [m for m in bcc if m not in stylo.STANDARD_USERS]
 		return self._final_bcc
 
 	def get_mail_bcc_with_displayname(self, is_inbound_mail_communcation=False):
@@ -146,13 +146,13 @@ class CommunicationEmailMixin:
 		return get_formatted_email(self.mail_sender_fullname(), mail=self.mail_sender())
 
 	def get_content(self, print_format=None):
-		if print_format and frappe.db.get_single_value("System Settings", "attach_view_link"):
+		if print_format and stylo.db.get_single_value("System Settings", "attach_view_link"):
 			return self.content + self.get_attach_link(print_format)
 		return self.content
 
 	def get_attach_link(self, print_format):
 		"""Returns public link for the attachment via `templates/emails/print_link.html`."""
-		return frappe.get_template("templates/emails/print_link.html").render(
+		return stylo.get_template("templates/emails/print_link.html").render(
 			{
 				"url": get_url(),
 				"doctype": self.reference_doctype,
@@ -172,7 +172,7 @@ class CommunicationEmailMixin:
 				)
 
 				if self.sent_or_received == "Sent" and self._outgoing_email_account:
-					if frappe.db.exists("Email Account", self._outgoing_email_account.name):
+					if stylo.db.exists("Email Account", self._outgoing_email_account.name):
 						self.db_set("email_account", self._outgoing_email_account.name)
 
 		return self._outgoing_email_account
@@ -194,7 +194,7 @@ class CommunicationEmailMixin:
 				"print_format_attachment": 1,
 				"doctype": self.reference_doctype,
 				"name": self.reference_name,
-				"lang": frappe.local.lang,
+				"lang": stylo.local.lang,
 			}
 			final_attachments.append(d)
 
@@ -242,7 +242,7 @@ class CommunicationEmailMixin:
 		if not emails:
 			return []
 
-		return frappe.get_all("User", pluck="email", filters={"email": ["in", emails], "thread_notify": 0})
+		return stylo.get_all("User", pluck="email", filters={"email": ["in", emails], "thread_notify": 0})
 
 	@staticmethod
 	def filter_disabled_users(emails):
@@ -250,7 +250,7 @@ class CommunicationEmailMixin:
 		if not emails:
 			return []
 
-		return frappe.get_all("User", pluck="email", filters={"email": ["in", emails], "enabled": 0})
+		return stylo.get_all("User", pluck="email", filters={"email": ["in", emails], "enabled": 0})
 
 	def sendmail_input_dict(
 		self,
@@ -314,4 +314,4 @@ class CommunicationEmailMixin:
 			print_letterhead=print_letterhead,
 			is_inbound_mail_communcation=is_inbound_mail_communcation,
 		):
-			frappe.sendmail(now=now, **input_dict)
+			stylo.sendmail(now=now, **input_dict)

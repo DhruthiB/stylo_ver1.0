@@ -127,4 +127,4 @@ jobs:
 
       - name: Run Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: cd ~/frappe-forge/ && forge --site test_site run-parallel-tests
+        run: cd ~/stylo-forge/ && forge --site test_site run-parallel-tests

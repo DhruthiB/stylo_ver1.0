@@ -6,20 +6,20 @@ import warnings
 
 import click
 
-import frappe
-import frappe.utils
+import stylo
+import stylo.utils
 
 click.disable_unicode_literals_warning = True
 
 
 def main():
 	commands = get_app_groups()
-	commands.update({"get-frappe-commands": get_frappe_commands, "get-frappe-help": get_frappe_help})
+	commands.update({"get-stylo-commands": get_stylo_commands, "get-stylo-help": get_stylo_help})
 	click.Group(commands=commands)(prog_name="forge")
 
 
 def get_app_groups():
-	"""Get all app groups, put them in main group "frappe" since forge is
+	"""Get all app groups, put them in main group "stylo" since forge is
 	designed to only handle that"""
 	commands = dict()
 	for app in get_apps():
@@ -27,7 +27,7 @@ def get_app_groups():
 		if app_commands:
 			commands.update(app_commands)
 
-	ret = dict(frappe=click.group(name="frappe", commands=commands)(app_group))
+	ret = dict(stylo=click.group(name="stylo", commands=commands)(app_group))
 	return ret
 
 
@@ -44,17 +44,17 @@ def get_app_group(app):
 @click.pass_context
 def app_group(ctx, site=False, force=False, verbose=False, profile=False):
 	ctx.obj = {"sites": get_sites(site), "force": force, "verbose": verbose, "profile": profile}
-	if ctx.info_name == "frappe":
+	if ctx.info_name == "stylo":
 		ctx.info_name = ""
 
 
 def get_sites(site_arg):
 	if site_arg == "all":
-		return frappe.utils.get_sites()
+		return stylo.utils.get_sites()
 	elif site_arg:
 		return [site_arg]
-	elif os.environ.get("FRAPPE_SITE"):
-		return [os.environ.get("FRAPPE_SITE")]
+	elif os.environ.get("Stylo_SITE"):
+		return [os.environ.get("Stylo_SITE")]
 	elif os.path.exists("currentsite.txt"):
 		with open("currentsite.txt") as f:
 			site = f.read().strip()
@@ -81,9 +81,9 @@ def get_app_commands(app):
 	return ret
 
 
-@click.command("get-frappe-commands")
-def get_frappe_commands():
-	commands = list(get_app_commands("frappe"))
+@click.command("get-stylo-commands")
+def get_stylo_commands():
+	commands = list(get_app_commands("stylo"))
 
 	for app in get_apps():
 		app_commands = get_app_commands(app)
@@ -93,17 +93,17 @@ def get_frappe_commands():
 	print(json.dumps(commands))
 
 
-@click.command("get-frappe-help")
-def get_frappe_help():
-	print(click.Context(get_app_groups()["frappe"]).get_help())
+@click.command("get-stylo-help")
+def get_stylo_help():
+	print(click.Context(get_app_groups()["stylo"]).get_help())
 
 
 def get_apps():
-	return frappe.get_all_apps(with_internal_apps=False, sites_path=".")
+	return stylo.get_all_apps(with_internal_apps=False, sites_path=".")
 
 
 if __name__ == "__main__":
-	if not frappe._dev_server:
+	if not stylo._dev_server:
 		warnings.simplefilter("ignore")
 
 	main()

@@ -1,9 +1,9 @@
 // Copyright (c) 2023, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Audit Trail", {
+stylo.ui.form.on("Audit Trail", {
 	refresh(frm) {
-		let prev_route = frappe.get_prev_route();
+		let prev_route = stylo.get_prev_route();
 		if (
 			prev_route.length > 2 &&
 			prev_route[0] == "Form" &&
@@ -54,10 +54,10 @@ frappe.ui.form.on("Audit Trail", {
 			frm.refresh_fields();
 		}
 
-		frappe.db
+		stylo.db
 			.get_value(frm.doc.doctype_name, frm.doc.document, "creation")
 			.then((creation) => {
-				if (frappe.datetime.obj_to_str(creation) < frm.doc.start_date) {
+				if (stylo.datetime.obj_to_str(creation) < frm.doc.start_date) {
 					frm.doc.document = "";
 					frm.refresh_fields();
 				}
@@ -65,10 +65,10 @@ frappe.ui.form.on("Audit Trail", {
 	},
 
 	end_date(frm) {
-		frappe.db
+		stylo.db
 			.get_value(frm.doc.doctype_name, frm.doc.document, "creation")
 			.then((creation) => {
-				if (frappe.datetime.obj_to_str(creation) > frm.doc.end_date) {
+				if (stylo.datetime.obj_to_str(creation) > frm.doc.end_date) {
 					frm.doc.document = "";
 					frm.refresh_fields();
 				}
@@ -94,7 +94,7 @@ frappe.ui.form.on("Audit Trail", {
 			changed: changed_fields.changed,
 			row_changed: changed_fields.row_changed,
 		};
-		$(frappe.render_template("audit_trail", render_dict)).appendTo(
+		$(stylo.render_template("audit_trail", render_dict)).appendTo(
 			frm.fields_dict.version_table.$wrapper.empty()
 		);
 		frm.set_df_property("version_table", "hidden", 0);
@@ -114,7 +114,7 @@ frappe.ui.form.on("Audit Trail", {
 			section_dict = {
 				added_or_removed: added_or_removed[key],
 			};
-			$(frappe.render_template("audit_trail_rows_added_removed", section_dict)).appendTo(
+			$(stylo.render_template("audit_trail_rows_added_removed", section_dict)).appendTo(
 				frm.fields_dict[key].$wrapper.empty()
 			);
 

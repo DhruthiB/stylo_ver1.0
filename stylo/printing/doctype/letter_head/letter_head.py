@@ -1,10 +1,10 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import flt, is_image
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import flt, is_image
 
 
 class LetterHead(Document):
@@ -18,10 +18,10 @@ class LetterHead(Document):
 
 	def validate_disabled_and_default(self):
 		if self.disabled and self.is_default:
-			frappe.throw(_("Letter Head cannot be both disabled and default"))
+			stylo.throw(_("Letter Head cannot be both disabled and default"))
 
 		if not self.is_default and not self.disabled:
-			if not frappe.db.exists("Letter Head", dict(is_default=1)):
+			if not stylo.db.exists("Letter Head", dict(is_default=1)):
 				self.is_default = 1
 
 	def set_image(self):
@@ -53,7 +53,7 @@ class LetterHead(Document):
 		self, field, width, height, dimension_prefix, align, html_field, success_msg, failure_msg
 	):
 		if not self.get(field) or not is_image(self.get(field)):
-			frappe.msgprint(failure_msg, alert=True, indicator="orange")
+			stylo.msgprint(failure_msg, alert=True, indicator="orange")
 			return
 
 		self.set(width, flt(self.get(width)))
@@ -75,24 +75,24 @@ class LetterHead(Document):
 </div>""",
 		)
 
-		frappe.msgprint(success_msg, alert=True)
+		stylo.msgprint(success_msg, alert=True)
 
 	def on_update(self):
 		self.set_as_default()
 
 		# clear the cache so that the new letter head is uploaded
-		frappe.clear_cache()
+		stylo.clear_cache()
 
 	def set_as_default(self):
-		from frappe.utils import set_default
+		from stylo.utils import set_default
 
 		if self.is_default:
-			frappe.db.sql("update `tabLetter Head` set is_default=0 where name != %s", self.name)
+			stylo.db.sql("update `tabLetter Head` set is_default=0 where name != %s", self.name)
 
 			set_default("letter_head", self.name)
 
 			# update control panel - so it loads new letter directly
-			frappe.db.set_default("default_letter_head_content", self.content)
+			stylo.db.set_default("default_letter_head_content", self.content)
 		else:
-			frappe.defaults.clear_default("letter_head", self.name)
-			frappe.defaults.clear_default("default_letter_head_content", self.content)
+			stylo.defaults.clear_default("letter_head", self.name)
+			stylo.defaults.clear_default("default_letter_head_content", self.content)

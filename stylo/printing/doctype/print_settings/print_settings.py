@@ -1,26 +1,26 @@
 # Copyright (c) 2018, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import cint
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import cint
 
 
 class PrintSettings(Document):
 	def validate(self):
 		if self.pdf_page_size == "Custom" and not (self.pdf_page_height and self.pdf_page_width):
-			frappe.throw(_("Page height and width cannot be zero"))
+			stylo.throw(_("Page height and width cannot be zero"))
 
 	def on_update(self):
-		frappe.clear_cache()
+		stylo.clear_cache()
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def is_print_server_enabled():
-	if not hasattr(frappe.local, "enable_print_server"):
-		frappe.local.enable_print_server = cint(
-			frappe.db.get_single_value("Print Settings", "enable_print_server")
+	if not hasattr(stylo.local, "enable_print_server"):
+		stylo.local.enable_print_server = cint(
+			stylo.db.get_single_value("Print Settings", "enable_print_server")
 		)
 
-	return frappe.local.enable_print_server
+	return stylo.local.enable_print_server

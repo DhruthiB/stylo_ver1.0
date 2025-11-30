@@ -1,7 +1,7 @@
 let path = require("path");
 let { get_app_path, app_list } = require("./utils");
 
-let node_modules_path = path.resolve(get_app_path("frappe"), "..", "node_modules");
+let node_modules_path = path.resolve(get_app_path("stylo"), "..", "node_modules");
 let app_paths = app_list.map(get_app_path).map((app_path) => path.resolve(app_path, ".."));
 
 module.exports = {

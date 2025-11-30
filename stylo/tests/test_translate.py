@@ -5,11 +5,11 @@ import textwrap
 from random import choices
 from unittest.mock import patch
 
-import frappe
-import frappe.translate
-from frappe import _
-from frappe.tests.utils import StyloTestCase
-from frappe.translate import (
+import stylo
+import stylo.translate
+from stylo import _
+from stylo.tests.utils import StyloTestCase
+from stylo.translate import (
 	extract_javascript,
 	extract_messages_from_javascript_code,
 	extract_messages_from_python_code,
@@ -18,13 +18,13 @@ from frappe.translate import (
 	get_parent_language,
 	get_translation_dict_from_file,
 )
-from frappe.utils import set_request
+from stylo.utils import set_request
 
 dirname = os.path.dirname(__file__)
 translation_string_file = os.path.join(dirname, "translation_test_file.txt")
 first_lang, second_lang, third_lang, fourth_lang, fifth_lang = choices(
 	# skip "en*" since it is a default language
-	frappe.get_all("Language", pluck="name", filters=[["name", "not like", "en%"]]),
+	stylo.get_all("Language", pluck="name", filters=[["name", "not like", "en%"]]),
 	k=5,
 )
 
@@ -37,16 +37,16 @@ class TestTranslate(StyloTestCase):
 
 	def setUp(self):
 		if self._testMethodName in self.guest_sessions_required:
-			frappe.set_user("Guest")
+			stylo.set_user("Guest")
 
 	def tearDown(self):
-		frappe.form_dict.pop("_lang", None)
+		stylo.form_dict.pop("_lang", None)
 		if self._testMethodName in self.guest_sessions_required:
-			frappe.set_user("Administrator")
+			stylo.set_user("Administrator")
 
 	def test_extract_message_from_file(self):
-		data = frappe.translate.get_messages_from_file(translation_string_file)
-		exp_filename = "apps/frappe/frappe/tests/translation_test_file.txt"
+		data = stylo.translate.get_messages_from_file(translation_string_file)
+		exp_filename = "apps/stylo/stylo/tests/translation_test_file.txt"
 
 		self.assertEqual(
 			len(data),
@@ -64,32 +64,32 @@ class TestTranslate(StyloTestCase):
 
 	def test_translation_with_context(self):
 		try:
-			frappe.local.lang = "fr"
+			stylo.local.lang = "fr"
 			self.assertEqual(_("Change"), "Changement")
 			self.assertEqual(_("Change", context="Coins"), "la monnaie")
 		finally:
-			frappe.local.lang = "en"
+			stylo.local.lang = "en"
 
 	def test_request_language_resolution_with_form_dict(self):
-		"""Test for frappe.translate.get_language
+		"""Test for stylo.translate.get_language
 
-		Case 1: frappe.form_dict._lang is set
+		Case 1: stylo.form_dict._lang is set
 		"""
 
-		frappe.form_dict._lang = first_lang
+		stylo.form_dict._lang = first_lang
 
-		with patch.object(frappe.translate, "get_preferred_language_cookie", return_value=second_lang):
+		with patch.object(stylo.translate, "get_preferred_language_cookie", return_value=second_lang):
 			return_val = get_language()
 
 		self.assertIn(return_val, [first_lang, get_parent_language(first_lang)])
 
 	def test_request_language_resolution_with_cookie(self):
-		"""Test for frappe.translate.get_language
+		"""Test for stylo.translate.get_language
 
-		Case 2: frappe.form_dict._lang is not set, but preferred_language cookie is
+		Case 2: stylo.form_dict._lang is not set, but preferred_language cookie is
 		"""
 
-		with patch.object(frappe.translate, "get_preferred_language_cookie", return_value="fr"):
+		with patch.object(stylo.translate, "get_preferred_language_cookie", return_value="fr"):
 			set_request(method="POST", path="/", headers=[("Accept-Language", "hr")])
 			return_val = get_language()
 			# system default language
@@ -97,12 +97,12 @@ class TestTranslate(StyloTestCase):
 			self.assertNotIn(return_val, [second_lang, get_parent_language(second_lang)])
 
 	def test_guest_request_language_resolution_with_cookie(self):
-		"""Test for frappe.translate.get_language
+		"""Test for stylo.translate.get_language
 
-		Case 3: frappe.form_dict._lang is not set, but preferred_language cookie is [Guest User]
+		Case 3: stylo.form_dict._lang is not set, but preferred_language cookie is [Guest User]
 		"""
 
-		with patch.object(frappe.translate, "get_preferred_language_cookie", return_value=second_lang):
+		with patch.object(stylo.translate, "get_preferred_language_cookie", return_value=second_lang):
 			set_request(method="POST", path="/", headers=[("Accept-Language", third_lang)])
 			return_val = get_language()
 
@@ -110,16 +110,16 @@ class TestTranslate(StyloTestCase):
 
 	def test_global_translations(self):
 		""" """
-		site = frappe.local.site
-		frappe.destroy()
+		site = stylo.local.site
+		stylo.destroy()
 		_("this shouldn't break")
-		frappe.init(site=site)
-		frappe.connect()
+		stylo.init(site=site)
+		stylo.connect()
 
 	def test_guest_request_language_resolution_with_request_header(self):
-		"""Test for frappe.translate.get_language
+		"""Test for stylo.translate.get_language
 
-		Case 4: frappe.form_dict._lang & preferred_language cookie is not set, but Accept-Language header is [Guest User]
+		Case 4: stylo.form_dict._lang & preferred_language cookie is not set, but Accept-Language header is [Guest User]
 		"""
 
 		set_request(method="POST", path="/", headers=[("Accept-Language", third_lang)])
@@ -127,9 +127,9 @@ class TestTranslate(StyloTestCase):
 		self.assertIn(return_val, [third_lang, get_parent_language(third_lang)])
 
 	def test_request_language_resolution_with_request_header(self):
-		"""Test for frappe.translate.get_language
+		"""Test for stylo.translate.get_language
 
-		Case 5: frappe.form_dict._lang & preferred_language cookie is not set, but Accept-Language header is
+		Case 5: stylo.form_dict._lang & preferred_language cookie is not set, but Accept-Language header is
 		"""
 
 		set_request(method="POST", path="/", headers=[("Accept-Language", third_lang)])
@@ -138,14 +138,14 @@ class TestTranslate(StyloTestCase):
 
 	def test_load_all_translate_files(self):
 		"""Load all CSV files to ensure they have correct format"""
-		verify_translation_files("frappe")
+		verify_translation_files("stylo")
 
 	def test_python_extractor(self):
 		code = textwrap.dedent(
 			"""
-			frappe._("attr")
+			stylo._("attr")
 			_("name")
-			frappe._("attr with", context="attr context")
+			stylo._("attr with", context="attr context")
 			_("name with", context="name context")
 			_("broken on",
 				context="new line")
@@ -230,7 +230,7 @@ def verify_translation_files(app):
 
 	from pathlib import Path
 
-	translations_dir = Path(frappe.get_app_path(app)) / "translations"
+	translations_dir = Path(stylo.get_app_path(app)) / "translations"
 
 	for file in translations_dir.glob("*.csv"):
 		lang = file.stem  # basename of file = lang

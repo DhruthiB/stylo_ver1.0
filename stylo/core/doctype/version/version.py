@@ -3,10 +3,10 @@
 
 import json
 
-import frappe
-from frappe.model import datetime_fields, no_value_fields, table_fields
-from frappe.model.document import Document
-from frappe.utils import cstr
+import stylo
+from stylo.model import datetime_fields, no_value_fields, table_fields
+from stylo.model.document import Document
+from stylo.utils import cstr
 
 FIELDTYPES_TO_IGNORE = frozenset(fieldtype for fieldtype in no_value_fields if fieldtype not in table_fields)
 
@@ -22,10 +22,10 @@ class Version(Document):
 
 	@staticmethod
 	def set_impersonator(data):
-		if not frappe.session:
+		if not stylo.session:
 			return
 
-		if audit_user := frappe.session.data.get("audit_user"):
+		if audit_user := stylo.session.data.get("audit_user"):
 			data["audit_user"] = audit_user
 
 	def set_diff(self, old: Document, new: Document) -> bool:
@@ -35,7 +35,7 @@ class Version(Document):
 			self.set_impersonator(diff)
 			self.ref_doctype = new.doctype
 			self.docname = new.name
-			self.data = frappe.as_json(diff, indent=None, separators=(",", ":"))
+			self.data = stylo.as_json(diff, indent=None, separators=(",", ":"))
 			return True
 		else:
 			return False
@@ -53,7 +53,7 @@ class Version(Document):
 		self.set_impersonator(data)
 		self.ref_doctype = doc.doctype
 		self.docname = doc.name
-		self.data = frappe.as_json(data, indent=None, separators=(",", ":"))
+		self.data = stylo.as_json(data, indent=None, separators=(",", ":"))
 		return True
 
 	def get_data(self):
@@ -84,7 +84,7 @@ def get_diff(old, new, for_child=False, compare_cancelled=False):
 	data_import = new.flags.via_data_import
 	updater_reference = new.flags.updater_reference
 
-	out = frappe._dict(
+	out = stylo._dict(
 		changed=[],
 		added=[],
 		removed=[],
@@ -163,4 +163,4 @@ def get_diff(old, new, for_child=False, compare_cancelled=False):
 
 
 def on_doctype_update():
-	frappe.db.add_index("Version", ["ref_doctype", "docname"])
+	stylo.db.add_index("Version", ["ref_doctype", "docname"])

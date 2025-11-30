@@ -1,15 +1,15 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.core.doctype.report.report import is_prepared_report_disabled
-from frappe.model.document import Document
-from frappe.permissions import ALL_USER_ROLE
-from frappe.utils import cint
+import stylo
+from stylo.core.doctype.report.report import is_prepared_report_disabled
+from stylo.model.document import Document
+from stylo.permissions import ALL_USER_ROLE
+from stylo.utils import cint
 
 
 class RolePermissionforPageandReport(Document):
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def set_report_page_data(self):
 		self.set_custom_roles()
 		self.check_prepared_report_disabled()
@@ -18,9 +18,9 @@ class RolePermissionforPageandReport(Document):
 		args = self.get_args()
 		self.set("roles", [])
 
-		name = frappe.db.get_value("Custom Role", args, "name")
+		name = stylo.db.get_value("Custom Role", args, "name")
 		if name:
-			doc = frappe.get_doc("Custom Role", name)
+			doc = stylo.get_doc("Custom Role", name)
 			roles = doc.roles
 		else:
 			roles = self.get_standard_roles()
@@ -34,41 +34,41 @@ class RolePermissionforPageandReport(Document):
 	def get_standard_roles(self):
 		doctype = self.set_role_for
 		docname = self.page if self.set_role_for == "Page" else self.report
-		doc = frappe.get_doc(doctype, docname)
+		doc = stylo.get_doc(doctype, docname)
 		return doc.roles
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def reset_roles(self):
 		roles = self.get_standard_roles()
 		self.set("roles", roles)
 		self.update_custom_roles()
 		self.update_disable_prepared_report()
 
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def update_report_page_data(self):
 		self.update_custom_roles()
 		self.update_disable_prepared_report()
 
 	def update_custom_roles(self):
 		args = self.get_args()
-		name = frappe.db.get_value("Custom Role", args, "name")
+		name = stylo.db.get_value("Custom Role", args, "name")
 
 		args.update({"doctype": "Custom Role", "roles": self.get_roles()})
 
 		if self.report:
-			args.update({"ref_doctype": frappe.db.get_value("Report", self.report, "ref_doctype")})
+			args.update({"ref_doctype": stylo.db.get_value("Report", self.report, "ref_doctype")})
 
 		if name:
-			custom_role = frappe.get_doc("Custom Role", name)
+			custom_role = stylo.get_doc("Custom Role", name)
 			custom_role.set("roles", self.get_roles())
 			custom_role.save()
 		else:
-			frappe.get_doc(args).insert()
+			stylo.get_doc(args).insert()
 
 	def update_disable_prepared_report(self):
 		if self.report:
-			# intentionally written update query in frappe.db.sql instead of frappe.db.set_value
-			frappe.db.sql(
+			# intentionally written update query in stylo.db.sql instead of stylo.db.set_value
+			stylo.db.sql(
 				"""update `tabReport` set disable_prepared_report = %s, prepared_report = %s
 				where name = %s""",
 				(self.disable_prepared_report, cint(not self.disable_prepared_report), self.report),
@@ -88,4 +88,4 @@ class RolePermissionforPageandReport(Document):
 		]
 
 	def update_status(self):
-		return frappe.render_template
+		return stylo.render_template

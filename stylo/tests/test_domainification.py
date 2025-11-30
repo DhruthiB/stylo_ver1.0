@@ -1,14 +1,14 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.core.doctype.domain_settings.domain_settings import get_active_modules
-from frappe.core.page.permission_manager.permission_manager import get_roles_and_doctypes
-from frappe.desk.doctype.desktop_icon.desktop_icon import (
+import stylo
+from stylo.core.doctype.domain_settings.domain_settings import get_active_modules
+from stylo.core.page.permission_manager.permission_manager import get_roles_and_doctypes
+from stylo.desk.doctype.desktop_icon.desktop_icon import (
 	add_user_icon,
 	clear_desktop_icons_cache,
 	get_desktop_icons,
 )
-from frappe.tests.utils import StyloTestCase
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDomainification(StyloTestCase):
@@ -21,10 +21,10 @@ class TestDomainification(StyloTestCase):
 		self.add_active_domain("_Test Domain 1")
 
 	def tearDown(self):
-		frappe.db.delete("Role", {"name": "_Test Role"})
-		frappe.db.delete("Has Role", {"role": "_Test Role"})
-		frappe.db.delete("Domain", {"name": ("in", ("_Test Domain 1", "_Test Domain 2"))})
-		frappe.delete_doc("DocType", "Test Domainification")
+		stylo.db.delete("Role", {"name": "_Test Role"})
+		stylo.db.delete("Has Role", {"role": "_Test Role"})
+		stylo.db.delete("Domain", {"name": ("in", ("_Test Domain 1", "_Test Domain 2"))})
+		stylo.delete_doc("DocType", "Test Domainification")
 		self.remove_from_active_domains(remove_all=True)
 
 	def add_active_domain(self, domain):
@@ -33,7 +33,7 @@ class TestDomainification(StyloTestCase):
 		if not domain:
 			return
 
-		domain_settings = frappe.get_doc("Domain Settings", "Domain Settings")
+		domain_settings = stylo.get_doc("Domain Settings", "Domain Settings")
 		domain_settings.append("active_domains", {"domain": domain})
 		domain_settings.save()
 
@@ -42,7 +42,7 @@ class TestDomainification(StyloTestCase):
 		if not (domain or remove_all):
 			return
 
-		domain_settings = frappe.get_doc("Domain Settings", "Domain Settings")
+		domain_settings = stylo.get_doc("Domain Settings", "Domain Settings")
 
 		if remove_all:
 			domain_settings.set("active_domains", [])
@@ -55,10 +55,10 @@ class TestDomainification(StyloTestCase):
 
 	def new_domain(self, domain):
 		# create new domain
-		frappe.get_doc({"doctype": "Domain", "domain": domain}).insert()
+		stylo.get_doc({"doctype": "Domain", "domain": domain}).insert()
 
 	def new_doctype(self, name):
-		return frappe.get_doc(
+		return stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"module": "Core",
@@ -70,14 +70,14 @@ class TestDomainification(StyloTestCase):
 		)
 
 	def test_active_domains(self):
-		self.assertTrue("_Test Domain 1" in frappe.get_active_domains())
-		self.assertFalse("_Test Domain 2" in frappe.get_active_domains())
+		self.assertTrue("_Test Domain 1" in stylo.get_active_domains())
+		self.assertFalse("_Test Domain 2" in stylo.get_active_domains())
 
 		self.add_active_domain("_Test Domain 2")
-		self.assertTrue("_Test Domain 2" in frappe.get_active_domains())
+		self.assertTrue("_Test Domain 2" in stylo.get_active_domains())
 
 		self.remove_from_active_domains("_Test Domain 1")
-		self.assertTrue("_Test Domain 1" not in frappe.get_active_domains())
+		self.assertTrue("_Test Domain 1" not in stylo.get_active_domains())
 
 	def test_doctype_and_role_domainification(self):
 		"""
@@ -88,7 +88,7 @@ class TestDomainification(StyloTestCase):
 		test_doctype = self.new_doctype("Test Domainification")
 		test_doctype.insert()
 
-		test_role = frappe.get_doc({"doctype": "Role", "role_name": "_Test Role"}).insert()
+		test_role = stylo.get_doc({"doctype": "Role", "role_name": "_Test Role"}).insert()
 
 		# doctype should be hidden in desktop icon, role permissions
 		results = get_roles_and_doctypes()
@@ -146,7 +146,7 @@ class TestDomainification(StyloTestCase):
 	def test_module_def_for_domainification(self):
 		"""modules should be hidden if module def's restrict to domain is not in active domains"""
 
-		test_module_def = frappe.get_doc("Module Def", "Contacts")
+		test_module_def = stylo.get_doc("Module Def", "Contacts")
 		test_module_def.restrict_to_domain = "_Test Domain 2"
 		test_module_def.save()
 
@@ -160,6 +160,6 @@ class TestDomainification(StyloTestCase):
 		modules = get_active_modules()
 		self.assertTrue("Contacts" not in modules)
 
-		test_module_def = frappe.get_doc("Module Def", "Contacts")
+		test_module_def = stylo.get_doc("Module Def", "Contacts")
 		test_module_def.restrict_to_domain = ""
 		test_module_def.save()

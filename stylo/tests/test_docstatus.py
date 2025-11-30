@@ -1,5 +1,5 @@
-from frappe.model.docstatus import DocStatus
-from frappe.tests.utils import StyloTestCase
+from stylo.model.docstatus import DocStatus
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDocStatus(StyloTestCase):

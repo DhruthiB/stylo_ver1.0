@@ -7,18 +7,18 @@ from urllib.parse import unquote
 
 from bs4 import BeautifulSoup
 
-import frappe
-from frappe import _
-from frappe.automation.doctype.assignment_rule.assignment_rule import (
+import stylo
+from stylo import _
+from stylo.automation.doctype.assignment_rule.assignment_rule import (
 	apply as apply_assignment_rule,
 )
-from frappe.contacts.doctype.contact.contact import get_contact_name
-from frappe.core.doctype.comment.comment import update_comment_in_doc
-from frappe.core.doctype.communication.email import validate_email
-from frappe.core.doctype.communication.mixins import CommunicationEmailMixin
-from frappe.core.utils import get_parent_doc
-from frappe.model.document import Document
-from frappe.utils import (
+from stylo.contacts.doctype.contact.contact import get_contact_name
+from stylo.core.doctype.comment.comment import update_comment_in_doc
+from stylo.core.doctype.communication.email import validate_email
+from stylo.core.doctype.communication.mixins import CommunicationEmailMixin
+from stylo.core.utils import get_parent_doc
+from stylo.model.document import Document
+from stylo.utils import (
 	cstr,
 	parse_addr,
 	split_emails,
@@ -26,7 +26,7 @@ from frappe.utils import (
 	time_diff_in_seconds,
 	validate_email_address,
 )
-from frappe.utils.user import is_system_user
+from stylo.utils.user import is_system_user
 
 exclude_from_linked_with = True
 
@@ -46,13 +46,13 @@ class Communication(Document, CommunicationEmailMixin):
 			and self.uid
 			and self.uid != -1
 		):
-			email_flag_queue = frappe.db.get_value(
+			email_flag_queue = stylo.db.get_value(
 				"Email Flag Queue", {"communication": self.name, "is_completed": 0}
 			)
 			if email_flag_queue:
 				return
 
-			frappe.get_doc(
+			stylo.get_doc(
 				{
 					"doctype": "Email Flag Queue",
 					"action": "Read",
@@ -61,13 +61,13 @@ class Communication(Document, CommunicationEmailMixin):
 					"email_account": self.email_account,
 				}
 			).insert(ignore_permissions=True)
-			frappe.db.commit()
+			stylo.db.commit()
 
 	def validate(self):
 		self.validate_reference()
 
 		if not self.user:
-			self.user = frappe.session.user
+			self.user = stylo.session.user
 
 		if not self.subject:
 			self.subject = strip_html((self.content or "")[:141])
@@ -92,13 +92,13 @@ class Communication(Document, CommunicationEmailMixin):
 	def validate_reference(self):
 		if self.reference_doctype and self.reference_name:
 			if not self.reference_owner:
-				self.reference_owner = frappe.db.get_value(
+				self.reference_owner = stylo.db.get_value(
 					self.reference_doctype, self.reference_name, "owner"
 				)
 
 			# prevent communication against a child table
-			if frappe.get_meta(self.reference_doctype).istable:
-				frappe.throw(
+			if stylo.get_meta(self.reference_doctype).istable:
+				stylo.throw(
 					_("Cannot create a {0} against a child document: {1}").format(
 						_(self.communication_type), _(self.reference_doctype)
 					)
@@ -115,9 +115,9 @@ class Communication(Document, CommunicationEmailMixin):
 					doc = get_parent_doc(doc)
 
 				if circular_linking:
-					frappe.throw(
+					stylo.throw(
 						_("Please make sure the Reference Communication Docs are not circularly linked."),
-						frappe.CircularLinkingError,
+						stylo.CircularLinkingError,
 					)
 
 	def after_insert(self):
@@ -125,19 +125,19 @@ class Communication(Document, CommunicationEmailMixin):
 			return
 
 		if self.reference_doctype == "Communication" and self.sent_or_received == "Sent":
-			frappe.db.set_value("Communication", self.reference_name, "status", "Replied")
+			stylo.db.set_value("Communication", self.reference_name, "status", "Replied")
 
 		if self.communication_type == "Communication":
 			self.notify_change("add")
 
 		elif self.communication_type in ("Chat", "Notification"):
-			if self.reference_name == frappe.session.user:
+			if self.reference_name == stylo.session.user:
 				message = self.as_dict()
 				message["broadcast"] = True
-				frappe.publish_realtime("new_message", message, after_commit=True)
+				stylo.publish_realtime("new_message", message, after_commit=True)
 			else:
 				# reference_name contains the user who is addressed in the messages' page comment
-				frappe.publish_realtime(
+				stylo.publish_realtime(
 					"new_message", self.as_dict(), user=self.reference_name, after_commit=True
 				)
 
@@ -153,7 +153,7 @@ class Communication(Document, CommunicationEmailMixin):
 			return
 
 		user_email_signature = (
-			frappe.db.get_value(
+			stylo.db.get_value(
 				"User",
 				self.sender,
 				"email_signature",
@@ -162,7 +162,7 @@ class Communication(Document, CommunicationEmailMixin):
 			else None
 		)
 
-		signature = user_email_signature or frappe.db.get_value(
+		signature = user_email_signature or stylo.db.get_value(
 			"Email Account",
 			{"default_outgoing": 1, "add_signature": 1},
 			"signature",
@@ -225,7 +225,7 @@ class Communication(Document, CommunicationEmailMixin):
 		return self._get_emails_list(self.bcc, exclude_displayname=exclude_displayname)
 
 	def get_attachments(self):
-		attachments = frappe.get_all(
+		attachments = stylo.get_all(
 			"File",
 			fields=["name", "file_name", "file_url", "is_private"],
 			filters={"attached_to_name": self.name, "attached_to_doctype": self.DOCTYPE},
@@ -233,7 +233,7 @@ class Communication(Document, CommunicationEmailMixin):
 		return attachments
 
 	def notify_change(self, action):
-		frappe.publish_realtime(
+		stylo.publish_realtime(
 			"docinfo_update",
 			{"doc": self.as_dict(), "key": "communications", "action": action},
 			doctype=self.reference_doctype,
@@ -254,32 +254,32 @@ class Communication(Document, CommunicationEmailMixin):
 			self.communication_type == "Communication"
 			and self.communication_medium == "Email"
 			and self.sent_or_received == "Received"
-			and frappe.db.exists("Email Rule", {"email_id": self.sender, "is_spam": 1})
+			and stylo.db.exists("Email Rule", {"email_id": self.sender, "is_spam": 1})
 		):
 			self.email_status = "Spam"
 
 	@classmethod
 	def find(cls, name, ignore_error=False):
 		try:
-			return frappe.get_doc(cls.DOCTYPE, name)
-		except frappe.DoesNotExistError:
+			return stylo.get_doc(cls.DOCTYPE, name)
+		except stylo.DoesNotExistError:
 			if ignore_error:
 				return
 			raise
 
 	@classmethod
 	def find_one_by_filters(cls, *, order_by=None, **kwargs):
-		name = frappe.db.get_value(cls.DOCTYPE, kwargs, order_by=order_by)
+		name = stylo.db.get_value(cls.DOCTYPE, kwargs, order_by=order_by)
 		return cls.find(name) if name else None
 
 	def update_db(self, **kwargs):
-		frappe.db.set_value(self.DOCTYPE, self.name, kwargs)
+		stylo.db.set_value(self.DOCTYPE, self.name, kwargs)
 
 	def set_sender_full_name(self):
 		if not self.sender_full_name and self.sender:
 			if self.sender == "Administrator":
-				self.sender_full_name = frappe.db.get_value("User", "Administrator", "full_name")
-				self.sender = frappe.db.get_value("User", "Administrator", "email")
+				self.sender_full_name = stylo.db.get_value("User", "Administrator", "full_name")
+				self.sender = stylo.db.get_value("User", "Administrator", "email")
 			elif self.sender == "Guest":
 				self.sender_full_name = self.sender
 				self.sender = None
@@ -294,10 +294,10 @@ class Communication(Document, CommunicationEmailMixin):
 				self.sender_full_name = sender_name
 
 				if not self.sender_full_name:
-					self.sender_full_name = frappe.db.get_value("User", self.sender, "full_name")
+					self.sender_full_name = stylo.db.get_value("User", self.sender, "full_name")
 
 				if not self.sender_full_name:
-					first_name, last_name = frappe.db.get_value(
+					first_name, last_name = stylo.db.get_value(
 						"Contact", filters={"email_id": sender_email}, fieldname=["first_name", "last_name"]
 					) or [None, None]
 					self.sender_full_name = (first_name or "") + (last_name or "")
@@ -309,7 +309,7 @@ class Communication(Document, CommunicationEmailMixin):
 		"""Look into the status of Email Queue linked to this Communication and set the Delivery Status of this Communication"""
 		delivery_status = None
 		status_counts = Counter(
-			frappe.get_all("Email Queue", pluck="status", filters={"communication": self.name})
+			stylo.get_all("Email Queue", pluck="status", filters={"communication": self.name})
 		)
 		if self.sent_or_received == "Received":
 			return
@@ -334,17 +334,17 @@ class Communication(Document, CommunicationEmailMixin):
 			self.notify_update()
 
 			if commit:
-				frappe.db.commit()
+				stylo.db.commit()
 
 	def parse_email_for_timeline_links(self):
-		if not frappe.db.get_value("Email Account", filters={"enable_automatic_linking": 1}):
+		if not stylo.db.get_value("Email Account", filters={"enable_automatic_linking": 1}):
 			return
 
 		for doctype, docname in parse_email([self.recipients, self.cc, self.bcc]):
 			# Both document and doctype names should be case insensitive in email addresses.
-			doctype = frappe.db.get_value("DocType", doctype)
+			doctype = stylo.db.get_value("DocType", doctype)
 			if doctype:
-				docname = frappe.db.get_value(doctype, docname, ignore=True)
+				docname = stylo.db.get_value(doctype, docname, ignore=True)
 			if not (doctype and docname):
 				continue
 
@@ -357,7 +357,7 @@ class Communication(Document, CommunicationEmailMixin):
 	# Timeline Links
 	def set_timeline_links(self):
 		contacts = []
-		create_contact_enabled = self.email_account and frappe.db.get_value(
+		create_contact_enabled = self.email_account and stylo.db.get_value(
 			"Email Account", self.email_account, "create_contact"
 		)
 		contacts = get_contacts(
@@ -399,9 +399,9 @@ class Communication(Document, CommunicationEmailMixin):
 
 def on_doctype_update():
 	"""Add indexes in `tabCommunication`"""
-	frappe.db.add_index("Communication", ["reference_doctype", "reference_name"])
-	frappe.db.add_index("Communication", ["status", "communication_type"])
-	frappe.db.add_index("Communication", ["message_id(140)"])
+	stylo.db.add_index("Communication", ["reference_doctype", "reference_name"])
+	stylo.db.add_index("Communication", ["status", "communication_type"])
+	stylo.db.add_index("Communication", ["message_id(140)"])
 
 
 def has_permission(doc, ptype, user):
@@ -410,19 +410,19 @@ def has_permission(doc, ptype, user):
 			return
 
 		if doc.reference_doctype and doc.reference_name:
-			return frappe.has_permission(doc.reference_doctype, ptype="read", doc=doc.reference_name)
+			return stylo.has_permission(doc.reference_doctype, ptype="read", doc=doc.reference_name)
 
 
 def get_permission_query_conditions_for_communication(user):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
-	roles = frappe.get_roles(user)
+	roles = stylo.get_roles(user)
 
 	if "Super Email User" in roles or "System Manager" in roles:
 		return None
 	else:
-		accounts = frappe.get_all(
+		accounts = stylo.get_all(
 			"User Email", filters={"parent": user}, fields=["email_account"], distinct=True, order_by="idx"
 		)
 
@@ -444,11 +444,11 @@ def get_contacts(email_strings: list[str], auto_create_contact=False) -> list[st
 
 		if not contact_name and email and auto_create_contact:
 			email_parts = email.split("@")
-			first_name = frappe.unscrub(email_parts[0])
+			first_name = stylo.unscrub(email_parts[0])
 
 			try:
 				contact_name = f"{first_name}-{email_parts[1]}" if first_name == "Contact" else first_name
-				contact = frappe.get_doc(
+				contact = stylo.get_doc(
 					{"doctype": "Contact", "first_name": contact_name, "name": contact_name}
 				)
 				contact.add_email(email_id=email, is_primary=True)
@@ -478,7 +478,7 @@ def get_emails(email_strings: list[str]) -> list[str]:
 
 
 def add_contact_links_to_communication(communication, contact_name):
-	contact_links = frappe.get_all(
+	contact_links = stylo.get_all(
 		"Dynamic Link",
 		filters={"parenttype": "Contact", "parent": contact_name},
 		fields=["link_doctype", "link_name"],
@@ -513,7 +513,7 @@ def parse_email(email_strings):
 				if len(document_parts) != 2:
 					continue
 
-				doctype = frappe.unscrub(unquote(document_parts[0]))
+				doctype = stylo.unscrub(unquote(document_parts[0]))
 				docname = unquote(document_parts[1])
 
 			if doctype and docname:
@@ -525,7 +525,7 @@ def get_email_without_link(email):
 	returns email address without doctype links
 	returns admin@example.com for email admin+doctype+docname@example.com
 	"""
-	if not frappe.get_all("Email Account", filters={"enable_automatic_linking": 1}):
+	if not stylo.get_all("Email Account", filters={"enable_automatic_linking": 1}):
 		return email
 
 	try:
@@ -570,7 +570,7 @@ def update_first_response_time(parent, communication):
 	if parent.meta.has_field("first_response_time") and not parent.get("first_response_time"):
 		if (
 			is_system_user(communication.sender)
-			or frappe.get_cached_value("User", frappe.session.user, "user_type") == "System User"
+			or stylo.get_cached_value("User", stylo.session.user, "user_type") == "System User"
 		):
 			if (
 				communication.sent_or_received == "Sent"
@@ -586,7 +586,7 @@ def update_first_response_time(parent, communication):
 def set_avg_response_time(parent, communication):
 	if parent.meta.has_field("avg_response_time") and communication.sent_or_received == "Sent":
 		# avg response time for all the responses
-		communications = frappe.get_list(
+		communications = stylo.get_list(
 			"Communication",
 			filters={"reference_doctype": parent.doctype, "reference_name": parent.name},
 			fields=["sent_or_received", "name", "creation"],

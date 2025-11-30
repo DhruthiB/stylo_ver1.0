@@ -6,14 +6,14 @@ import json
 
 from rq import get_current_job
 
-import frappe
-from frappe.database.utils import dangerously_reconnect_on_connection_abort
-from frappe.desk.form.load import get_attachments
-from frappe.desk.query_report import generate_report_result
-from frappe.model.document import Document
-from frappe.monitor import add_data_to_monitor
-from frappe.utils import gzip_compress, gzip_decompress
-from frappe.utils.background_jobs import enqueue
+import stylo
+from stylo.database.utils import dangerously_reconnect_on_connection_abort
+from stylo.desk.form.load import get_attachments
+from stylo.desk.query_report import generate_report_result
+from stylo.model.document import Document
+from stylo.monitor import add_data_to_monitor
+from stylo.utils import gzip_compress, gzip_decompress
+from stylo.utils.background_jobs import enqueue
 
 
 class PreparedReport(Document):
@@ -27,12 +27,12 @@ class PreparedReport(Document):
 
 	@staticmethod
 	def clear_old_logs(days=30):
-		prepared_reports_to_delete = frappe.get_all(
+		prepared_reports_to_delete = stylo.get_all(
 			"Prepared Report",
-			filters={"modified": ["<", frappe.utils.add_days(frappe.utils.now(), -days)]},
+			filters={"modified": ["<", stylo.utils.add_days(stylo.utils.now(), -days)]},
 		)
 
-		for batch in frappe.utils.create_batch(prepared_reports_to_delete, 100):
+		for batch in stylo.utils.create_batch(prepared_reports_to_delete, 100):
 			enqueue(method=delete_prepared_reports, reports=batch)
 
 	def before_insert(self):
@@ -50,7 +50,7 @@ class PreparedReport(Document):
 	def get_prepared_data(self, with_file_name=False):
 		if attachments := get_attachments(self.doctype, self.name):
 			attachment = attachments[0]
-			attached_file = frappe.get_doc("File", attachment.name)
+			attached_file = stylo.get_doc("File", attachment.name)
 
 			if with_file_name:
 				return (gzip_decompress(attached_file.get_content()), attachment.file_name)
@@ -60,8 +60,8 @@ class PreparedReport(Document):
 def generate_report(prepared_report):
 	update_job_id(prepared_report, get_current_job().id)
 
-	instance = frappe.get_doc("Prepared Report", prepared_report)
-	report = frappe.get_doc("Report", instance.report_name)
+	instance = stylo.get_doc("Prepared Report", prepared_report)
+	report = stylo.get_doc("Report", instance.report_name)
 
 	add_data_to_monitor(report=instance.report_name)
 
@@ -71,7 +71,7 @@ def generate_report(prepared_report):
 		if report.report_type == "Custom Report":
 			custom_report_doc = report
 			reference_report = custom_report_doc.reference_report
-			report = frappe.get_doc("Report", reference_report)
+			report = stylo.get_doc("Report", reference_report)
 			if custom_report_doc.json:
 				data = json.loads(custom_report_doc.json)
 				if data:
@@ -83,21 +83,21 @@ def generate_report(prepared_report):
 		instance.status = "Completed"
 	except Exception:
 		# we need to ensure that error gets stored
-		_save_error(instance, error=frappe.get_traceback(with_context=True))
+		_save_error(instance, error=stylo.get_traceback(with_context=True))
 
-	instance.report_end_time = frappe.utils.now()
+	instance.report_end_time = stylo.utils.now()
 	instance.save(ignore_permissions=True)
 
-	frappe.publish_realtime(
+	stylo.publish_realtime(
 		"report_generated",
 		{"report_name": instance.report_name, "name": instance.name},
-		user=frappe.session.user,
+		user=stylo.session.user,
 	)
 
 
 def update_job_id(prepared_report, job_id):
-	frappe.db.set_value("Prepared Report", prepared_report, "job_id", job_id, update_modified=False)
-	frappe.db.commit()
+	stylo.db.set_value("Prepared Report", prepared_report, "job_id", job_id, update_modified=False)
+	stylo.db.commit()
 
 
 @dangerously_reconnect_on_connection_abort
@@ -108,10 +108,10 @@ def _save_error(instance, error):
 	instance.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def make_prepared_report(report_name, filters=None):
 	"""run reports in background"""
-	prepared_report = frappe.get_doc(
+	prepared_report = stylo.get_doc(
 		{
 			"doctype": "Prepared Report",
 			"report_name": report_name,
@@ -122,22 +122,22 @@ def make_prepared_report(report_name, filters=None):
 	return {"name": prepared_report.name}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_reports_in_queued_state(report_name, filters):
-	reports = frappe.get_all(
+	reports = stylo.get_all(
 		"Prepared Report",
 		filters={
 			"report_name": report_name,
 			"filters": process_filters_for_prepared_report(filters),
 			"status": "Queued",
-			"owner": frappe.session.user,
+			"owner": stylo.session.user,
 		},
 	)
 	return reports
 
 
 def get_completed_prepared_report(filters, user, report_name):
-	return frappe.db.get_value(
+	return stylo.db.get_value(
 		"Prepared Report",
 		filters={
 			"status": "Completed",
@@ -148,11 +148,11 @@ def get_completed_prepared_report(filters, user, report_name):
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def delete_prepared_reports(reports):
-	reports = frappe.parse_json(reports)
+	reports = stylo.parse_json(reports)
 	for report in reports:
-		prepared_report = frappe.get_doc("Prepared Report", report["name"])
+		prepared_report = stylo.get_doc("Prepared Report", report["name"])
 		if prepared_report.has_permission():
 			prepared_report.delete(ignore_permissions=True, delete_permanently=True)
 
@@ -164,19 +164,19 @@ def process_filters_for_prepared_report(filters):
 	# This looks like an insanity but, without this it'd be very hard to find Prepared Reports matching given condition
 	# We're ensuring that spacing is consistent. e.g. JS seems to put no spaces after ":", Python on the other hand does.
 	# We are also ensuring that order of keys is same so generated JSON string will be identical too.
-	# PS: frappe.as_json sorts keys
-	return frappe.as_json(filters, indent=None, separators=(",", ":"))
+	# PS: stylo.as_json sorts keys
+	return stylo.as_json(filters, indent=None, separators=(",", ":"))
 
 
 def create_json_gz_file(data, dt, dn):
 	# Storing data in CSV file causes information loss
 	# Reports like P&L Statement were completely unsuable because of this
-	json_filename = "{}.json.gz".format(frappe.utils.data.format_datetime(frappe.utils.now(), "Y-m-d-H:M"))
-	encoded_content = frappe.safe_encode(frappe.as_json(data, indent=None, separators=(",", ":")))
+	json_filename = "{}.json.gz".format(stylo.utils.data.format_datetime(stylo.utils.now(), "Y-m-d-H:M"))
+	encoded_content = stylo.safe_encode(stylo.as_json(data, indent=None, separators=(",", ":")))
 	compressed_content = gzip_compress(encoded_content)
 
 	# Call save() file function to upload and attach the file
-	_file = frappe.get_doc(
+	_file = stylo.get_doc(
 		{
 			"doctype": "File",
 			"file_name": json_filename,
@@ -189,43 +189,43 @@ def create_json_gz_file(data, dt, dn):
 	_file.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def download_attachment(dn):
-	pr = frappe.get_doc("Prepared Report", dn)
+	pr = stylo.get_doc("Prepared Report", dn)
 	if not pr.has_permission("read"):
-		frappe.throw(frappe._("Cannot Download Report due to insufficient permissions"))
+		stylo.throw(stylo._("Cannot Download Report due to insufficient permissions"))
 
 	data, file_name = pr.get_prepared_data(with_file_name=True)
-	frappe.local.response.filename = file_name[:-3]
-	frappe.local.response.filecontent = data
-	frappe.local.response.type = "binary"
+	stylo.local.response.filename = file_name[:-3]
+	stylo.local.response.filecontent = data
+	stylo.local.response.type = "binary"
 
 
 def get_permission_query_condition(user):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 	if user == "Administrator":
 		return None
 
-	from frappe.utils.user import UserPermissions
+	from stylo.utils.user import UserPermissions
 
 	user = UserPermissions(user)
 
 	if "System Manager" in user.roles:
 		return None
 
-	reports = [frappe.db.escape(report) for report in user.get_all_reports().keys()]
+	reports = [stylo.db.escape(report) for report in user.get_all_reports().keys()]
 
 	return """`tabPrepared Report`.report_name in ({reports})""".format(reports=",".join(reports))
 
 
 def has_permission(doc, user):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 	if user == "Administrator":
 		return True
 
-	from frappe.utils.user import UserPermissions
+	from stylo.utils.user import UserPermissions
 
 	user = UserPermissions(user)
 

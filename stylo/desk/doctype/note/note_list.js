@@ -1,4 +1,4 @@
-frappe.listview_settings["Note"] = {
+stylo.listview_settings["Note"] = {
 	onload: function (me) {
 		me.page.set_title(__("Notes"));
 	},

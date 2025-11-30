@@ -2,16 +2,16 @@
 # License: MIT. See LICENSE
 
 
-import frappe
-import frappe.defaults
-from frappe import _
-from frappe.core.doctype.doctype.doctype import (
+import stylo
+import stylo.defaults
+from stylo import _
+from stylo.core.doctype.doctype.doctype import (
 	clear_permissions_cache,
 	validate_permissions_for_doctype,
 )
-from frappe.exceptions import DoesNotExistError
-from frappe.modules.import_file import get_file_path, read_doc_from_file
-from frappe.permissions import (
+from stylo.exceptions import DoesNotExistError
+from stylo.modules.import_file import get_file_path, read_doc_from_file
+from stylo.permissions import (
 	AUTOMATIC_ROLES,
 	add_permission,
 	get_all_perms,
@@ -20,18 +20,18 @@ from frappe.permissions import (
 	setup_custom_perms,
 	update_permission_property,
 )
-from frappe.utils.user import get_users_with_role as _get_user_with_role
+from stylo.utils.user import get_users_with_role as _get_user_with_role
 
 not_allowed_in_permission_manager = ["DocType", "Patch Log", "Module Def", "Transaction Log"]
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_roles_and_doctypes():
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 
-	active_domains = frappe.get_active_domains()
+	active_domains = stylo.get_active_domains()
 
-	doctypes = frappe.get_all(
+	doctypes = stylo.get_all(
 		"DocType",
 		filters={
 			"istable": 0,
@@ -42,12 +42,12 @@ def get_roles_and_doctypes():
 	)
 
 	restricted_roles = ["Administrator"]
-	if frappe.session.user != "Administrator":
-		custom_user_type_roles = frappe.get_all("User Type", filters={"is_standard": 0}, fields=["role"])
+	if stylo.session.user != "Administrator":
+		custom_user_type_roles = stylo.get_all("User Type", filters={"is_standard": 0}, fields=["role"])
 		restricted_roles.extend(row.role for row in custom_user_type_roles)
 		restricted_roles.extend(AUTOMATIC_ROLES)
 
-	roles = frappe.get_all(
+	roles = stylo.get_all(
 		"Role",
 		filters={
 			"name": ("not in", restricted_roles),
@@ -66,9 +66,9 @@ def get_roles_and_doctypes():
 	}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_permissions(doctype: str | None = None, role: str | None = None):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 
 	if role:
 		out = get_all_perms(role)
@@ -77,13 +77,13 @@ def get_permissions(doctype: str | None = None, role: str | None = None):
 
 	else:
 		filters = {"parent": doctype}
-		if frappe.session.user != "Administrator":
-			custom_roles = frappe.get_all("Role", filters={"is_custom": 1}, pluck="name")
+		if stylo.session.user != "Administrator":
+			custom_roles = stylo.get_all("Role", filters={"is_custom": 1}, pluck="name")
 			filters["role"] = ["not in", custom_roles]
 
-		out = frappe.get_all("Custom DocPerm", fields="*", filters=filters, order_by="permlevel")
+		out = stylo.get_all("Custom DocPerm", fields="*", filters=filters, order_by="permlevel")
 		if not out:
-			out = frappe.get_all("DocPerm", fields="*", filters=filters, order_by="permlevel")
+			out = stylo.get_all("DocPerm", fields="*", filters=filters, order_by="permlevel")
 
 	linked_doctypes = {}
 	for d in out:
@@ -92,23 +92,23 @@ def get_permissions(doctype: str | None = None, role: str | None = None):
 				linked_doctypes[d.parent] = get_linked_doctypes(d.parent)
 			except DoesNotExistError:
 				# exclude & continue if linked doctype is not found
-				frappe.clear_last_message()
+				stylo.clear_last_message()
 				continue
 		d.linked_doctypes = linked_doctypes[d.parent]
-		if meta := frappe.get_meta(d.parent):
+		if meta := stylo.get_meta(d.parent):
 			d.is_submittable = meta.is_submittable
 			d.in_create = meta.in_create
 
 	return out
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def add(parent, role, permlevel):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	add_permission(parent, role, permlevel)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update(doctype, role, permlevel, ptype, value=None, if_owner=0):
 	"""Update role permission params
 
@@ -122,10 +122,10 @@ def update(doctype, role, permlevel, ptype, value=None, if_owner=0):
 	Returns:
 	        str: Refresh flag is permission is updated successfully
 	"""
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 
 	if ptype == "report" and value == "1" and if_owner == "1":
-		frappe.throw(_("Cannot set 'Report' permission if 'Only If Creator' permission is set"))
+		stylo.throw(_("Cannot set 'Report' permission if 'Only If Creator' permission is set"))
 
 	out = update_permission_property(doctype, role, permlevel, ptype, value, if_owner=if_owner)
 
@@ -135,41 +135,41 @@ def update(doctype, role, permlevel, ptype, value=None, if_owner=0):
 	return "refresh" if out else None
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def remove(doctype, role, permlevel, if_owner=0):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	setup_custom_perms(doctype)
 
-	frappe.db.delete(
+	stylo.db.delete(
 		"Custom DocPerm",
 		{"parent": doctype, "role": role, "permlevel": permlevel, "if_owner": if_owner},
 	)
 
-	if not frappe.get_all("Custom DocPerm", {"parent": doctype}):
-		frappe.throw(_("There must be atleast one permission rule."), title=_("Cannot Remove"))
+	if not stylo.get_all("Custom DocPerm", {"parent": doctype}):
+		stylo.throw(_("There must be atleast one permission rule."), title=_("Cannot Remove"))
 
 	validate_permissions_for_doctype(doctype, for_remove=True, alert=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def reset(doctype):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	reset_perms(doctype)
 	clear_permissions_cache(doctype)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_users_with_role(role):
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 	return _get_user_with_role(role)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_standard_permissions(doctype):
-	frappe.only_for("System Manager")
-	meta = frappe.get_meta(doctype)
+	stylo.only_for("System Manager")
+	meta = stylo.get_meta(doctype)
 	if meta.custom:
-		doc = frappe.get_doc("DocType", doctype)
+		doc = stylo.get_doc("DocType", doctype)
 		return [p.as_dict() for p in doc.permissions]
 	else:
 		# also used to setup permissions via patch

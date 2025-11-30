@@ -5,15 +5,15 @@ import itertools
 import json
 from collections import defaultdict
 
-import frappe
-import frappe.desk.form.load
-import frappe.desk.form.meta
-from frappe import _
-from frappe.model.meta import is_single
-from frappe.modules import load_doctype_module
+import stylo
+import stylo.desk.form.load
+import stylo.desk.form.meta
+from stylo import _
+from stylo.model.meta import is_single
+from stylo.modules import load_doctype_module
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_submitted_linked_docs(doctype: str, name: str) -> list[tuple]:
 	"""Get all the nested submitted documents those are present in referencing tables (dependent tables).
 
@@ -38,7 +38,7 @@ def get_submitted_linked_docs(doctype: str, name: str) -> list[tuple]:
 	3. Searching for links is going to be a tree like structure where at every level,
 	        you will be finding documents using parent document and parent document links.
 	"""
-	frappe.has_permission(doctype, doc=name, throw=True)
+	stylo.has_permission(doctype, doc=name, throw=True)
 	tree = SubmittableDocumentTree(doctype, name)
 	visited_documents = tree.get_all_children()
 	docs = []
@@ -143,7 +143,7 @@ class SubmittableDocumentTree:
 	def get_submittable_doctypes(self) -> list[str]:
 		"""Returns list of submittable doctypes."""
 		if not self._submittable_doctypes:
-			self._submittable_doctypes = frappe.get_all(
+			self._submittable_doctypes = stylo.get_all(
 				"DocType", {"is_submittable": 1}, pluck="name", order_by=None
 			)
 		return self._submittable_doctypes
@@ -159,7 +159,7 @@ def get_child_tables_of_doctypes(doctypes: list[str] | None = None):
 		filters_for_docfield = [*filters, ["parent", "in", tuple(doctypes)]]
 		filters_for_customfield = [*filters, ["dt", "in", tuple(doctypes)]]
 
-	links = frappe.get_all(
+	links = stylo.get_all(
 		"DocField",
 		fields=["parent", "fieldname", "options as child_table"],
 		filters=filters_for_docfield,
@@ -167,7 +167,7 @@ def get_child_tables_of_doctypes(doctypes: list[str] | None = None):
 		order_by=None,
 	)
 
-	links += frappe.get_all(
+	links += stylo.get_all(
 		"Custom Field",
 		fields=["dt as parent", "fieldname", "options as child_table"],
 		filters=filters_for_customfield,
@@ -240,14 +240,14 @@ def get_references_across_doctypes_by_link_field(
 		filters_for_docfield += [["parent", "in", tuple(limit_link_doctypes)]]
 		filters_for_customfield += [["dt", "in", tuple(limit_link_doctypes)]]
 
-	links = frappe.get_all(
+	links = stylo.get_all(
 		"DocField",
 		fields=["parent", "fieldname", "options as linked_to"],
 		filters=filters_for_docfield,
 		as_list=1,
 	)
 
-	links += frappe.get_all(
+	links += stylo.get_all(
 		"Custom Field",
 		fields=["dt as parent", "fieldname", "options as linked_to"],
 		filters=filters_for_customfield,
@@ -279,7 +279,7 @@ def get_references_across_doctypes_by_dynamic_link_field(
 		filters_for_customfield += [["dt", "in", tuple(limit_link_doctypes)]]
 
 	# find dynamic links of parents
-	links = frappe.get_all(
+	links = stylo.get_all(
 		"DocField",
 		fields=["parent as doctype", "fieldname", "options as doctype_fieldname"],
 		filters=filters_for_docfield,
@@ -287,7 +287,7 @@ def get_references_across_doctypes_by_dynamic_link_field(
 		order_by=None,
 	)
 
-	links += frappe.get_all(
+	links += stylo.get_all(
 		"Custom Field",
 		fields=["dt as doctype", "fieldname", "options as doctype_fieldname"],
 		filters=filters_for_customfield,
@@ -299,12 +299,12 @@ def get_references_across_doctypes_by_dynamic_link_field(
 	for doctype, fieldname, doctype_fieldname in links:
 		try:
 			filters = [[doctype_fieldname, "in", to_doctypes]] if to_doctypes else []
-			for linked_to in frappe.get_all(doctype, pluck=doctype_fieldname, filters=filters, distinct=1):
+			for linked_to in stylo.get_all(doctype, pluck=doctype_fieldname, filters=filters, distinct=1):
 				if linked_to:
 					links_by_doctype[linked_to].append(
 						{"doctype": doctype, "fieldname": fieldname, "doctype_fieldname": doctype_fieldname}
 					)
-		except frappe.db.ProgrammingError:
+		except stylo.db.ProgrammingError:
 			# TODO: FIXME
 			continue
 	return links_by_doctype
@@ -339,21 +339,21 @@ def get_referencing_documents(
 
 	if not link_info.get("is_child"):
 		filters.extend(parent_filters or [])
-		return {from_table: frappe.get_all(from_table, filters, pluck="name", order_by=None)}
+		return {from_table: stylo.get_all(from_table, filters, pluck="name", order_by=None)}
 
 	filters.extend(child_filters or [])
-	res = frappe.get_all(from_table, filters=filters, fields=["name", "parenttype", "parent"], order_by=None)
+	res = stylo.get_all(from_table, filters=filters, fields=["name", "parenttype", "parent"], order_by=None)
 	documents = defaultdict(list)
 
 	for parent, rows in itertools.groupby(res, key=lambda row: row["parenttype"]):
 		if allowed_parents and parent not in allowed_parents:
 			continue
 		filters = (parent_filters or []) + [["name", "in", tuple(row.parent for row in rows)]]
-		documents[parent].extend(frappe.get_all(parent, filters=filters, pluck="name", order_by=None) or [])
+		documents[parent].extend(stylo.get_all(parent, filters=filters, pluck="name", order_by=None) or [])
 	return documents
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def cancel_all_linked_docs(docs, ignore_doctypes_on_cancel_all=None):
 	"""
 	Cancel all linked doctype, optionally ignore doctypes specified in a list.
@@ -370,9 +370,9 @@ def cancel_all_linked_docs(docs, ignore_doctypes_on_cancel_all=None):
 		ignore_doctypes_on_cancel_all = json.loads(ignore_doctypes_on_cancel_all)
 	for i, doc in enumerate(docs, 1):
 		if validate_linked_doc(doc, ignore_doctypes_on_cancel_all):
-			linked_doc = frappe.get_doc(doc.get("doctype"), doc.get("name"))
+			linked_doc = stylo.get_doc(doc.get("doctype"), doc.get("name"))
 			linked_doc.cancel()
-		frappe.publish_progress(percent=i / len(docs) * 100, title=_("Cancelling documents"))
+		stylo.publish_progress(percent=i / len(docs) * 100, title=_("Cancelling documents"))
 
 
 def validate_linked_doc(docinfo, ignore_doctypes_on_cancel_all=None):
@@ -391,7 +391,7 @@ def validate_linked_doc(docinfo, ignore_doctypes_on_cancel_all=None):
 		return False
 
 	# skip non-submittable doctypes since they don't need to be cancelled
-	if not frappe.get_meta(docinfo.get("doctype")).is_submittable:
+	if not stylo.get_meta(docinfo.get("doctype")).is_submittable:
 		return False
 
 	# skip draft or cancelled documents
@@ -409,7 +409,7 @@ def validate_linked_doc(docinfo, ignore_doctypes_on_cancel_all=None):
 def get_exempted_doctypes():
 	"""Get list of doctypes exempted from being auto-cancelled"""
 	auto_cancel_exempt_doctypes = []
-	for doctypes in frappe.get_hooks("auto_cancel_exempted_doctypes"):
+	for doctypes in stylo.get_hooks("auto_cancel_exempted_doctypes"):
 		auto_cancel_exempt_doctypes.append(doctypes)
 	return auto_cancel_exempt_doctypes
 
@@ -424,14 +424,14 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 	if not linkinfo:
 		return results
 
-	is_target_doctype_table = frappe.get_meta(doctype).istable
+	is_target_doctype_table = stylo.get_meta(doctype).istable
 
 	for linked_doctype, link_context in linkinfo.items():
 		# Don't try to fetch linked documents if the user can't read the doctype
-		if not frappe.has_permission(linked_doctype):
+		if not stylo.has_permission(linked_doctype):
 			continue
 
-		linked_doctype_meta = frappe.get_meta(linked_doctype)
+		linked_doctype_meta = stylo.get_meta(linked_doctype)
 
 		if linked_doctype_meta.issingle:
 			continue
@@ -446,7 +446,7 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 				"fields",
 				{
 					"in_list_view": 1,
-					"fieldtype": ["not in", ("Image", "HTML", "Button", *frappe.model.table_fields)],
+					"fieldtype": ["not in", ("Image", "HTML", "Button", *stylo.model.table_fields)],
 				},
 			)
 		] + ["name", "modified", "docstatus"]
@@ -457,19 +457,19 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 		fields = [f"`tab{linked_doctype}`.`{sf.strip()}`" for sf in fields if sf and "`tab" not in sf]
 
 		if filters_ctx := link_context.get("filters"):
-			ret = frappe.get_list(doctype=linked_doctype, fields=fields, filters=filters_ctx, order_by=None)
+			ret = stylo.get_list(doctype=linked_doctype, fields=fields, filters=filters_ctx, order_by=None)
 
 		elif link_context.get("get_parent"):
 			# check for child table
 			if not is_target_doctype_table:
 				continue
 
-			parent_info = parent_info or frappe.db.get_value(
+			parent_info = parent_info or stylo.db.get_value(
 				doctype, name, ["parenttype", "parent"], as_dict=True, order_by=None
 			)
 
 			if parent_info and parent_info.parenttype == linked_doctype:
-				ret = frappe.get_list(
+				ret = stylo.get_list(
 					doctype=linked_doctype,
 					fields=fields,
 					filters=[[linked_doctype, "name", "=", parent_info.parent]],
@@ -485,7 +485,7 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 			if doctype_fieldname := link_context.get("doctype_fieldname"):
 				filters.append([child_doctype, doctype_fieldname, "=", doctype])
 
-			ret = frappe.get_list(
+			ret = stylo.get_list(
 				doctype=linked_doctype,
 				fields=fields,
 				filters=filters,
@@ -501,7 +501,7 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 			# dynamic link_context
 			if doctype_fieldname := link_context.get("doctype_fieldname"):
 				filters.append([linked_doctype, doctype_fieldname, "=", doctype])
-			ret = frappe.get_list(
+			ret = stylo.get_list(
 				doctype=linked_doctype, fields=fields, filters=filters, or_filters=or_filters, order_by=None
 			)
 
@@ -511,14 +511,14 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 	return results
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get(doctype, docname):
-	frappe.has_permission(doctype, doc=docname, throw=True)
+	stylo.has_permission(doctype, doc=docname, throw=True)
 	linked_doctypes = get_linked_doctypes(doctype=doctype)
 	return get_linked_docs(doctype=doctype, name=docname, linkinfo=linked_doctypes)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False):
 	"""add list of doctypes this doctype is 'linked' with.
 
@@ -527,13 +527,13 @@ def get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False):
 	        {"Address": {"fieldname": "customer"}..}
 	"""
 	if without_ignore_user_permissions_enabled:
-		return frappe.cache().hget(
+		return stylo.cache().hget(
 			"linked_doctypes_without_ignore_user_permissions_enabled",
 			doctype,
 			lambda: _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled),
 		)
 	else:
-		return frappe.cache().hget("linked_doctypes", doctype, lambda: _get_linked_doctypes(doctype))
+		return stylo.cache().hget("linked_doctypes", doctype, lambda: _get_linked_doctypes(doctype))
 
 
 def _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False):
@@ -542,12 +542,12 @@ def _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False)
 	ret.update(get_linked_fields(doctype, without_ignore_user_permissions_enabled))
 	ret.update(get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled))
 
-	filters = [["fieldtype", "in", frappe.model.table_fields], ["options", "=", doctype]]
+	filters = [["fieldtype", "in", stylo.model.table_fields], ["options", "=", doctype]]
 	if without_ignore_user_permissions_enabled:
 		filters.append(["ignore_user_permissions", "!=", 1])
 	# find links of parents
-	links = frappe.get_all("DocField", fields=["parent as dt"], filters=filters)
-	links += frappe.get_all("Custom Field", fields=["dt"], filters=filters)
+	links = stylo.get_all("DocField", fields=["parent as dt"], filters=filters)
+	links += stylo.get_all("Custom Field", fields=["dt"], filters=filters)
 
 	for (dt,) in links:
 		if dt in ret:
@@ -574,8 +574,8 @@ def get_linked_fields(doctype, without_ignore_user_permissions_enabled=False):
 		filters.append(["ignore_user_permissions", "!=", 1])
 
 	# find links of parents
-	links = frappe.get_all("DocField", fields=["parent", "fieldname"], filters=filters, as_list=1)
-	links += frappe.get_all("Custom Field", fields=["dt as parent", "fieldname"], filters=filters, as_list=1)
+	links = stylo.get_all("DocField", fields=["parent", "fieldname"], filters=filters, as_list=1)
+	links += stylo.get_all("Custom Field", fields=["dt as parent", "fieldname"], filters=filters, as_list=1)
 
 	ret = {}
 
@@ -588,25 +588,25 @@ def get_linked_fields(doctype, without_ignore_user_permissions_enabled=False):
 
 	for doctype_name in links_dict:
 		ret[doctype_name] = {"fieldname": links_dict.get(doctype_name)}
-	table_doctypes = frappe.get_all(
+	table_doctypes = stylo.get_all(
 		"DocType", filters=[["istable", "=", "1"], ["name", "in", tuple(links_dict)]]
 	)
 	child_filters = [
-		["fieldtype", "in", frappe.model.table_fields],
+		["fieldtype", "in", stylo.model.table_fields],
 		["options", "in", tuple(doctype.name for doctype in table_doctypes)],
 	]
 	if without_ignore_user_permissions_enabled:
 		child_filters.append(["ignore_user_permissions", "!=", 1])
 
 	# find out if linked in a child table
-	for parent, options in frappe.get_all(
+	for parent, options in stylo.get_all(
 		"DocField", fields=["parent", "options"], filters=child_filters, as_list=1
 	):
 		ret[parent] = {"child_doctype": options, "fieldname": links_dict[options]}
 		if options in ret:
 			del ret[options]
 
-	virtual_doctypes = frappe.get_all("DocType", {"is_virtual": 1}, pluck="name")
+	virtual_doctypes = stylo.get_all("DocType", {"is_virtual": 1}, pluck="name")
 	for dt in virtual_doctypes:
 		ret.pop(dt, None)
 
@@ -621,12 +621,12 @@ def get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled=F
 		filters.append(["ignore_user_permissions", "!=", 1])
 
 	# find dynamic links of parents
-	links = frappe.get_all(
+	links = stylo.get_all(
 		"DocField",
 		fields=["parent as doctype", "fieldname", "options as doctype_fieldname"],
 		filters=filters,
 	)
-	links += frappe.get_all(
+	links += stylo.get_all(
 		"Custom Field",
 		fields=["dt as doctype", "fieldname", "options as doctype_fieldname"],
 		filters=filters,
@@ -636,12 +636,12 @@ def get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled=F
 		if is_single(df.doctype):
 			continue
 
-		meta = frappe.get_meta(df.doctype)
+		meta = stylo.get_meta(df.doctype)
 		if meta.is_virtual:
 			continue
 
 		is_child = meta.istable
-		possible_link = frappe.get_all(
+		possible_link = stylo.get_all(
 			df.doctype,
 			filters={df.doctype_fieldname: doctype},
 			fields=["parenttype"] if is_child else None,

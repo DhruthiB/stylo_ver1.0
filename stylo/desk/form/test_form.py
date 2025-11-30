@@ -1,9 +1,9 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.desk.form.linked_with import get_linked_docs, get_linked_doctypes
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.desk.form.linked_with import get_linked_docs, get_linked_doctypes
+from stylo.tests.utils import StyloTestCase
 
 
 class TestForm(StyloTestCase):
@@ -16,5 +16,5 @@ class TestForm(StyloTestCase):
 if __name__ == "__main__":
 	import unittest
 
-	frappe.connect()
+	stylo.connect()
 	unittest.main()

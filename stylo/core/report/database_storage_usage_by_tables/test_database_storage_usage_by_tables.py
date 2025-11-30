@@ -2,10 +2,10 @@
 # For license information, please see license.txt
 
 
-from frappe.core.report.database_storage_usage_by_tables.database_storage_usage_by_tables import (
+from stylo.core.report.database_storage_usage_by_tables.database_storage_usage_by_tables import (
 	execute,
 )
-from frappe.tests.utils import StyloTestCase
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDBUsageReport(StyloTestCase):

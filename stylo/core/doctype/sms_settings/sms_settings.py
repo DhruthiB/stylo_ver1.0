@@ -1,10 +1,10 @@
 # Copyright (c) 2021, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _, msgprint, throw
-from frappe.model.document import Document
-from frappe.utils import nowdate
+import stylo
+from stylo import _, msgprint, throw
+from stylo.model.document import Document
+from stylo.utils import nowdate
 
 
 class SMSSettings(Document):
@@ -29,10 +29,10 @@ def validate_receiver_nos(receiver_list):
 	return validated_receiver_list
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_contact_number(contact_name, ref_doctype, ref_name):
 	"returns mobile number of the contact"
-	number = frappe.db.sql(
+	number = stylo.db.sql(
 		"""select mobile_no, phone from tabContact
 		where name=%s
 			and exists(
@@ -45,7 +45,7 @@ def get_contact_number(contact_name, ref_doctype, ref_name):
 	return number and (number[0][0] or number[0][1]) or ""
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def send_sms(receiver_list, msg, sender_name="", success_msg=True):
 	import json
 
@@ -58,22 +58,22 @@ def send_sms(receiver_list, msg, sender_name="", success_msg=True):
 
 	arg = {
 		"receiver_list": receiver_list,
-		"message": frappe.safe_decode(msg).encode("utf-8"),
+		"message": stylo.safe_decode(msg).encode("utf-8"),
 		"success_msg": success_msg,
 	}
 
-	if frappe.db.get_single_value("SMS Settings", "sms_gateway_url"):
+	if stylo.db.get_single_value("SMS Settings", "sms_gateway_url"):
 		send_via_gateway(arg)
 	else:
 		msgprint(_("Please Update SMS Settings"))
 
 
 def send_via_gateway(arg):
-	ss = frappe.get_doc("SMS Settings", "SMS Settings")
+	ss = stylo.get_doc("SMS Settings", "SMS Settings")
 	headers = get_headers(ss)
 	use_json = headers.get("Content-Type") == "application/json"
 
-	message = frappe.safe_decode(arg.get("message"))
+	message = stylo.safe_decode(arg.get("message"))
 	args = {ss.message_parameter: message}
 	for d in ss.get("parameters"):
 		if not d.header:
@@ -91,12 +91,12 @@ def send_via_gateway(arg):
 		args.update(arg)
 		create_sms_log(args, success_list)
 		if arg.get("success_msg"):
-			frappe.msgprint(_("SMS sent successfully"))
+			stylo.msgprint(_("SMS sent successfully"))
 
 
 def get_headers(sms_settings=None):
 	if not sms_settings:
-		sms_settings = frappe.get_doc("SMS Settings", "SMS Settings")
+		sms_settings = stylo.get_doc("SMS Settings", "SMS Settings")
 
 	headers = {"Accept": "text/plain, text/html, */*"}
 	for d in sms_settings.get("parameters"):
@@ -131,7 +131,7 @@ def send_request(gateway_url, params, headers=None, use_post=False, use_json=Fal
 # Create SMS Log
 # =========================================================
 def create_sms_log(args, sent_to):
-	sl = frappe.new_doc("SMS Log")
+	sl = stylo.new_doc("SMS Log")
 	sl.sent_on = nowdate()
 	sl.message = args["message"].decode("utf-8")
 	sl.no_of_requested_sms = len(args["receiver_list"])

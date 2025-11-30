@@ -1,14 +1,14 @@
-frappe.ui.form.on("User", {
+stylo.ui.form.on("User", {
 	before_load: function (frm) {
 		var update_tz_select = function (user_language) {
-			frm.set_df_property("time_zone", "options", [""].concat(frappe.all_timezones));
+			frm.set_df_property("time_zone", "options", [""].concat(stylo.all_timezones));
 		};
 
-		if (!frappe.all_timezones) {
-			frappe.call({
-				method: "frappe.core.doctype.user.user.get_timezones",
+		if (!stylo.all_timezones) {
+			stylo.call({
+				method: "stylo.core.doctype.user.user.get_timezones",
 				callback: function (r) {
-					frappe.all_timezones = r.message.timezones;
+					stylo.all_timezones = r.message.timezones;
 					update_tz_select();
 				},
 			});
@@ -29,8 +29,8 @@ frappe.ui.form.on("User", {
 
 	role_profile_name: function (frm) {
 		if (frm.doc.role_profile_name) {
-			frappe.call({
-				method: "frappe.core.doctype.user.user.get_role_profile",
+			stylo.call({
+				method: "stylo.core.doctype.user.user.get_role_profile",
 				args: {
 					role_profile: frm.doc.role_profile_name,
 				},
@@ -48,8 +48,8 @@ frappe.ui.form.on("User", {
 
 	module_profile: function (frm) {
 		if (frm.doc.module_profile) {
-			frappe.call({
-				method: "frappe.core.doctype.user.user.get_module_profile",
+			stylo.call({
+				method: "stylo.core.doctype.user.user.get_module_profile",
 				args: {
 					module_profile: frm.doc.module_profile,
 				},
@@ -82,7 +82,7 @@ frappe.ui.form.on("User", {
 					frm.fields_dict.roles_html.wrapper
 				);
 
-				frm.roles_editor = new frappe.RoleEditor(
+				frm.roles_editor = new stylo.RoleEditor(
 					role_area,
 					frm,
 					frm.doc.role_profile_name ? 1 : 0
@@ -90,7 +90,7 @@ frappe.ui.form.on("User", {
 
 				if (frm.doc.user_type == "System User") {
 					var module_area = $("<div>").appendTo(frm.fields_dict.modules_html.wrapper);
-					frm.module_editor = new frappe.ModuleEditor(frm, module_area);
+					frm.module_editor = new stylo.ModuleEditor(frm, module_area);
 				}
 			} else {
 				frm.roles_editor.show();
@@ -101,7 +101,7 @@ frappe.ui.form.on("User", {
 		let doc = frm.doc;
 
 		if (frm.is_new()) {
-			frm.set_value("time_zone", frappe.sys_defaults.time_zone);
+			frm.set_value("time_zone", stylo.sys_defaults.time_zone);
 		}
 
 		if (
@@ -115,13 +115,13 @@ frappe.ui.form.on("User", {
 		}
 
 		if (
-			doc.name === frappe.session.user &&
+			doc.name === stylo.session.user &&
 			!doc.__unsaved &&
-			frappe.all_timezones &&
-			(doc.language || frappe.boot.user.language) &&
-			doc.language !== frappe.boot.user.language
+			stylo.all_timezones &&
+			(doc.language || stylo.boot.user.language) &&
+			doc.language !== stylo.boot.user.language
 		) {
-			frappe.msgprint(__("Refreshing..."));
+			stylo.msgprint(__("Refreshing..."));
 			window.location.reload();
 		}
 
@@ -132,10 +132,10 @@ frappe.ui.form.on("User", {
 				frm.add_custom_button(
 					__("Set User Permissions"),
 					function () {
-						frappe.route_options = {
+						stylo.route_options = {
 							user: doc.name,
 						};
-						frappe.set_route("List", "User Permission");
+						stylo.set_route("List", "User Permission");
 					},
 					__("Permissions")
 				);
@@ -143,7 +143,7 @@ frappe.ui.form.on("User", {
 				frm.add_custom_button(
 					__("View Permitted Documents"),
 					() =>
-						frappe.set_route("query-report", "Permitted Documents For User", {
+						stylo.set_route("query-report", "Permitted Documents For User", {
 							user: frm.doc.name,
 						}),
 					__("Permissions")
@@ -155,8 +155,8 @@ frappe.ui.form.on("User", {
 			frm.add_custom_button(
 				__("Reset Password"),
 				function () {
-					frappe.call({
-						method: "frappe.core.doctype.user.user.reset_password",
+					stylo.call({
+						method: "stylo.core.doctype.user.user.reset_password",
 						args: {
 							user: frm.doc.name,
 						},
@@ -165,13 +165,13 @@ frappe.ui.form.on("User", {
 				__("Password")
 			);
 
-			if (frappe.user.has_role("System Manager")) {
-				frappe.db.get_single_value("LDAP Settings", "enabled").then((value) => {
+			if (stylo.user.has_role("System Manager")) {
+				stylo.db.get_single_value("LDAP Settings", "enabled").then((value) => {
 					if (value === 1 && frm.doc.name != "Administrator") {
 						frm.add_custom_button(
 							__("Reset LDAP Password"),
 							function () {
-								const d = new frappe.ui.Dialog({
+								const d = new stylo.ui.Dialog({
 									title: __("Reset LDAP Password"),
 									fields: [
 										{
@@ -195,10 +195,10 @@ frappe.ui.form.on("User", {
 									primary_action: (values) => {
 										d.hide();
 										if (values.new_password !== values.confirm_password) {
-											frappe.throw(__("Passwords do not match!"));
+											stylo.throw(__("Passwords do not match!"));
 										}
-										frappe.call(
-											"frappe.integrations.doctype.ldap_settings.ldap_settings.reset_password",
+										stylo.call(
+											"stylo.integrations.doctype.ldap_settings.ldap_settings.reset_password",
 											{
 												user: frm.doc.email,
 												password: values.new_password,
@@ -216,14 +216,14 @@ frappe.ui.form.on("User", {
 			}
 
 			if (
-				cint(frappe.boot.sysdefaults.enable_two_factor_auth) &&
-				(frappe.session.user == doc.name || frappe.user.has_role("System Manager"))
+				cint(stylo.boot.sysdefaults.enable_two_factor_auth) &&
+				(stylo.session.user == doc.name || stylo.user.has_role("System Manager"))
 			) {
 				frm.add_custom_button(
 					__("Reset OTP Secret"),
 					function () {
-						frappe.call({
-							method: "frappe.twofactor.reset_otp_secret",
+						stylo.call({
+							method: "stylo.twofactor.reset_otp_secret",
 							args: {
 								user: frm.doc.name,
 							},
@@ -242,16 +242,16 @@ frappe.ui.form.on("User", {
 
 			frm.module_editor && frm.module_editor.show();
 
-			if (frappe.session.user == doc.name) {
+			if (stylo.session.user == doc.name) {
 				// update display settings
 				if (doc.user_image) {
-					frappe.boot.user_info[frappe.session.user].image = frappe.utils.get_file_link(
+					stylo.boot.user_info[stylo.session.user].image = stylo.utils.get_file_link(
 						doc.user_image
 					);
 				}
 			}
 		}
-		if (frm.doc.user_emails && frappe.model.can_create("Email Account")) {
+		if (frm.doc.user_emails && stylo.model.can_create("Email Account")) {
 			var found = 0;
 			for (var i = 0; i < frm.doc.user_emails.length; i++) {
 				if (frm.doc.email == frm.doc.user_emails[i].email_id) {
@@ -265,8 +265,8 @@ frappe.ui.form.on("User", {
 			}
 		}
 
-		if (frappe.route_flags.unsaved === 1) {
-			delete frappe.route_flags.unsaved;
+		if (stylo.route_flags.unsaved === 1) {
+			delete stylo.route_flags.unsaved;
 			for (var i = 0; i < frm.doc.user_emails.length; i++) {
 				frm.doc.user_emails[i].idx = frm.doc.user_emails[i].idx + 1;
 			}
@@ -291,57 +291,57 @@ frappe.ui.form.on("User", {
 		}
 	},
 	create_user_email: function (frm) {
-		frappe.call({
-			method: "frappe.core.doctype.user.user.has_email_account",
+		stylo.call({
+			method: "stylo.core.doctype.user.user.has_email_account",
 			args: {
 				email: frm.doc.email,
 			},
 			callback: function (r) {
 				if (!Array.isArray(r.message)) {
-					frappe.route_options = {
+					stylo.route_options = {
 						email_id: frm.doc.email,
 						awaiting_password: 1,
 						enable_incoming: 1,
 					};
-					frappe.model.with_doctype("Email Account", function (doc) {
-						var doc = frappe.model.get_new_doc("Email Account");
-						frappe.route_flags.linked_user = frm.doc.name;
-						frappe.route_flags.delete_user_from_locals = true;
-						frappe.set_route("Form", "Email Account", doc.name);
+					stylo.model.with_doctype("Email Account", function (doc) {
+						var doc = stylo.model.get_new_doc("Email Account");
+						stylo.route_flags.linked_user = frm.doc.name;
+						stylo.route_flags.delete_user_from_locals = true;
+						stylo.set_route("Form", "Email Account", doc.name);
 					});
 				} else {
-					frappe.route_flags.create_user_account = frm.doc.name;
-					frappe.set_route("Form", "Email Account", r.message[0]["name"]);
+					stylo.route_flags.create_user_account = frm.doc.name;
+					stylo.set_route("Form", "Email Account", r.message[0]["name"]);
 				}
 			},
 		});
 	},
 	generate_keys: function (frm) {
-		frappe.call({
-			method: "frappe.core.doctype.user.user.generate_keys",
+		stylo.call({
+			method: "stylo.core.doctype.user.user.generate_keys",
 			args: {
 				user: frm.doc.name,
 			},
 			callback: function (r) {
 				if (r.message) {
-					frappe.msgprint(__("Save API Secret: {0}", [r.message.api_secret]));
+					stylo.msgprint(__("Save API Secret: {0}", [r.message.api_secret]));
 					frm.reload_doc();
 				}
 			},
 		});
 	},
 	on_update: function (frm) {
-		if (frappe.boot.time_zone && frappe.boot.time_zone.user !== frm.doc.time_zone) {
+		if (stylo.boot.time_zone && stylo.boot.time_zone.user !== frm.doc.time_zone) {
 			// Clear cache after saving to refresh the values of boot.
-			frappe.ui.toolbar.clear_cache();
+			stylo.ui.toolbar.clear_cache();
 		}
 	},
 });
 
-frappe.ui.form.on("User Email", {
+stylo.ui.form.on("User Email", {
 	email_account(frm, cdt, cdn) {
 		let child_row = locals[cdt][cdn];
-		frappe.model.get_value(
+		stylo.model.get_value(
 			"Email Account",
 			child_row.email_account,
 			"auth_method",
@@ -354,12 +354,12 @@ frappe.ui.form.on("User Email", {
 });
 
 function has_access_to_edit_user() {
-	return has_common(frappe.user_roles, get_roles_for_editing_user());
+	return has_common(stylo.user_roles, get_roles_for_editing_user());
 }
 
 function get_roles_for_editing_user() {
 	return (
-		frappe
+		stylo
 			.get_meta("User")
 			.permissions.filter((perm) => perm.permlevel >= 1 && perm.write)
 			.map((perm) => perm.role) || ["System Manager"]

@@ -3,17 +3,17 @@
 
 import json
 
-import frappe
-from frappe.desk.form.load import run_onload
-from frappe.model.docstatus import DocStatus
-from frappe.monitor import add_data_to_monitor
-from frappe.utils.telemetry import capture_doc
+import stylo
+from stylo.desk.form.load import run_onload
+from stylo.model.docstatus import DocStatus
+from stylo.monitor import add_data_to_monitor
+from stylo.utils.telemetry import capture_doc
 
 
-@frappe.whitelist(methods=["POST", "PUT"])
+@stylo.whitelist(methods=["POST", "PUT"])
 def savedocs(doc, action):
 	"""save / submit / update doclist"""
-	doc = frappe.get_doc(json.loads(doc))
+	doc = stylo.get_doc(json.loads(doc))
 	capture_doc(doc, action)
 	if doc.get("__islocal") and doc.name.startswith("new-" + doc.doctype.lower().replace(" ", "-")):
 		# required to relink missing attachments if they exist.
@@ -36,20 +36,20 @@ def savedocs(doc, action):
 
 	add_data_to_monitor(doctype=doc.doctype, action=action)
 
-	frappe.msgprint(frappe._("Saved"), indicator="green", alert=True)
+	stylo.msgprint(stylo._("Saved"), indicator="green", alert=True)
 
 
-@frappe.whitelist(methods=["POST", "PUT"])
+@stylo.whitelist(methods=["POST", "PUT"])
 def cancel(doctype=None, name=None, workflow_state_fieldname=None, workflow_state=None):
 	"""cancel a doclist"""
-	doc = frappe.get_doc(doctype, name)
+	doc = stylo.get_doc(doctype, name)
 	capture_doc(doc, "Cancel")
 
 	if workflow_state_fieldname and workflow_state:
 		doc.set(workflow_state_fieldname, workflow_state)
 	doc.cancel()
 	send_updated_docs(doc)
-	frappe.msgprint(frappe._("Cancelled"), indicator="red", alert=True)
+	stylo.msgprint(stylo._("Cancelled"), indicator="red", alert=True)
 
 
 def send_updated_docs(doc):
@@ -61,7 +61,7 @@ def send_updated_docs(doc):
 	if hasattr(doc, "localname"):
 		d["localname"] = doc.localname
 
-	frappe.response.docs.append(d)
+	stylo.response.docs.append(d)
 
 
 def set_local_name(doc):

@@ -1,8 +1,8 @@
 // Copyright (c) 2020, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Navbar Settings", {
+stylo.ui.form.on("Navbar Settings", {
 	after_save: function (frm) {
-		frappe.ui.toolbar.clear_cache();
+		stylo.ui.toolbar.clear_cache();
 	},
 });

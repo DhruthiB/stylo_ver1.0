@@ -4,61 +4,61 @@
 bootstrap client session
 """
 
-import frappe
-import frappe.defaults
-import frappe.desk.desk_page
-from frappe.core.doctype.navbar_settings.navbar_settings import get_app_logo, get_navbar_settings
-from frappe.desk.doctype.changelog_feed.changelog_feed import get_changelog_feed_items
-from frappe.desk.doctype.form_tour.form_tour import get_onboarding_ui_tours
-from frappe.desk.doctype.route_history.route_history import frequently_visited_links
-from frappe.desk.form.load import get_meta_bundle
-from frappe.email.inbox import get_email_accounts
-from frappe.model.base_document import get_controller
-from frappe.permissions import has_permission
-from frappe.query_builder import DocType
-from frappe.query_builder.functions import Count
-from frappe.query_builder.terms import ParameterizedValueWrapper, SubQuery
-from frappe.social.doctype.energy_point_log.energy_point_log import get_energy_points
-from frappe.social.doctype.energy_point_settings.energy_point_settings import (
+import stylo
+import stylo.defaults
+import stylo.desk.desk_page
+from stylo.core.doctype.navbar_settings.navbar_settings import get_app_logo, get_navbar_settings
+from stylo.desk.doctype.changelog_feed.changelog_feed import get_changelog_feed_items
+from stylo.desk.doctype.form_tour.form_tour import get_onboarding_ui_tours
+from stylo.desk.doctype.route_history.route_history import frequently_visited_links
+from stylo.desk.form.load import get_meta_bundle
+from stylo.email.inbox import get_email_accounts
+from stylo.model.base_document import get_controller
+from stylo.permissions import has_permission
+from stylo.query_builder import DocType
+from stylo.query_builder.functions import Count
+from stylo.query_builder.terms import ParameterizedValueWrapper, SubQuery
+from stylo.social.doctype.energy_point_log.energy_point_log import get_energy_points
+from stylo.social.doctype.energy_point_settings.energy_point_settings import (
 	is_energy_point_enabled,
 )
-from frappe.utils import add_user_info, cstr, get_system_timezone
-from frappe.utils.change_log import get_versions
-from frappe.website.doctype.web_page_view.web_page_view import is_tracking_enabled
+from stylo.utils import add_user_info, cstr, get_system_timezone
+from stylo.utils.change_log import get_versions
+from stylo.website.doctype.web_page_view.web_page_view import is_tracking_enabled
 
 
 def get_bootinfo():
 	"""build and return boot info"""
-	from frappe.translate import get_lang_dict, get_translated_doctypes
+	from stylo.translate import get_lang_dict, get_translated_doctypes
 
-	frappe.set_user_lang(frappe.session.user)
-	bootinfo = frappe._dict()
-	hooks = frappe.get_hooks()
+	stylo.set_user_lang(stylo.session.user)
+	bootinfo = stylo._dict()
+	hooks = stylo.get_hooks()
 	doclist = []
 
 	# user
 	get_user(bootinfo)
 
 	# system info
-	bootinfo.sitename = frappe.local.site
-	bootinfo.sysdefaults = frappe.defaults.get_defaults()
-	bootinfo.server_date = frappe.utils.nowdate()
+	bootinfo.sitename = stylo.local.site
+	bootinfo.sysdefaults = stylo.defaults.get_defaults()
+	bootinfo.server_date = stylo.utils.nowdate()
 
-	if frappe.session["user"] != "Guest":
+	if stylo.session["user"] != "Guest":
 		bootinfo.user_info = get_user_info()
 
 	bootinfo.modules = {}
 	bootinfo.module_list = []
 	load_desktop_data(bootinfo)
 	bootinfo.letter_heads = get_letter_heads()
-	bootinfo.active_domains = frappe.get_active_domains()
-	bootinfo.all_domains = [d.get("name") for d in frappe.get_all("Domain")]
+	bootinfo.active_domains = stylo.get_active_domains()
+	bootinfo.all_domains = [d.get("name") for d in stylo.get_all("Domain")]
 	add_layouts(bootinfo)
 
-	bootinfo.module_app = frappe.local.module_app
-	bootinfo.single_types = [d.name for d in frappe.get_all("DocType", {"issingle": 1})]
+	bootinfo.module_app = stylo.local.module_app
+	bootinfo.single_types = [d.name for d in stylo.get_all("DocType", {"issingle": 1})]
 	bootinfo.nested_set_doctypes = [
-		d.parent for d in frappe.get_all("DocField", {"fieldname": "lft"}, ["parent"])
+		d.parent for d in stylo.get_all("DocField", {"fieldname": "lft"}, ["parent"])
 	]
 	add_home_page(bootinfo, doclist)
 	bootinfo.page_info = get_allowed_pages()
@@ -67,15 +67,15 @@ def get_bootinfo():
 	load_conf_settings(bootinfo)
 	load_print(bootinfo, doclist)
 	doclist.extend(get_meta_bundle("Page"))
-	bootinfo.home_folder = frappe.db.get_value("File", {"is_home_folder": 1})
+	bootinfo.home_folder = stylo.db.get_value("File", {"is_home_folder": 1})
 	bootinfo.navbar_settings = get_navbar_settings()
 	bootinfo.notification_settings = get_notification_settings()
 	bootinfo.onboarding_tours = get_onboarding_ui_tours()
 	set_time_zone(bootinfo)
 
 	# ipinfo
-	if frappe.session.data.get("ipinfo"):
-		bootinfo.ipinfo = frappe.session["data"]["ipinfo"]
+	if stylo.session.data.get("ipinfo"):
+		bootinfo.ipinfo = stylo.session["data"]["ipinfo"]
 
 	# add docs
 	bootinfo.docs = doclist
@@ -83,22 +83,22 @@ def get_bootinfo():
 	load_currency_docs(bootinfo)
 
 	for method in hooks.boot_session or []:
-		frappe.get_attr(method)(bootinfo)
+		stylo.get_attr(method)(bootinfo)
 
 	if bootinfo.lang:
 		bootinfo.lang = str(bootinfo.lang)
 	bootinfo.versions = {k: v["version"] for k, v in get_versions().items()}
 
-	bootinfo.error_report_email = frappe.conf.error_report_email
-	bootinfo.calendars = sorted(frappe.get_hooks("calendars"))
-	bootinfo.treeviews = frappe.get_hooks("treeviews") or []
+	bootinfo.error_report_email = stylo.conf.error_report_email
+	bootinfo.calendars = sorted(stylo.get_hooks("calendars"))
+	bootinfo.treeviews = stylo.get_hooks("treeviews") or []
 	bootinfo.lang_dict = get_lang_dict()
 	bootinfo.success_action = get_success_action()
-	bootinfo.update(get_email_accounts(user=frappe.session.user))
+	bootinfo.update(get_email_accounts(user=stylo.session.user))
 	bootinfo.energy_points_enabled = is_energy_point_enabled()
 	bootinfo.website_tracking_enabled = is_tracking_enabled()
-	bootinfo.sms_gateway_enabled = bool(frappe.db.get_single_value("SMS Settings", "sms_gateway_url"))
-	bootinfo.points = get_energy_points(frappe.session.user)
+	bootinfo.sms_gateway_enabled = bool(stylo.db.get_single_value("SMS Settings", "sms_gateway_url"))
+	bootinfo.points = get_energy_points(stylo.session.user)
 	bootinfo.frequently_visited_links = frequently_visited_links()
 	bootinfo.link_preview_doctypes = get_link_preview_doctypes()
 	bootinfo.additional_filters_config = get_additional_filters_from_hooks()
@@ -115,9 +115,9 @@ def get_bootinfo():
 def get_letter_heads():
 	letter_heads = {}
 
-	if not frappe.has_permission("Letter Head"):
+	if not stylo.has_permission("Letter Head"):
 		return letter_heads
-	for letter_head in frappe.get_list("Letter Head", fields=["name", "content", "footer"]):
+	for letter_head in stylo.get_list("Letter Head", fields=["name", "content", "footer"]):
 		letter_heads.setdefault(
 			letter_head.name, {"header": letter_head.content, "footer": letter_head.footer}
 		)
@@ -126,20 +126,20 @@ def get_letter_heads():
 
 
 def load_conf_settings(bootinfo):
-	from frappe.core.api.file import get_max_file_size
+	from stylo.core.api.file import get_max_file_size
 
 	bootinfo.max_file_size = get_max_file_size()
 	for key in ("developer_mode", "socketio_port", "file_watcher_port"):
-		if key in frappe.conf:
-			bootinfo[key] = frappe.conf.get(key)
+		if key in stylo.conf:
+			bootinfo[key] = stylo.conf.get(key)
 
 
 def load_desktop_data(bootinfo):
-	from frappe.desk.desktop import get_workspace_sidebar_items
+	from stylo.desk.desktop import get_workspace_sidebar_items
 
 	bootinfo.allowed_workspaces = get_workspace_sidebar_items().get("pages")
 	bootinfo.module_wise_workspaces = get_controller("Workspace").get_module_wise_workspaces()
-	bootinfo.dashboards = frappe.get_all("Dashboard")
+	bootinfo.dashboards = stylo.get_all("Dashboard")
 
 
 def get_allowed_pages(cache=False):
@@ -155,14 +155,14 @@ def get_allowed_report_names(cache=False) -> set[str]:
 
 
 def get_user_pages_or_reports(parent, cache=False):
-	_cache = frappe.cache()
+	_cache = stylo.cache()
 
 	if cache:
-		has_role = _cache.get_value("has_role:" + parent, user=frappe.session.user)
+		has_role = _cache.get_value("has_role:" + parent, user=stylo.session.user)
 		if has_role:
 			return has_role
 
-	roles = frappe.get_roles()
+	roles = stylo.get_roles()
 	has_role = {}
 
 	page = DocType("Page")
@@ -179,7 +179,7 @@ def get_user_pages_or_reports(parent, cache=False):
 
 	# get pages or reports set on custom role
 	pages_with_custom_roles = (
-		frappe.qb.from_(customRole)
+		stylo.qb.from_(customRole)
 		.from_(hasRole)
 		.from_(parentTable)
 		.select(customRole[parent.lower()].as_("name"), customRole.modified, customRole.ref_doctype, *columns)
@@ -195,13 +195,13 @@ def get_user_pages_or_reports(parent, cache=False):
 		has_role[p.name] = {"modified": p.modified, "title": p.title, "ref_doctype": p.ref_doctype}
 
 	subq = (
-		frappe.qb.from_(customRole)
+		stylo.qb.from_(customRole)
 		.select(customRole[parent.lower()])
 		.where(customRole[parent.lower()].isnotnull())
 	)
 
 	pages_with_standard_roles = (
-		frappe.qb.from_(hasRole)
+		stylo.qb.from_(hasRole)
 		.from_(parentTable)
 		.select(parentTable.name.as_("name"), parentTable.modified, *columns)
 		.where(
@@ -222,13 +222,13 @@ def get_user_pages_or_reports(parent, cache=False):
 				has_role[p.name].update({"ref_doctype": p.ref_doctype})
 
 	no_of_roles = SubQuery(
-		frappe.qb.from_(hasRole).select(Count("*")).where(hasRole.parent == parentTable.name)
+		stylo.qb.from_(hasRole).select(Count("*")).where(hasRole.parent == parentTable.name)
 	)
 
 	# pages with no role are allowed
 	if parent == "Page":
 		pages_with_no_roles = (
-			frappe.qb.from_(parentTable)
+			stylo.qb.from_(parentTable)
 			.select(parentTable.name, parentTable.modified, *columns)
 			.where(no_of_roles == 0)
 		).run(as_dict=True)
@@ -241,7 +241,7 @@ def get_user_pages_or_reports(parent, cache=False):
 		if not has_permission("Report", raise_exception=False):
 			return {}
 
-		reports = frappe.get_list(
+		reports = stylo.get_list(
 			"Report",
 			fields=["name", "report_type"],
 			filters={"name": ("in", has_role.keys())},
@@ -255,23 +255,23 @@ def get_user_pages_or_reports(parent, cache=False):
 			has_role.pop(r, None)
 
 	# Expire every six hours
-	_cache.set_value("has_role:" + parent, has_role, frappe.session.user, 21600)
+	_cache.set_value("has_role:" + parent, has_role, stylo.session.user, 21600)
 	return has_role
 
 
 def load_translations(bootinfo):
-	from frappe.translate import get_messages_for_boot
+	from stylo.translate import get_messages_for_boot
 
-	bootinfo["lang"] = frappe.lang
+	bootinfo["lang"] = stylo.lang
 	bootinfo["__messages"] = get_messages_for_boot()
 
 
 def get_user_info():
 	# get info for current user
-	user_info = frappe._dict()
-	add_user_info(frappe.session.user, user_info)
+	user_info = stylo._dict()
+	add_user_info(stylo.session.user, user_info)
 
-	if frappe.session.user == "Administrator" and user_info.Administrator.email:
+	if stylo.session.user == "Administrator" and user_info.Administrator.email:
 		user_info[user_info.Administrator.email] = user_info.Administrator
 
 	return user_info
@@ -279,47 +279,47 @@ def get_user_info():
 
 def get_user(bootinfo):
 	"""get user info"""
-	bootinfo.user = frappe.get_user().load_user()
+	bootinfo.user = stylo.get_user().load_user()
 
 
 def add_home_page(bootinfo, docs):
 	"""load home page"""
-	if frappe.session.user == "Guest":
+	if stylo.session.user == "Guest":
 		return
-	home_page = frappe.db.get_default("desktop:home_page")
+	home_page = stylo.db.get_default("desktop:home_page")
 
 	if home_page == "setup-wizard":
-		bootinfo.setup_wizard_requires = frappe.get_hooks("setup_wizard_requires")
+		bootinfo.setup_wizard_requires = stylo.get_hooks("setup_wizard_requires")
 
 	try:
-		page = frappe.desk.desk_page.get(home_page)
+		page = stylo.desk.desk_page.get(home_page)
 		docs.append(page)
 		bootinfo["home_page"] = page.name
-	except (frappe.DoesNotExistError, frappe.PermissionError):
-		if frappe.message_log:
-			frappe.message_log.pop()
+	except (stylo.DoesNotExistError, stylo.PermissionError):
+		if stylo.message_log:
+			stylo.message_log.pop()
 		bootinfo["home_page"] = "Workspaces"
 
 
 def add_timezone_info(bootinfo):
 	system = bootinfo.sysdefaults.get("time_zone")
-	import frappe.utils.momentjs
+	import stylo.utils.momentjs
 
 	bootinfo.timezone_info = {"zones": {}, "rules": {}, "links": {}}
-	frappe.utils.momentjs.update(system, bootinfo.timezone_info)
+	stylo.utils.momentjs.update(system, bootinfo.timezone_info)
 
 
 def load_print(bootinfo, doclist):
-	print_settings = frappe.db.get_singles_dict("Print Settings")
+	print_settings = stylo.db.get_singles_dict("Print Settings")
 	print_settings.doctype = ":Print Settings"
 	doclist.append(print_settings)
 	load_print_css(bootinfo, print_settings)
 
 
 def load_print_css(bootinfo, print_settings):
-	import frappe.www.printview
+	import stylo.www.printview
 
-	bootinfo.print_css = frappe.www.printview.get_print_style(
+	bootinfo.print_css = stylo.www.printview.get_print_style(
 		print_settings.print_style or "Redesign", for_legacy=True
 	)
 
@@ -329,14 +329,14 @@ def get_unseen_notes():
 	nsb = DocType("Note Seen By").as_("nsb")
 
 	return (
-		frappe.qb.from_(note)
+		stylo.qb.from_(note)
 		.select(note.name, note.title, note.content, note.notify_on_every_login)
 		.where(
 			(note.notify_on_login == 1)
-			& (note.expire_notification_on > frappe.utils.now())
+			& (note.expire_notification_on > stylo.utils.now())
 			& (
-				ParameterizedValueWrapper(frappe.session.user).notin(
-					SubQuery(frappe.qb.from_(nsb).select(nsb.user).where(nsb.parent == note.name))
+				ParameterizedValueWrapper(stylo.session.user).notin(
+					SubQuery(stylo.qb.from_(nsb).select(nsb.user).where(nsb.parent == note.name))
 				)
 			)
 		)
@@ -344,14 +344,14 @@ def get_unseen_notes():
 
 
 def get_success_action():
-	return frappe.get_all("Success Action", fields=["*"])
+	return stylo.get_all("Success Action", fields=["*"])
 
 
 def get_link_preview_doctypes():
-	from frappe.utils import cint
+	from stylo.utils import cint
 
-	link_preview_doctypes = [d.name for d in frappe.get_all("DocType", {"show_preview_popup": 1})]
-	customizations = frappe.get_all(
+	link_preview_doctypes = [d.name for d in stylo.get_all("DocType", {"show_preview_popup": 1})]
+	customizations = stylo.get_all(
 		"Property Setter", fields=["doc_type", "value"], filters={"property": "show_preview_popup"}
 	)
 
@@ -365,32 +365,32 @@ def get_link_preview_doctypes():
 
 
 def get_additional_filters_from_hooks():
-	filter_config = frappe._dict()
-	filter_hooks = frappe.get_hooks("filters_config")
+	filter_config = stylo._dict()
+	filter_hooks = stylo.get_hooks("filters_config")
 	for hook in filter_hooks:
-		filter_config.update(frappe.get_attr(hook)())
+		filter_config.update(stylo.get_attr(hook)())
 
 	return filter_config
 
 
 def add_layouts(bootinfo):
 	# add routes for readable doctypes
-	bootinfo.doctype_layouts = frappe.get_all("DocType Layout", ["name", "route", "document_type"])
+	bootinfo.doctype_layouts = stylo.get_all("DocType Layout", ["name", "route", "document_type"])
 
 
 def get_desk_settings():
-	from frappe.core.doctype.user.user import desk_properties
+	from stylo.core.doctype.user.user import desk_properties
 
-	return frappe.get_value("User", frappe.session.user, desk_properties, as_dict=True)
+	return stylo.get_value("User", stylo.session.user, desk_properties, as_dict=True)
 
 
 def get_notification_settings():
-	return frappe.get_cached_doc("Notification Settings", frappe.session.user)
+	return stylo.get_cached_doc("Notification Settings", stylo.session.user)
 
 
 def get_link_title_doctypes():
-	dts = frappe.get_all("DocType", {"show_title_field_in_link": 1})
-	custom_dts = frappe.get_all(
+	dts = stylo.get_all("DocType", {"show_title_field_in_link": 1})
+	custom_dts = stylo.get_all(
 		"Property Setter",
 		{"property": "show_title_field_in_link", "value": "1"},
 		["doc_type as name"],
@@ -401,26 +401,26 @@ def get_link_title_doctypes():
 def set_time_zone(bootinfo):
 	bootinfo.time_zone = {
 		"system": get_system_timezone(),
-		"user": bootinfo.get("user_info", {}).get(frappe.session.user, {}).get("time_zone", None)
+		"user": bootinfo.get("user_info", {}).get(stylo.session.user, {}).get("time_zone", None)
 		or get_system_timezone(),
 	}
 
 
 def load_country_doc(bootinfo):
-	country = frappe.db.get_default("country")
+	country = stylo.db.get_default("country")
 	if not country:
 		return
 	try:
-		bootinfo.docs.append(frappe.get_cached_doc("Country", country))
+		bootinfo.docs.append(stylo.get_cached_doc("Country", country))
 	except Exception:
 		pass
 
 
 def load_currency_docs(bootinfo):
-	currency = frappe.qb.DocType("Currency")
+	currency = stylo.qb.DocType("Currency")
 
 	currency_docs = (
-		frappe.qb.from_(currency)
+		stylo.qb.from_(currency)
 		.select(
 			currency.name,
 			currency.fraction,
@@ -439,6 +439,6 @@ def load_currency_docs(bootinfo):
 
 def add_subscription_conf():
 	try:
-		return frappe.conf.subscription
+		return stylo.conf.subscription
 	except Exception:
 		return ""

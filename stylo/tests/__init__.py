@@ -1,17 +1,17 @@
-import frappe
+import stylo
 
 
 def update_system_settings(args, commit=False):
-	doc = frappe.get_doc("System Settings")
+	doc = stylo.get_doc("System Settings")
 	doc.update(args)
 	doc.flags.ignore_mandatory = 1
 	doc.save()
 	if commit:
-		frappe.db.commit()
+		stylo.db.commit()
 
 
 def get_system_setting(key):
-	return frappe.db.get_single_value("System Settings", key)
+	return stylo.db.get_single_value("System Settings", key)
 
 
 global_test_dependencies = ["User"]

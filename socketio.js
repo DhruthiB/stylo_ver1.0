@@ -33,7 +33,7 @@ io.use((socket, next) => {
 	}
 
 	request
-		.get(get_url(socket, "/api/method/frappe.realtime.get_user_info"))
+		.get(get_url(socket, "/api/method/stylo.realtime.get_user_info"))
 		.type("form")
 		.query({
 			sid: cookies.sid,
@@ -237,8 +237,8 @@ function get_task_room(socket, task_id) {
 function get_site_name(socket) {
 	if (socket.site_name) {
 		return socket.site_name;
-	} else if (socket.request.headers["x-frappe-site-name"]) {
-		socket.site_name = get_hostname(socket.request.headers["x-frappe-site-name"]);
+	} else if (socket.request.headers["x-stylo-site-name"]) {
+		socket.site_name = get_hostname(socket.request.headers["x-stylo-site-name"]);
 	} else if (
 		conf.default_site &&
 		["localhost", "127.0.0.1"].indexOf(get_hostname(socket.request.headers.host)) !== -1
@@ -272,7 +272,7 @@ function can_subscribe_doc(args) {
 	if (!args) return;
 	if (!args.doctype || !args.docname) return;
 	request
-		.get(get_url(args.socket, "/api/method/frappe.realtime.can_subscribe_doc"))
+		.get(get_url(args.socket, "/api/method/stylo.realtime.can_subscribe_doc"))
 		.type("form")
 		.query({
 			sid: args.socket.sid,
@@ -298,7 +298,7 @@ function can_subscribe_doctype(args) {
 	if (!args) return;
 	if (!args.doctype) return;
 	request
-		.get(get_url(args.socket, "/api/method/frappe.realtime.can_subscribe_doctype"))
+		.get(get_url(args.socket, "/api/method/stylo.realtime.can_subscribe_doctype"))
 		.type("form")
 		.query({
 			sid: args.socket.sid,

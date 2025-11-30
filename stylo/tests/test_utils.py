@@ -15,10 +15,10 @@ from hypothesis import given
 from hypothesis import strategies as st
 from PIL import Image
 
-import frappe
-from frappe.installer import parse_app_name
-from frappe.tests.utils import StyloTestCase, change_settings
-from frappe.utils import (
+import stylo
+from stylo.installer import parse_app_name
+from stylo.tests.utils import StyloTestCase, change_settings
+from stylo.utils import (
 	ceil,
 	evaluate_filters,
 	execute_in_shell,
@@ -37,7 +37,7 @@ from frappe.utils import (
 	validate_email_address,
 	validate_url,
 )
-from frappe.utils.data import (
+from stylo.utils.data import (
 	add_to_date,
 	cast,
 	cint,
@@ -53,11 +53,11 @@ from frappe.utils.data import (
 	sha256_hash,
 	validate_python_code,
 )
-from frappe.utils.dateutils import get_dates_from_timegrain
-from frappe.utils.diff import _get_value_from_version, get_version_diff, version_query
-from frappe.utils.image import optimize_image, strip_exif_data
-from frappe.utils.response import json_handler
-from frappe.utils.synchronization import LockTimeoutError, filelock
+from stylo.utils.dateutils import get_dates_from_timegrain
+from stylo.utils.diff import _get_value_from_version, get_version_diff, version_query
+from stylo.utils.image import optimize_image, strip_exif_data
+from stylo.utils.response import json_handler
+from stylo.utils.synchronization import LockTimeoutError, filelock
 
 
 class TestFilters(StyloTestCase):
@@ -188,9 +188,9 @@ class TestDataManipulation(StyloTestCase):
 				<a href="http://test.com">Test link 1</a>
 				<a href="/about">Test link 2</a>
 				<a href="login">Test link 3</a>
-				<img src="/assets/frappe/test.jpg">
+				<img src="/assets/stylo/test.jpg">
 			</div>
-			<div style="background-image: url('/assets/frappe/bg.jpg')">
+			<div style="background-image: url('/assets/stylo/bg.jpg')">
 				Please mail us at <a href="mailto:test@example.com">email</a>
 			</div>
 		"""
@@ -201,8 +201,8 @@ class TestDataManipulation(StyloTestCase):
 		self.assertTrue('<a href="http://test.com">Test link 1</a>' in html)
 		self.assertTrue(f'<a href="{url}/about">Test link 2</a>' in html)
 		self.assertTrue(f'<a href="{url}/login">Test link 3</a>' in html)
-		self.assertTrue(f'<img src="{url}/assets/frappe/test.jpg">' in html)
-		self.assertTrue(f"style=\"background-image: url('{url}/assets/frappe/bg.jpg') !important\"" in html)
+		self.assertTrue(f'<img src="{url}/assets/stylo/test.jpg">' in html)
+		self.assertTrue(f"style=\"background-image: url('{url}/assets/stylo/bg.jpg') !important\"" in html)
 		self.assertTrue('<a href="mailto:test@example.com">email</a>' in html)
 
 
@@ -277,7 +277,7 @@ class TestMathUtils(StyloTestCase):
 
 class TestHTMLUtils(StyloTestCase):
 	def test_clean_email_html(self):
-		from frappe.utils.html_utils import clean_email_html
+		from stylo.utils.html_utils import clean_email_html
 
 		sample = """<script>a=b</script><h1>Hello</h1><p>Para</p>"""
 		clean = clean_email_html(sample)
@@ -295,7 +295,7 @@ class TestHTMLUtils(StyloTestCase):
 		self.assertTrue('<a href="http://test.com">text</a>' in clean)
 
 	def test_sanitize_html(self):
-		from frappe.utils.html_utils import sanitize_html
+		from stylo.utils.html_utils import sanitize_html
 
 		clean = sanitize_html("<ol data-list='ordered' unknown_attr='xyz'></ol>")
 		self.assertIn("ordered", clean)
@@ -310,21 +310,21 @@ class TestValidationUtils(StyloTestCase):
 
 		# Valid URLs
 		self.assertTrue(validate_url("https://google.com"))
-		self.assertTrue(validate_url("http://frappe.io", throw=True))
+		self.assertTrue(validate_url("http://stylo.io", throw=True))
 
 		# Invalid URLs without throw
 		self.assertFalse(validate_url("google.io"))
 		self.assertFalse(validate_url("google.io"))
 
 		# Invalid URL with throw
-		self.assertRaises(frappe.ValidationError, validate_url, "frappe", throw=True)
+		self.assertRaises(stylo.ValidationError, validate_url, "stylo", throw=True)
 
 		# Scheme validation
 		self.assertFalse(validate_url("https://google.com", valid_schemes="http"))
-		self.assertTrue(validate_url("ftp://frappe.cloud", valid_schemes=["https", "ftp"]))
-		self.assertFalse(validate_url("bolo://frappe.io", valid_schemes=("http", "https", "ftp", "ftps")))
+		self.assertTrue(validate_url("ftp://stylo.cloud", valid_schemes=["https", "ftp"]))
+		self.assertFalse(validate_url("bolo://stylo.io", valid_schemes=("http", "https", "ftp", "ftps")))
 		self.assertRaises(
-			frappe.ValidationError, validate_url, "gopher://frappe.io", valid_schemes="https", throw=True
+			stylo.ValidationError, validate_url, "gopher://stylo.io", valid_schemes="https", throw=True
 		)
 
 	def test_valid_email(self):
@@ -333,22 +333,22 @@ class TestValidationUtils(StyloTestCase):
 		self.assertFalse(validate_email_address(None))
 
 		# Valid addresses
-		self.assertTrue(validate_email_address("someone@frappe.com"))
-		self.assertTrue(validate_email_address("someone@frappe.com, anyone@frappe.io"))
+		self.assertTrue(validate_email_address("someone@stylo.com"))
+		self.assertTrue(validate_email_address("someone@stylo.com, anyone@stylo.io"))
 
 		# Invalid address
 		self.assertFalse(validate_email_address("someone"))
 		self.assertFalse(validate_email_address("someone@----.com"))
 
 		# Invalid with throw
-		self.assertRaises(frappe.InvalidEmailAddressError, validate_email_address, "someone.com", throw=True)
+		self.assertRaises(stylo.InvalidEmailAddressError, validate_email_address, "someone.com", throw=True)
 
 
 class TestImage(StyloTestCase):
 	def test_strip_exif_data(self):
-		original_image = Image.open("../apps/frappe/frappe/tests/data/exif_sample_image.jpg")
+		original_image = Image.open("../apps/stylo/stylo/tests/data/exif_sample_image.jpg")
 		original_image_content = open(
-			"../apps/frappe/frappe/tests/data/exif_sample_image.jpg", mode="rb"
+			"../apps/stylo/stylo/tests/data/exif_sample_image.jpg", mode="rb"
 		).read()
 
 		new_image_content = strip_exif_data(original_image_content, "image/jpeg")
@@ -358,7 +358,7 @@ class TestImage(StyloTestCase):
 		self.assertNotEqual(original_image._getexif(), new_image._getexif())
 
 	def test_optimize_image(self):
-		image_file_path = "../apps/frappe/frappe/tests/data/sample_image_for_optimization.jpg"
+		image_file_path = "../apps/stylo/stylo/tests/data/sample_image_for_optimization.jpg"
 		content_type = guess_type(image_file_path)[0]
 		original_content = open(image_file_path, mode="rb").read()
 
@@ -395,14 +395,14 @@ class TestPythonExpressions(StyloTestCase):
 			"oops = forgot_equals",
 		]
 		for expr in invalid_expressions:
-			self.assertRaises(frappe.ValidationError, validate_python_code, expr)
+			self.assertRaises(stylo.ValidationError, validate_python_code, expr)
 
 
 class TestDiffUtils(StyloTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.doc = frappe.get_doc(doctype="Client Script", dt="Client Script", name="test_client_script")
+		cls.doc = stylo.get_doc(doctype="Client Script", dt="Client Script", name="test_client_script")
 		cls.doc.insert()
 		cls.doc.script = "2;"
 		cls.doc.save(ignore_version=False)
@@ -443,21 +443,21 @@ class TestDiffUtils(StyloTestCase):
 class TestDateUtils(StyloTestCase):
 	def test_first_day_of_week(self):
 		# Monday as start of the week
-		with patch.object(frappe.utils.data, "get_first_day_of_the_week", return_value="Monday"):
+		with patch.object(stylo.utils.data, "get_first_day_of_the_week", return_value="Monday"):
 			self.assertEqual(
-				frappe.utils.get_first_day_of_week("2020-12-25"), frappe.utils.getdate("2020-12-21")
+				stylo.utils.get_first_day_of_week("2020-12-25"), stylo.utils.getdate("2020-12-21")
 			)
 			self.assertEqual(
-				frappe.utils.get_first_day_of_week("2020-12-20"), frappe.utils.getdate("2020-12-14")
+				stylo.utils.get_first_day_of_week("2020-12-20"), stylo.utils.getdate("2020-12-14")
 			)
 
 		# Sunday as start of the week
-		self.assertEqual(frappe.utils.get_first_day_of_week("2020-12-25"), frappe.utils.getdate("2020-12-20"))
-		self.assertEqual(frappe.utils.get_first_day_of_week("2020-12-21"), frappe.utils.getdate("2020-12-20"))
+		self.assertEqual(stylo.utils.get_first_day_of_week("2020-12-25"), stylo.utils.getdate("2020-12-20"))
+		self.assertEqual(stylo.utils.get_first_day_of_week("2020-12-21"), stylo.utils.getdate("2020-12-20"))
 
 	def test_last_day_of_week(self):
-		self.assertEqual(frappe.utils.get_last_day_of_week("2020-12-24"), frappe.utils.getdate("2020-12-26"))
-		self.assertEqual(frappe.utils.get_last_day_of_week("2020-12-28"), frappe.utils.getdate("2021-01-02"))
+		self.assertEqual(stylo.utils.get_last_day_of_week("2020-12-24"), stylo.utils.getdate("2020-12-26"))
+		self.assertEqual(stylo.utils.get_last_day_of_week("2020-12-28"), stylo.utils.getdate("2021-01-02"))
 
 	def test_get_time(self):
 		datetime_input = now_datetime()
@@ -531,7 +531,7 @@ class TestResponse(StyloTestCase):
 				Decimal(29.21),
 			],
 			"doc": [
-				frappe.get_doc("System Settings"),
+				stylo.get_doc("System Settings"),
 			],
 			"iter": [
 				{1, 2, 3},
@@ -572,7 +572,7 @@ class TestTimeDeltaUtils(StyloTestCase):
 
 class TestXlsxUtils(StyloTestCase):
 	def test_unescape(self):
-		from frappe.utils.xlsxutils import handle_html
+		from stylo.utils.xlsxutils import handle_html
 
 		val = handle_html("<p>html data &gt;</p>")
 		self.assertIn("html data >", val)
@@ -584,7 +584,7 @@ class TestLinkTitle(StyloTestCase):
 		"""
 		Test that doctypes are added to link_title_map in boot_info
 		"""
-		custom_doctype = frappe.get_doc(
+		custom_doctype = stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"module": "Core",
@@ -604,7 +604,7 @@ class TestLinkTitle(StyloTestCase):
 		)
 		custom_doctype.insert()
 
-		prop_setter = frappe.get_doc(
+		prop_setter = stylo.get_doc(
 			{
 				"doctype": "Property Setter",
 				"doc_type": "User",
@@ -615,7 +615,7 @@ class TestLinkTitle(StyloTestCase):
 			}
 		).insert()
 
-		from frappe.boot import get_link_title_doctypes
+		from stylo.boot import get_link_title_doctypes
 
 		link_title_doctypes = get_link_title_doctypes()
 		self.assertTrue("User" in link_title_doctypes)
@@ -628,7 +628,7 @@ class TestLinkTitle(StyloTestCase):
 		"""
 		Test that link titles are added to the doctype on getdoc
 		"""
-		prop_setter = frappe.get_doc(
+		prop_setter = stylo.get_doc(
 			{
 				"doctype": "Property Setter",
 				"doc_type": "User",
@@ -639,7 +639,7 @@ class TestLinkTitle(StyloTestCase):
 			}
 		).insert()
 
-		user = frappe.get_doc(
+		user = stylo.get_doc(
 			{
 				"doctype": "User",
 				"user_type": "Website User",
@@ -649,7 +649,7 @@ class TestLinkTitle(StyloTestCase):
 			}
 		).insert(ignore_permissions=True)
 
-		todo = frappe.get_doc(
+		todo = stylo.get_doc(
 			{
 				"doctype": "ToDo",
 				"description": "test-link-title-on-getdoc",
@@ -657,10 +657,10 @@ class TestLinkTitle(StyloTestCase):
 			}
 		).insert()
 
-		from frappe.desk.form.load import getdoc
+		from stylo.desk.form.load import getdoc
 
 		getdoc("ToDo", todo.name)
-		link_titles = frappe.local.response["_link_titles"]
+		link_titles = stylo.local.response["_link_titles"]
 
 		self.assertTrue(f"{user.doctype}::{user.name}" in link_titles)
 		self.assertEqual(link_titles[f"{user.doctype}::{user.name}"], user.full_name)
@@ -673,12 +673,12 @@ class TestLinkTitle(StyloTestCase):
 class TestAppParser(StyloTestCase):
 	def test_app_name_parser(self):
 		forge_path = get_forge_path()
-		frappe_app = os.path.join(forge_path, "apps", "frappe")
-		self.assertEqual("frappe", parse_app_name(frappe_app))
+		stylo_app = os.path.join(forge_path, "apps", "stylo")
+		self.assertEqual("stylo", parse_app_name(stylo_app))
 		self.assertEqual("healthcare", parse_app_name("healthcare"))
-		self.assertEqual("healthcare", parse_app_name("https://github.com/frappe/healthcare.git"))
-		self.assertEqual("healthcare", parse_app_name("git@github.com:frappe/healthcare.git"))
-		self.assertEqual("healthcare", parse_app_name("frappe/healthcare@develop"))
+		self.assertEqual("healthcare", parse_app_name("https://github.com/stylo/healthcare.git"))
+		self.assertEqual("healthcare", parse_app_name("git@github.com:stylo/healthcare.git"))
+		self.assertEqual("healthcare", parse_app_name("stylo/healthcare@develop"))
 
 
 class TestIntrospectionMagic(StyloTestCase):
@@ -690,21 +690,21 @@ class TestIntrospectionMagic(StyloTestCase):
 			pass
 
 		safe_kwargs = {"company": "Wind Power", "b": 1}
-		self.assertEqual(frappe.get_newargs(f, safe_kwargs), safe_kwargs)
+		self.assertEqual(stylo.get_newargs(f, safe_kwargs), safe_kwargs)
 
 		unsafe_args = dict(safe_kwargs)
 		unsafe_args.update({"ignore_permissions": True, "flags": {"ignore_mandatory": True}})
-		self.assertEqual(frappe.get_newargs(f, unsafe_args), safe_kwargs)
+		self.assertEqual(stylo.get_newargs(f, unsafe_args), safe_kwargs)
 
 	def test_strip_off_kwargs_when_not_supported(self):
 		def f(a, b=2):
 			pass
 
 		args = {"company": "Wind Power", "b": 1}
-		self.assertEqual(frappe.get_newargs(f, args), {"b": 1})
+		self.assertEqual(stylo.get_newargs(f, args), {"b": 1})
 
 		# No args
-		self.assertEqual(frappe.get_newargs(lambda: None, args), {})
+		self.assertEqual(stylo.get_newargs(lambda: None, args), {})
 
 
 class TestLocks(StyloTestCase):
@@ -732,7 +732,7 @@ class TestMiscUtils(StyloTestCase):
 		self.assertIn("apps", cstr(out))
 
 	def test_get_all_sites(self):
-		self.assertIn(frappe.local.site, get_sites())
+		self.assertIn(stylo.local.site, get_sites())
 
 	def test_safe_json_load(self):
 		self.assertEqual(safe_json_loads("{}"), {})
@@ -760,10 +760,10 @@ class TestTBSanitization(StyloTestCase):
 		try:
 			password = "42"  # noqa: F841
 			args = {"password": "42", "pwd": "42", "safe": "safe_value"}
-			args = frappe._dict({"password": "42", "pwd": "42", "safe": "safe_value"})  # noqa: F841
+			args = stylo._dict({"password": "42", "pwd": "42", "safe": "safe_value"})  # noqa: F841
 			raise Exception
 		except Exception:
-			traceback = frappe.get_traceback(with_context=True)
+			traceback = stylo.get_traceback(with_context=True)
 			self.assertNotIn("42", traceback)
 			self.assertIn("********", traceback)
 			self.assertIn("password =", traceback)

@@ -3,9 +3,9 @@
 
 import json
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class KanbanBoard(Document):
@@ -13,8 +13,8 @@ class KanbanBoard(Document):
 		self.validate_column_name()
 
 	def on_change(self):
-		frappe.clear_cache(doctype=self.reference_doctype)
-		frappe.cache().delete_keys("_user_settings")
+		stylo.clear_cache(doctype=self.reference_doctype)
+		stylo.cache().delete_keys("_user_settings")
 
 	def before_insert(self):
 		for column in self.columns:
@@ -23,17 +23,17 @@ class KanbanBoard(Document):
 	def validate_column_name(self):
 		for column in self.columns:
 			if not column.column_name:
-				frappe.msgprint(_("Column Name cannot be empty"), raise_exception=True)
+				stylo.msgprint(_("Column Name cannot be empty"), raise_exception=True)
 
 
 def get_permission_query_conditions(user):
 	if not user:
-		user = frappe.session.user
+		user = stylo.session.user
 
 	if user == "Administrator":
 		return ""
 
-	return f"""(`tabKanban Board`.private=0 or `tabKanban Board`.owner={frappe.db.escape(user)})"""
+	return f"""(`tabKanban Board`.private=0 or `tabKanban Board`.owner={stylo.db.escape(user)})"""
 
 
 def has_permission(doc, ptype, user):
@@ -46,33 +46,33 @@ def has_permission(doc, ptype, user):
 	return False
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_kanban_boards(doctype):
 	"""Get Kanban Boards for doctype to show in List View"""
-	return frappe.get_list(
+	return stylo.get_list(
 		"Kanban Board",
 		fields=["name", "filters", "reference_doctype", "private"],
 		filters={"reference_doctype": doctype},
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def add_column(board_name, column_title):
 	"""Adds new column to Kanban Board"""
-	doc = frappe.get_doc("Kanban Board", board_name)
+	doc = stylo.get_doc("Kanban Board", board_name)
 	for col in doc.columns:
 		if column_title == col.column_name:
-			frappe.throw(_("Column <b>{0}</b> already exist.").format(column_title))
+			stylo.throw(_("Column <b>{0}</b> already exist.").format(column_title))
 
 	doc.append("columns", dict(column_name=column_title))
 	doc.save()
 	return doc.columns
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def archive_restore_column(board_name, column_title, status):
 	"""Set column's status to status"""
-	doc = frappe.get_doc("Kanban Board", board_name)
+	doc = stylo.get_doc("Kanban Board", board_name)
 	for col in doc.columns:
 		if column_title == col.column_name:
 			col.status = status
@@ -81,14 +81,14 @@ def archive_restore_column(board_name, column_title, status):
 	return doc.columns
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_order(board_name, order):
 	"""Save the order of cards in columns"""
-	board = frappe.get_doc("Kanban Board", board_name)
+	board = stylo.get_doc("Kanban Board", board_name)
 	doctype = board.reference_doctype
 	updated_cards = []
 
-	if not frappe.has_permission(doctype, "write"):
+	if not stylo.has_permission(doctype, "write"):
 		# Return board data from db
 		return board, updated_cards
 
@@ -97,9 +97,9 @@ def update_order(board_name, order):
 
 	for col_name, cards in order_dict.items():
 		for card in cards:
-			column = frappe.get_value(doctype, {"name": card}, fieldname)
+			column = stylo.get_value(doctype, {"name": card}, fieldname)
 			if column != col_name:
-				frappe.set_value(doctype, card, fieldname, col_name)
+				stylo.set_value(doctype, card, fieldname, col_name)
 				updated_cards.append(dict(name=card, column=col_name))
 
 		for column in board.columns:
@@ -109,17 +109,17 @@ def update_order(board_name, order):
 	return board.save(ignore_permissions=True), updated_cards
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_order_for_single_card(board_name, docname, from_colname, to_colname, old_index, new_index):
 	"""Save the order of cards in columns"""
-	board = frappe.get_doc("Kanban Board", board_name)
+	board = stylo.get_doc("Kanban Board", board_name)
 	doctype = board.reference_doctype
 
-	frappe.has_permission(doctype, "write", throw=True)
+	stylo.has_permission(doctype, "write", throw=True)
 
 	fieldname = board.field_name
-	old_index = frappe.parse_json(old_index)
-	new_index = frappe.parse_json(new_index)
+	old_index = stylo.parse_json(old_index)
+	new_index = stylo.parse_json(new_index)
 
 	# save current order and index of columns to be updated
 	from_col_order, from_col_idx = get_kanban_column_order_and_index(board, from_colname)
@@ -132,12 +132,12 @@ def update_order_for_single_card(board_name, docname, from_colname, to_colname, 
 		to_col_order.insert(new_index, from_col_order.pop(old_index))
 
 	# save updated order
-	board.columns[from_col_idx].order = frappe.as_json(from_col_order)
-	board.columns[to_col_idx].order = frappe.as_json(to_col_order)
+	board.columns[from_col_idx].order = stylo.as_json(from_col_order)
+	board.columns[to_col_idx].order = stylo.as_json(to_col_order)
 	board.save(ignore_permissions=True)
 
 	# update changed value in doc
-	frappe.set_value(doctype, docname, fieldname, to_colname)
+	stylo.set_value(doctype, docname, fieldname, to_colname)
 
 	return board
 
@@ -145,32 +145,32 @@ def update_order_for_single_card(board_name, docname, from_colname, to_colname, 
 def get_kanban_column_order_and_index(board, colname):
 	for i, col in enumerate(board.columns):
 		if col.column_name == colname:
-			col_order = frappe.parse_json(col.order)
+			col_order = stylo.parse_json(col.order)
 			col_idx = i
 
 	return col_order, col_idx
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def add_card(board_name, docname, colname):
-	board = frappe.get_doc("Kanban Board", board_name)
+	board = stylo.get_doc("Kanban Board", board_name)
 
-	frappe.has_permission(board.reference_doctype, "write", throw=True)
+	stylo.has_permission(board.reference_doctype, "write", throw=True)
 
 	col_order, col_idx = get_kanban_column_order_and_index(board, colname)
 	col_order.insert(0, docname)
 
-	board.columns[col_idx].order = frappe.as_json(col_order)
+	board.columns[col_idx].order = stylo.as_json(col_order)
 
 	return board.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def quick_kanban_board(doctype, board_name, field_name, project=None):
 	"""Create new KanbanBoard quickly with default options"""
 
-	doc = frappe.new_doc("Kanban Board")
-	meta = frappe.get_meta(doctype)
+	doc = stylo.new_doc("Kanban Board")
+	meta = stylo.get_meta(doctype)
 
 	doc.kanban_board_name = board_name
 	doc.reference_doctype = doctype
@@ -203,15 +203,15 @@ def quick_kanban_board(doctype, board_name, field_name, project=None):
 def get_order_for_column(board, colname):
 	filters = [[board.reference_doctype, board.field_name, "=", colname]]
 	if board.filters:
-		filters.append(frappe.parse_json(board.filters)[0])
+		filters.append(stylo.parse_json(board.filters)[0])
 
-	return frappe.as_json(frappe.get_list(board.reference_doctype, filters=filters, pluck="name"))
+	return stylo.as_json(stylo.get_list(board.reference_doctype, filters=filters, pluck="name"))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def update_column_order(board_name, order):
 	"""Set the order of columns in Kanban Board"""
-	board = frappe.get_doc("Kanban Board", board_name)
+	board = stylo.get_doc("Kanban Board", board_name)
 	order = json.loads(order)
 	old_columns = board.columns
 	new_columns = []
@@ -240,10 +240,10 @@ def update_column_order(board_name, order):
 	return board
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def set_indicator(board_name, column_name, indicator):
 	"""Set the indicator color of column"""
-	board = frappe.get_doc("Kanban Board", board_name)
+	board = stylo.get_doc("Kanban Board", board_name)
 
 	for column in board.columns:
 		if column.column_name == column_name:
@@ -253,10 +253,10 @@ def set_indicator(board_name, column_name, indicator):
 	return board
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def save_settings(board_name: str, settings: str) -> Document:
 	settings = json.loads(settings)
-	doc = frappe.get_doc("Kanban Board", board_name)
+	doc = stylo.get_doc("Kanban Board", board_name)
 
 	fields = settings["fields"]
 	if not isinstance(fields, str):
@@ -267,6 +267,6 @@ def save_settings(board_name: str, settings: str) -> Document:
 	doc.save()
 
 	resp = doc.as_dict()
-	resp["fields"] = frappe.parse_json(resp["fields"])
+	resp["fields"] = stylo.parse_json(resp["fields"])
 
 	return resp

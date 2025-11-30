@@ -1,5 +1,5 @@
-import frappe
-from frappe.website.utils import build_response
+import stylo
+from stylo.website.utils import build_response
 
 
 class RedirectPage:
@@ -16,7 +16,7 @@ class RedirectPage:
 			"",
 			301,
 			{
-				"Location": frappe.flags.redirect_location or (frappe.local.response or {}).get("location"),
+				"Location": stylo.flags.redirect_location or (stylo.local.response or {}).get("location"),
 				"Cache-Control": "no-store, no-cache, must-revalidate",
 			},
 		)

@@ -1,6 +1,6 @@
 // Copyright (c) 2018, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("View Log", {
+stylo.ui.form.on("View Log", {
 	refresh: function (frm) {},
 });

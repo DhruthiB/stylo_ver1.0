@@ -1,9 +1,9 @@
 # Copyright (c) 2020, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class NavbarSettings(Document):
@@ -24,14 +24,14 @@ class NavbarSettings(Document):
 
 		after_save_items = [item for item in self.help_dropdown + self.settings_dropdown if item.is_standard]
 
-		if not frappe.flags.in_patch and (len(before_save_items) > len(after_save_items)):
-			frappe.throw(_("Please hide the standard navbar items instead of deleting them"))
+		if not stylo.flags.in_patch and (len(before_save_items) > len(after_save_items)):
+			stylo.throw(_("Please hide the standard navbar items instead of deleting them"))
 
 
 def get_app_logo():
-	app_logo = frappe.db.get_single_value("Navbar Settings", "app_logo", cache=True)
+	app_logo = stylo.db.get_single_value("Navbar Settings", "app_logo", cache=True)
 	if not app_logo:
-		logos = frappe.get_hooks("app_logo_url")
+		logos = stylo.get_hooks("app_logo_url")
 		app_logo = logos[0]
 		if len(logos) == 2:
 			app_logo = logos[1]
@@ -40,5 +40,5 @@ def get_app_logo():
 
 
 def get_navbar_settings():
-	navbar_settings = frappe.get_single("Navbar Settings")
+	navbar_settings = stylo.get_single("Navbar Settings")
 	return navbar_settings

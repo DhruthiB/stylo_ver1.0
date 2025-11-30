@@ -1,8 +1,8 @@
 # Copyright (c) 2019, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.core.doctype.data_export.exporter import DataExporter
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.data_export.exporter import DataExporter
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDataExporter(StyloTestCase):
@@ -17,15 +17,15 @@ class TestDataExporter(StyloTestCase):
 		Helper Function for setting up doctypes
 		"""
 		if force:
-			frappe.delete_doc_if_exists("DocType", doctype_name)
-			frappe.delete_doc_if_exists("DocType", "Child 1 of " + doctype_name)
+			stylo.delete_doc_if_exists("DocType", doctype_name)
+			stylo.delete_doc_if_exists("DocType", "Child 1 of " + doctype_name)
 
-		if frappe.db.exists("DocType", doctype_name):
+		if stylo.db.exists("DocType", doctype_name):
 			return
 
 		# Child Table 1
 		table_1_name = "Child 1 of " + doctype_name
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": table_1_name,
@@ -40,7 +40,7 @@ class TestDataExporter(StyloTestCase):
 		).insert()
 
 		# Main Table
-		frappe.get_doc(
+		stylo.get_doc(
 			{
 				"doctype": "DocType",
 				"name": doctype_name,
@@ -66,10 +66,10 @@ class TestDataExporter(StyloTestCase):
 		Helper Function creating test data
 		"""
 		if force:
-			frappe.delete_doc(self.doctype_name, self.doc_name)
+			stylo.delete_doc(self.doctype_name, self.doc_name)
 
-		if not frappe.db.exists(self.doctype_name, self.doc_name):
-			self.doc = frappe.get_doc(
+		if not stylo.db.exists(self.doctype_name, self.doc_name):
+			self.doc = stylo.get_doc(
 				doctype=self.doctype_name,
 				title=self.doc_name,
 				number="100",
@@ -79,17 +79,17 @@ class TestDataExporter(StyloTestCase):
 				],
 			).insert()
 		else:
-			self.doc = frappe.get_doc(self.doctype_name, self.doc_name)
+			self.doc = stylo.get_doc(self.doctype_name, self.doc_name)
 
 	def test_export_content(self):
 		exp = DataExporter(doctype=self.doctype_name, file_type="CSV")
 		exp.build_response()
 
-		self.assertEqual(frappe.response["type"], "csv")
-		self.assertEqual(frappe.response["doctype"], self.doctype_name)
-		self.assertTrue(frappe.response["result"])
-		self.assertRegex(frappe.response["result"], r"Child Title 1.*?,50")
-		self.assertRegex(frappe.response["result"], r"Child Title 2.*?,51")
+		self.assertEqual(stylo.response["type"], "csv")
+		self.assertEqual(stylo.response["doctype"], self.doctype_name)
+		self.assertTrue(stylo.response["result"])
+		self.assertRegex(stylo.response["result"], r"Child Title 1.*?,50")
+		self.assertRegex(stylo.response["result"], r"Child Title 2.*?,51")
 
 	def test_export_type(self):
 		for type in ["csv", "Excel"]:
@@ -97,17 +97,17 @@ class TestDataExporter(StyloTestCase):
 				exp = DataExporter(doctype=self.doctype_name, file_type=type)
 				exp.build_response()
 
-				self.assertEqual(frappe.response["doctype"], self.doctype_name)
-				self.assertTrue(frappe.response["result"])
+				self.assertEqual(stylo.response["doctype"], self.doctype_name)
+				self.assertTrue(stylo.response["result"])
 
 				if type == "csv":
-					self.assertEqual(frappe.response["type"], "csv")
+					self.assertEqual(stylo.response["type"], "csv")
 				elif type == "Excel":
-					self.assertEqual(frappe.response["type"], "binary")
+					self.assertEqual(stylo.response["type"], "binary")
 					self.assertEqual(
-						frappe.response["filename"], self.doctype_name + ".xlsx"
+						stylo.response["filename"], self.doctype_name + ".xlsx"
 					)  # 'Test DocType for Export Tool.xlsx')
-					self.assertTrue(frappe.response["filecontent"])
+					self.assertTrue(stylo.response["filecontent"])
 
 	def tearDown(self):
 		pass

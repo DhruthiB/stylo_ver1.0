@@ -8,8 +8,8 @@ import re
 from werkzeug.exceptions import NotFound
 from werkzeug.routing import Map, Rule
 
-import frappe
-from frappe.website.utils import extract_title, get_frontmatter
+import stylo
+from stylo.website.utils import extract_title, get_frontmatter
 
 
 def get_page_info_from_web_page_with_dynamic_routes(path):
@@ -19,7 +19,7 @@ def get_page_info_from_web_page_with_dynamic_routes(path):
 	rules, page_info = [], {}
 
 	# build rules from all web page with `dynamic_route = 1`
-	for d in frappe.get_all(
+	for d in stylo.get_all(
 		"Web Page", fields=["name", "route", "modified"], filters=dict(published=1, dynamic_route=1)
 	):
 		rules.append(Rule("/" + d.route, endpoint=d.name))
@@ -34,7 +34,7 @@ def get_page_info_from_web_page_with_dynamic_routes(path):
 def get_page_info_from_web_form(path):
 	"""Query published web forms and evaluate if the route matches"""
 	rules, page_info = [], {}
-	web_forms = frappe.get_all("Web Form", ["name", "route", "modified"], {"published": 1})
+	web_forms = stylo.get_all("Web Form", ["name", "route", "modified"], {"published": 1})
 	for d in web_forms:
 		rules.append(Rule(f"/{d.route}", endpoint=d.name))
 		rules.append(Rule(f"/{d.route}/list", endpoint=d.name))
@@ -47,13 +47,13 @@ def get_page_info_from_web_form(path):
 	end_point = evaluate_dynamic_routes(rules, path)
 	if end_point:
 		if path.endswith("/list"):
-			frappe.form_dict.is_list = True
+			stylo.form_dict.is_list = True
 		elif path.endswith("/new"):
-			frappe.form_dict.is_new = True
+			stylo.form_dict.is_new = True
 		elif path.endswith("/edit"):
-			frappe.form_dict.is_edit = True
+			stylo.form_dict.is_edit = True
 		else:
-			frappe.form_dict.is_read = True
+			stylo.form_dict.is_read = True
 		return page_info[end_point]
 
 
@@ -65,15 +65,15 @@ def evaluate_dynamic_routes(rules, path):
 	route_map = Map(rules)
 	endpoint = None
 
-	if hasattr(frappe.local, "request") and frappe.local.request.environ:
-		urls = route_map.bind_to_environ(frappe.local.request.environ)
+	if hasattr(stylo.local, "request") and stylo.local.request.environ:
+		urls = route_map.bind_to_environ(stylo.local.request.environ)
 		try:
 			endpoint, args = urls.match("/" + path)
 			path = endpoint
 			if args:
 				# don't cache when there's a query string!
-				frappe.local.no_cache = 1
-				frappe.local.form_dict.update(args)
+				stylo.local.no_cache = 1
+				stylo.local.form_dict.update(args)
 
 		except NotFound:
 			pass
@@ -90,17 +90,17 @@ def get_pages(app=None):
 		if app:
 			apps = [app]
 		else:
-			apps = frappe.local.flags.web_pages_apps or frappe.get_installed_apps()
+			apps = stylo.local.flags.web_pages_apps or stylo.get_installed_apps()
 
 		for app in apps:
-			app_path = frappe.get_app_path(app)
+			app_path = stylo.get_app_path(app)
 
 			for start in get_start_folders():
 				pages.update(get_pages_from_path(start, app, app_path))
 
 		return pages
 
-	return frappe.cache().get_value("website_pages", lambda: _build(app))
+	return stylo.cache().get_value("website_pages", lambda: _build(app))
 
 
 def get_pages_from_path(start, app, app_path):
@@ -109,7 +109,7 @@ def get_pages_from_path(start, app, app_path):
 	if os.path.exists(start_path):
 		for basepath, folders, files in os.walk(start_path):  # noqa: B007
 			for fname in files:
-				fname = frappe.utils.cstr(fname)
+				fname = stylo.utils.cstr(fname)
 				if "." not in fname:
 					continue
 				page_name, extn = fname.rsplit(".", 1)
@@ -132,7 +132,7 @@ def get_page_info(path, app, start, basepath=None, app_path=None, fname=None):
 		fname = os.path.basename(path)
 
 	if app_path is None:
-		app_path = frappe.get_app_path(app)
+		app_path = stylo.get_app_path(app)
 
 	if basepath is None:
 		basepath = os.path.dirname(path)
@@ -140,7 +140,7 @@ def get_page_info(path, app, start, basepath=None, app_path=None, fname=None):
 	page_name, extn = os.path.splitext(fname)
 
 	# add website route
-	page_info = frappe._dict()
+	page_info = stylo._dict()
 
 	page_info.basename = page_name if extn in ("html", "md") else fname
 	page_info.basepath = basepath
@@ -185,7 +185,7 @@ def get_page_info(path, app, start, basepath=None, app_path=None, fname=None):
 
 def setup_source(page_info):
 	"""Get the HTML source of the template"""
-	jenv = frappe.get_jenv()
+	jenv = stylo.get_jenv()
 	source = jenv.loader.get_source(jenv, page_info.template)[0]
 	html = ""
 
@@ -201,7 +201,7 @@ def setup_source(page_info):
 			pass
 
 		if page_info.template.endswith(".md"):
-			source = frappe.utils.md_to_html(source)
+			source = stylo.utils.md_to_html(source)
 			page_info.page_toc_html = source.toc_html
 
 			if not page_info.show_sidebar:
@@ -253,9 +253,9 @@ def get_base_template(path=None):
 	This can be overridden for certain routes in `custom_app/hooks.py` based on regex pattern.
 	"""
 	if not path:
-		path = frappe.local.request.path
+		path = stylo.local.request.path
 
-	base_template_map = frappe.get_hooks("base_template_map") or {}
+	base_template_map = stylo.get_hooks("base_template_map") or {}
 	patterns = list(base_template_map.keys())
 	patterns_desc = sorted(patterns, key=lambda x: len(x), reverse=True)
 	for pattern in patterns_desc:
@@ -279,7 +279,7 @@ def load_properties_from_controller(page_info):
 	if not page_info.controller:
 		return
 
-	module = frappe.get_module(page_info.controller)
+	module = stylo.get_module(page_info.controller)
 	if not module:
 		return
 
@@ -292,21 +292,21 @@ def get_doctypes_with_web_view():
 	"""Return doctypes with Has Web View or set via hooks"""
 
 	def _get():
-		installed_apps = frappe.get_installed_apps()
-		doctypes = frappe.get_hooks("website_generators")
-		doctypes_with_web_view = frappe.get_all(
+		installed_apps = stylo.get_installed_apps()
+		doctypes = stylo.get_hooks("website_generators")
+		doctypes_with_web_view = stylo.get_all(
 			"DocType", fields=["name", "module"], filters=dict(has_web_view=1)
 		)
-		module_app_map = frappe.local.module_app
+		module_app_map = stylo.local.module_app
 		doctypes += [
 			d.name
 			for d in doctypes_with_web_view
-			if module_app_map.get(frappe.scrub(d.module)) in installed_apps
+			if module_app_map.get(stylo.scrub(d.module)) in installed_apps
 		]
 		return doctypes
 
-	return frappe.cache().get_value("doctypes_with_web_view", _get)
+	return stylo.cache().get_value("doctypes_with_web_view", _get)
 
 
 def get_start_folders():
-	return frappe.local.flags.web_pages_folders or ("www", "templates/pages")
+	return stylo.local.flags.web_pages_folders or ("www", "templates/pages")

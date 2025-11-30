@@ -1,14 +1,14 @@
 # Copyright (c) 2015, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import cint
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import cint
 
 
 class BulkUpdate(Document):
-	@frappe.whitelist()
+	@stylo.whitelist()
 	def bulk_update(self):
 		self.check_permission("write")
 		limit = self.limit if self.limit and cint(self.limit) < 500 else 500
@@ -16,11 +16,11 @@ class BulkUpdate(Document):
 		condition = ""
 		if self.condition:
 			if ";" in self.condition:
-				frappe.throw(_("; not allowed in condition"))
+				stylo.throw(_("; not allowed in condition"))
 
 			condition = f" where {self.condition}"
 
-		docnames = frappe.db.sql_list(
+		docnames = stylo.db.sql_list(
 			f"""select name from `tab{self.document_type}`{condition} limit {limit} offset 0"""
 		)
 		return submit_cancel_or_update_docs(
@@ -28,16 +28,16 @@ class BulkUpdate(Document):
 		)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def submit_cancel_or_update_docs(doctype, docnames, action="submit", data=None):
 	if isinstance(docnames, str):
-		docnames = frappe.parse_json(docnames)
+		docnames = stylo.parse_json(docnames)
 
 	if len(docnames) < 20:
 		return _bulk_action(doctype, docnames, action, data)
 	elif len(docnames) <= 500:
-		frappe.msgprint(_("Bulk operation is enqueued in background."), alert=True)
-		frappe.enqueue(
+		stylo.msgprint(_("Bulk operation is enqueued in background."), alert=True)
+		stylo.enqueue(
 			_bulk_action,
 			doctype=doctype,
 			docnames=docnames,
@@ -47,17 +47,17 @@ def submit_cancel_or_update_docs(doctype, docnames, action="submit", data=None):
 			timeout=1000,
 		)
 	else:
-		frappe.throw(_("Bulk operations only support up to 500 documents."), title=_("Too Many Documents"))
+		stylo.throw(_("Bulk operations only support up to 500 documents."), title=_("Too Many Documents"))
 
 
 def _bulk_action(doctype, docnames, action, data):
 	if data:
-		data = frappe.parse_json(data)
+		data = stylo.parse_json(data)
 
 	failed = []
 
 	for i, d in enumerate(docnames, 1):
-		doc = frappe.get_doc(doctype, d)
+		doc = stylo.get_doc(doctype, d)
 		try:
 			message = ""
 			if action == "submit" and doc.docstatus.is_draft():
@@ -72,16 +72,16 @@ def _bulk_action(doctype, docnames, action, data):
 				message = _("Updating {0}").format(doctype)
 			else:
 				failed.append(d)
-			frappe.db.commit()
+			stylo.db.commit()
 			show_progress(docnames, message, i, d)
 
 		except Exception:
 			failed.append(d)
-			frappe.db.rollback()
+			stylo.db.rollback()
 
 	return failed
 
 
 def show_progress(docnames, message, i, description):
 	n = len(docnames)
-	frappe.publish_progress(float(i) * 100 / n, title=message, description=description)
+	stylo.publish_progress(float(i) * 100 / n, title=message, description=description)

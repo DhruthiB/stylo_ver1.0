@@ -2,8 +2,8 @@ const path = require("path");
 const fs = require("fs");
 const chalk = require("chalk");
 
-const frappe_path = path.resolve(__dirname, "..");
-const forge_path = path.resolve(frappe_path, "..", "..");
+const stylo_path = path.resolve(__dirname, "..");
+const forge_path = path.resolve(stylo_path, "..", "..");
 const sites_path = path.resolve(forge_path, "sites");
 const apps_path = path.resolve(forge_path, "apps");
 const assets_path = path.resolve(sites_path, "assets");

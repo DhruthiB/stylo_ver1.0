@@ -3,46 +3,46 @@
 
 import json
 
-import frappe
-from frappe.model.document import Document
-from frappe.utils.safe_exec import read_sql, safe_exec
+import stylo
+from stylo.model.document import Document
+from stylo.utils.safe_exec import read_sql, safe_exec
 
 
 class SystemConsole(Document):
 	def run(self):
-		frappe.only_for("System Manager")
+		stylo.only_for("System Manager")
 		try:
-			frappe.local.debug_log = []
+			stylo.local.debug_log = []
 			if self.type == "Python":
 				safe_exec(self.console)
-				self.output = "\n".join(frappe.debug_log)
+				self.output = "\n".join(stylo.debug_log)
 			elif self.type == "SQL":
-				self.output = frappe.as_json(read_sql(self.console, as_dict=1))
+				self.output = stylo.as_json(read_sql(self.console, as_dict=1))
 		except Exception:
 			self.commit = False
-			self.output = frappe.get_traceback()
+			self.output = stylo.get_traceback()
 
 		if self.commit:
-			frappe.db.commit()
+			stylo.db.commit()
 		else:
-			frappe.db.rollback()
+			stylo.db.rollback()
 
-		frappe.get_doc(dict(doctype="Console Log", script=self.console)).insert()
-		frappe.db.commit()
+		stylo.get_doc(dict(doctype="Console Log", script=self.console)).insert()
+		stylo.db.commit()
 
 
-@frappe.whitelist(methods=["POST"])
+@stylo.whitelist(methods=["POST"])
 def execute_code(doc):
-	console = frappe.get_doc(json.loads(doc))
+	console = stylo.get_doc(json.loads(doc))
 	console.run()
 	return console.as_dict()
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def show_processlist():
-	frappe.only_for("System Manager")
+	stylo.only_for("System Manager")
 
-	return frappe.db.multisql(
+	return stylo.db.multisql(
 		{
 			"postgres": """
 			SELECT pid AS "Id",

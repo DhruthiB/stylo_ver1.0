@@ -1,13 +1,13 @@
 // Copyright (c) 2024, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("System Health Report", {
+stylo.ui.form.on("System Health Report", {
 	onload(frm) {
 		let poll_attempts = 0;
 		const interval = setInterval(() => {
-			frappe
+			stylo
 				.xcall(
-					"frappe.desk.doctype.system_health_report.system_health_report.get_job_status",
+					"stylo.desk.doctype.system_health_report.system_health_report.get_job_status",
 					{ job_id: frm.doc.test_job_id }
 				)
 				.then((status) => {
@@ -21,14 +21,14 @@ frappe.ui.form.on("System Health Report", {
 	},
 	refresh(frm) {
 		frm.set_value("socketio_ping_check", "Fail");
-		frappe.realtime.on("pong", () => {
+		stylo.realtime.on("pong", () => {
 			frm.set_value("socketio_ping_check", "Pass");
 			frm.set_value(
 				"socketio_transport_mode",
-				frappe.socketio.socket.io?.engine?.transport?.name
+				stylo.socketio.socket.io?.engine?.transport?.name
 			);
 		});
-		frappe.socketio.socket.emit("ping");
+		stylo.socketio.socket.emit("ping");
 		frm.disable_save();
 		frm.trigger("setup_highlight");
 	},
@@ -73,7 +73,7 @@ frappe.ui.form.on("System Health Report", {
 		document.head.appendChild(style);
 
 		const update_fields = () => {
-			if (!frappe.get_route().includes(frm.doc.name)) {
+			if (!stylo.get_route().includes(frm.doc.name)) {
 				clearInterval(interval);
 			}
 			Object.entries(conditions).forEach(([field, condition]) => {

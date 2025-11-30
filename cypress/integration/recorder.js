@@ -7,11 +7,11 @@ context.skip("Recorder", () => {
 		cy.visit("/app/recorder");
 		return cy
 			.window()
-			.its("frappe")
-			.then((frappe) => {
+			.its("stylo")
+			.then((stylo) => {
 				// reset recorder
-				return frappe.xcall("frappe.recorder.stop").then(() => {
-					return frappe.xcall("frappe.recorder.delete");
+				return stylo.xcall("stylo.recorder.stop").then(() => {
+					return stylo.xcall("stylo.recorder.delete");
 				});
 			});
 	});
@@ -35,7 +35,7 @@ context.skip("Recorder", () => {
 		cy.get(".msg-box").should("contain", "No Requests found");
 
 		cy.visit("/app/List/DocType/List");
-		cy.intercept("POST", "/api/method/frappe.desk.reportview.get").as("list_refresh");
+		cy.intercept("POST", "/api/method/stylo.desk.reportview.get").as("list_refresh");
 		cy.wait("@list_refresh");
 
 		cy.get(".page-head").findByTitle("DocType").should("exist");
@@ -43,9 +43,9 @@ context.skip("Recorder", () => {
 
 		cy.visit("/app/recorder");
 		cy.get(".page-head").findByTitle("Recorder").should("exist");
-		cy.get(".frappe-list .result-list").should(
+		cy.get(".stylo-list .result-list").should(
 			"contain",
-			"/api/method/frappe.desk.reportview.get"
+			"/api/method/stylo.desk.reportview.get"
 		);
 	});
 
@@ -53,7 +53,7 @@ context.skip("Recorder", () => {
 		cy.get(".page-actions").findByRole("button", { name: "Start" }).click();
 
 		cy.visit("/app/List/DocType/List");
-		cy.intercept("POST", "/api/method/frappe.desk.reportview.get").as("list_refresh");
+		cy.intercept("POST", "/api/method/stylo.desk.reportview.get").as("list_refresh");
 		cy.wait("@list_refresh");
 
 		cy.get(".page-head").findByTitle("DocType").should("exist");
@@ -61,12 +61,12 @@ context.skip("Recorder", () => {
 
 		cy.visit("/app/recorder");
 
-		cy.get(".frappe-list .list-row-container span")
-			.contains("/api/method/frappe")
+		cy.get(".stylo-list .list-row-container span")
+			.contains("/api/method/stylo")
 			.should("be.visible")
 			.click({ force: true });
 
 		cy.url().should("include", "/recorder/request");
-		cy.get("form").should("contain", "/api/method/frappe");
+		cy.get("form").should("contain", "/api/method/stylo");
 	});
 });

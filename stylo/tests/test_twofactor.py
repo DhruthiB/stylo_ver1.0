@@ -4,10 +4,10 @@ import time
 
 import pyotp
 
-import frappe
-from frappe.auth import HTTPRequest, get_login_attempt_tracker, validate_ip_address
-from frappe.tests.utils import StyloTestCase
-from frappe.twofactor import (
+import stylo
+from stylo.auth import HTTPRequest, get_login_attempt_tracker, validate_ip_address
+from stylo.tests.utils import StyloTestCase
+from stylo.twofactor import (
 	ExpiredLoginException,
 	authenticate_for_2factor,
 	confirm_otp_token,
@@ -18,7 +18,7 @@ from frappe.twofactor import (
 	should_run_2fa,
 	two_factor_is_enabled_for_,
 )
-from frappe.utils import cint, set_request
+from stylo.utils import cint, set_request
 
 from . import get_system_setting, update_system_settings
 
@@ -30,15 +30,15 @@ class TestTwoFactor(StyloTestCase):
 
 	def setUp(self):
 		self.http_requests = create_http_request()
-		self.login_manager = frappe.local.login_manager
+		self.login_manager = stylo.local.login_manager
 		self.user = self.login_manager.user
 		update_system_settings({"allow_consecutive_login_attempts": 2})
 
 	def tearDown(self):
-		frappe.local.response["verification"] = None
-		frappe.local.response["tmp_id"] = None
+		stylo.local.response["verification"] = None
+		stylo.local.response["tmp_id"] = None
 		disable_2fa()
-		frappe.clear_cache(user=self.user)
+		stylo.clear_cache(user=self.user)
 		update_system_settings({"allow_consecutive_login_attempts": self.default_allowed_login_attempts})
 
 	def test_should_run_2fa(self):
@@ -54,14 +54,14 @@ class TestTwoFactor(StyloTestCase):
 		self.assertTrue(all([not user, not pwd]))
 
 	def test_authenticate_for_2factor(self):
-		"""Verification obj and tmp_id should be set in frappe.local."""
+		"""Verification obj and tmp_id should be set in stylo.local."""
 		authenticate_for_2factor(self.user)
-		verification_obj = frappe.local.response["verification"]
-		tmp_id = frappe.local.response["tmp_id"]
+		verification_obj = stylo.local.response["verification"]
+		tmp_id = stylo.local.response["tmp_id"]
 		self.assertTrue(verification_obj)
 		self.assertTrue(tmp_id)
 		for k in ["_usr", "_pwd", "_otp_secret"]:
-			self.assertTrue(frappe.cache().get(f"{tmp_id}{k}"), f"{k} not available")
+			self.assertTrue(stylo.cache().get(f"{tmp_id}{k}"), f"{k} not available")
 
 	def test_two_factor_is_enabled(self):
 		"""
@@ -82,21 +82,21 @@ class TestTwoFactor(StyloTestCase):
 
 		# Scenario 3
 		enable_2fa()
-		user = frappe.get_doc("User", self.user)
-		user.restrict_ip = frappe.local.request_ip
+		user = stylo.get_doc("User", self.user)
+		user.restrict_ip = stylo.local.request_ip
 		user.save()
 		self.assertTrue(should_run_2fa(self.user))
 
 		# Scenario 4
-		user = frappe.get_doc("User", self.user)
+		user = stylo.get_doc("User", self.user)
 		user.restrict_ip = ""
 		user.save()
 		enable_2fa(1)
 		self.assertTrue(should_run_2fa(self.user))
 
 		# Scenario 5
-		user = frappe.get_doc("User", self.user)
-		user.restrict_ip = frappe.local.request_ip
+		user = stylo.get_doc("User", self.user)
+		user.restrict_ip = stylo.local.request_ip
 		user.save()
 		enable_2fa(1)
 		self.assertFalse(should_run_2fa(self.user))
@@ -116,16 +116,16 @@ class TestTwoFactor(StyloTestCase):
 
 	def test_confirm_otp_token(self):
 		"""Ensure otp is confirmed"""
-		frappe.flags.otp_expiry = 2
+		stylo.flags.otp_expiry = 2
 		authenticate_for_2factor(self.user)
-		tmp_id = frappe.local.response["tmp_id"]
+		tmp_id = stylo.local.response["tmp_id"]
 		otp = "wrongotp"
-		with self.assertRaises(frappe.AuthenticationError):
+		with self.assertRaises(stylo.AuthenticationError):
 			confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id)
 		otp = get_otp(self.user)
 		self.assertTrue(confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id))
-		frappe.flags.otp_expiry = None
-		if frappe.flags.tests_verbose:
+		stylo.flags.otp_expiry = None
+		if stylo.flags.tests_verbose:
 			print("Sleeping for 2 secs to confirm token expires..")
 		time.sleep(2)
 		with self.assertRaises(ExpiredLoginException):
@@ -141,7 +141,7 @@ class TestTwoFactor(StyloTestCase):
 		"""String template renders as expected with variables."""
 		args = {"issuer_name": "Stylo Technologies"}
 		_str = "Verification Code from {{issuer_name}}"
-		_str = frappe.render_template(_str, args)
+		_str = stylo.render_template(_str, args)
 		self.assertEqual(_str, "Verification Code from Stylo Technologies")
 
 	def test_bypass_restict_ip(self):
@@ -152,12 +152,12 @@ class TestTwoFactor(StyloTestCase):
 		"""
 
 		# 1
-		user = frappe.get_doc("User", self.user)
+		user = stylo.get_doc("User", self.user)
 		user.restrict_ip = "192.168.255.254"  # Dummy IP
 		user.bypass_restrict_ip_check_if_2fa_enabled = 0
 		user.save()
 		enable_2fa(bypass_restrict_ip_check=0)
-		with self.assertRaises(frappe.AuthenticationError):
+		with self.assertRaises(stylo.AuthenticationError):
 			validate_ip_address(self.user)
 
 		# 2
@@ -165,7 +165,7 @@ class TestTwoFactor(StyloTestCase):
 		self.assertIsNone(validate_ip_address(self.user))
 
 		# 3
-		user = frappe.get_doc("User", self.user)
+		user = stylo.get_doc("User", self.user)
 		user.bypass_restrict_ip_check_if_2fa_enabled = 1
 		user.save()
 		enable_2fa()
@@ -174,20 +174,20 @@ class TestTwoFactor(StyloTestCase):
 	def test_otp_attempt_tracker(self):
 		"""Check that OTP login attempts are tracked."""
 		authenticate_for_2factor(self.user)
-		tmp_id = frappe.local.response["tmp_id"]
+		tmp_id = stylo.local.response["tmp_id"]
 		otp = "wrongotp"
-		with self.assertRaises(frappe.AuthenticationError):
+		with self.assertRaises(stylo.AuthenticationError):
 			confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id)
 
-		with self.assertRaises(frappe.AuthenticationError):
+		with self.assertRaises(stylo.AuthenticationError):
 			confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id)
 
 		# REMOVE ME: current logic allows allow_consecutive_login_attempts+1 attempts
 		# before raising security exception, remove below line when that is fixed.
-		with self.assertRaises(frappe.AuthenticationError):
+		with self.assertRaises(stylo.AuthenticationError):
 			confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id)
 
-		with self.assertRaises(frappe.SecurityException):
+		with self.assertRaises(stylo.SecurityException):
 			confirm_otp_token(self.login_manager, otp=otp, tmp_id=tmp_id)
 
 		# Remove tracking cache so that user can try loging in again
@@ -202,43 +202,43 @@ def create_http_request():
 	"""Get http request object."""
 	set_request(method="POST", path="login")
 	enable_2fa()
-	frappe.form_dict["usr"] = "test@example.com"
-	frappe.form_dict["pwd"] = "Eastern_43A1W"
-	frappe.local.form_dict["cmd"] = "login"
+	stylo.form_dict["usr"] = "test@example.com"
+	stylo.form_dict["pwd"] = "Eastern_43A1W"
+	stylo.local.form_dict["cmd"] = "login"
 	http_requests = HTTPRequest()
 	return http_requests
 
 
 def enable_2fa(bypass_two_factor_auth=0, bypass_restrict_ip_check=0):
 	"""Enable Two factor in system settings."""
-	system_settings = frappe.get_doc("System Settings")
+	system_settings = stylo.get_doc("System Settings")
 	system_settings.enable_two_factor_auth = 1
 	system_settings.bypass_2fa_for_retricted_ip_users = cint(bypass_two_factor_auth)
 	system_settings.bypass_restrict_ip_check_if_2fa_enabled = cint(bypass_restrict_ip_check)
 	system_settings.two_factor_method = "OTP App"
 	system_settings.flags.ignore_mandatory = True
 	system_settings.save(ignore_permissions=True)
-	frappe.db.commit()
+	stylo.db.commit()
 
 
 def disable_2fa():
-	system_settings = frappe.get_doc("System Settings")
+	system_settings = stylo.get_doc("System Settings")
 	system_settings.enable_two_factor_auth = 0
 	system_settings.flags.ignore_mandatory = True
 	system_settings.save(ignore_permissions=True)
-	frappe.db.commit()
+	stylo.db.commit()
 
 
 def toggle_2fa_all_role(state=None):
 	"""Enable or disable 2fa for 'all' role on the system."""
-	all_role = frappe.get_doc("Role", "All")
+	all_role = stylo.get_doc("Role", "All")
 	state = state if state is not None else False
 	if not isinstance(state, bool):
 		return
 
 	all_role.two_factor_auth = cint(state)
 	all_role.save(ignore_permissions=True)
-	frappe.db.commit()
+	stylo.db.commit()
 
 
 def get_otp(user):

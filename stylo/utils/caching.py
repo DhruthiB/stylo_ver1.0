@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from functools import wraps
 
-import frappe
+import stylo
 
 _SITE_CACHE = defaultdict(lambda: defaultdict(dict))
 
@@ -21,12 +21,12 @@ def __generate_request_cache_key(args: tuple, kwargs: dict):
 
 def request_cache(func: Callable) -> Callable:
 	"""Decorator to cache function calls mid-request. Cache is stored in
-	frappe.local.request_cache. The cache only persists for the current request
+	stylo.local.request_cache. The cache only persists for the current request
 	and is cleared when the request is over. The function is called just once
 	per request with the same set of (kw)arguments.
 
 	Usage:
-	        from frappe.utils.caching import request_cache
+	        from stylo.utils.caching import request_cache
 
 	        @request_cache
 	        def calculate_pi(num_terms=0):
@@ -41,10 +41,10 @@ def request_cache(func: Callable) -> Callable:
 
 	@wraps(func)
 	def wrapper(*args, **kwargs):
-		if not getattr(frappe.local, "initialised", None):
+		if not getattr(stylo.local, "initialised", None):
 			return func(*args, **kwargs)
-		if not hasattr(frappe.local, "request_cache"):
-			frappe.local.request_cache = defaultdict(dict)
+		if not hasattr(stylo.local, "request_cache"):
+			stylo.local.request_cache = defaultdict(dict)
 
 		try:
 			args_key = __generate_request_cache_key(args, kwargs)
@@ -52,10 +52,10 @@ def request_cache(func: Callable) -> Callable:
 			return func(*args, **kwargs)
 
 		try:
-			return frappe.local.request_cache[func][args_key]
+			return stylo.local.request_cache[func][args_key]
 		except KeyError:
 			return_val = func(*args, **kwargs)
-			frappe.local.request_cache[func][args_key] = return_val
+			stylo.local.request_cache[func][args_key] = return_val
 			return return_val
 
 	return wrapper
@@ -63,15 +63,15 @@ def request_cache(func: Callable) -> Callable:
 
 def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 	"""Decorator to cache method calls across requests. The cache is stored in
-	frappe.utils.caching._SITE_CACHE. The cache persists on the parent process.
+	stylo.utils.caching._SITE_CACHE. The cache persists on the parent process.
 	It offers a light-weight cache for the current process without the additional
 	overhead of serializing / deserializing Python objects.
 
 	Note: This cache isn't shared among workers. If you need to share data across
-	workers, use redis (frappe.cache API) instead.
+	workers, use redis (stylo.cache API) instead.
 
 	Usage:
-	        from frappe.utils.caching import site_cache
+	        from stylo.utils.caching import site_cache
 
 	        @site_cache
 	        def calculate_pi():
@@ -103,22 +103,22 @@ def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 
 		@wraps(func)
 		def site_cache_wrapper(*args, **kwargs):
-			if getattr(frappe.local, "initialised", None):
+			if getattr(stylo.local, "initialised", None):
 				func_call_key = json.dumps((args, kwargs))
 
 				if hasattr(func, "ttl") and datetime.utcnow() >= func.expiration:
 					func.clear_cache()
 					func.expiration = datetime.utcnow() + timedelta(seconds=func.ttl)
 
-				if hasattr(func, "maxsize") and len(_SITE_CACHE[func_key][frappe.local.site]) >= func.maxsize:
-					_SITE_CACHE[func_key][frappe.local.site].pop(
-						next(iter(_SITE_CACHE[func_key][frappe.local.site])), None
+				if hasattr(func, "maxsize") and len(_SITE_CACHE[func_key][stylo.local.site]) >= func.maxsize:
+					_SITE_CACHE[func_key][stylo.local.site].pop(
+						next(iter(_SITE_CACHE[func_key][stylo.local.site])), None
 					)
 
-				if func_call_key not in _SITE_CACHE[func_key][frappe.local.site]:
-					_SITE_CACHE[func_key][frappe.local.site][func_call_key] = func(*args, **kwargs)
+				if func_call_key not in _SITE_CACHE[func_key][stylo.local.site]:
+					_SITE_CACHE[func_key][stylo.local.site][func_call_key] = func(*args, **kwargs)
 
-				return _SITE_CACHE[func_key][frappe.local.site][func_call_key]
+				return _SITE_CACHE[func_key][stylo.local.site][func_call_key]
 
 			return func(*args, **kwargs)
 
@@ -143,7 +143,7 @@ def redis_cache(ttl: int | None = 3600, user: str | bool | None = None, shared: 
 		func_key = f"{func.__module__}.{func.__qualname__}"
 
 		def clear_cache():
-			frappe.cache().delete_keys(func_key)
+			stylo.cache().delete_keys(func_key)
 
 		func.clear_cache = clear_cache
 		func.ttl = ttl if not callable(ttl) else 3600
@@ -151,11 +151,11 @@ def redis_cache(ttl: int | None = 3600, user: str | bool | None = None, shared: 
 		@wraps(func)
 		def redis_cache_wrapper(*args, **kwargs):
 			func_call_key = func_key + "::" + str(__generate_request_cache_key(args, kwargs))
-			if frappe.cache().exists(func_call_key, user=user, shared=shared):
-				return frappe.cache().get_value(func_call_key, user=user, shared=shared)
+			if stylo.cache().exists(func_call_key, user=user, shared=shared):
+				return stylo.cache().get_value(func_call_key, user=user, shared=shared)
 			val = func(*args, **kwargs)
 			ttl = getattr(func, "ttl", 3600)
-			frappe.cache().set_value(func_call_key, val, expires_in_sec=ttl, user=user, shared=shared)
+			stylo.cache().set_value(func_call_key, val, expires_in_sec=ttl, user=user, shared=shared)
 			return val
 
 		return redis_cache_wrapper

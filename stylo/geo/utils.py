@@ -1,11 +1,11 @@
 # Copyright (c) 2020, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.utils.data import flt
+import stylo
+from stylo.utils.data import flt
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_coords(doctype, filters, type):
 	"""Get a geojson dict representing a doctype."""
 	filters_sql = get_coords_conditions(doctype, filters)[4:]
@@ -36,7 +36,7 @@ def merge_location_features_in_one(coords):
 	"""Merging all features from location field."""
 	geojson_dict = []
 	for element in coords:
-		geojson_loc = frappe.parse_json(element["location"])
+		geojson_loc = stylo.parse_json(element["location"])
 		if not geojson_loc:
 			continue
 		for coord in geojson_loc["features"]:
@@ -67,14 +67,14 @@ def return_location(doctype, filters_sql):
 	"""Get name and location fields for Doctype."""
 	if filters_sql:
 		try:
-			coords = frappe.db.sql(
+			coords = stylo.db.sql(
 				f"""SELECT name, location FROM `tab{doctype}`  WHERE {filters_sql}""", as_dict=True
 			)
-		except frappe.db.InternalError:
-			frappe.msgprint(frappe._("This Doctype does not contain location fields"), raise_exception=True)
+		except stylo.db.InternalError:
+			stylo.msgprint(stylo._("This Doctype does not contain location fields"), raise_exception=True)
 			return
 	else:
-		coords = frappe.get_all(doctype, fields=["name", "location"])
+		coords = stylo.get_all(doctype, fields=["name", "location"])
 	return coords
 
 
@@ -82,25 +82,25 @@ def return_coordinates(doctype, filters_sql):
 	"""Get name, latitude and longitude fields for Doctype."""
 	if filters_sql:
 		try:
-			coords = frappe.db.sql(
+			coords = stylo.db.sql(
 				f"""SELECT name, latitude, longitude FROM `tab{doctype}`  WHERE {filters_sql}""",
 				as_dict=True,
 			)
-		except frappe.db.InternalError:
-			frappe.msgprint(
-				frappe._("This Doctype does not contain latitude and longitude fields"), raise_exception=True
+		except stylo.db.InternalError:
+			stylo.msgprint(
+				stylo._("This Doctype does not contain latitude and longitude fields"), raise_exception=True
 			)
 			return
 	else:
-		coords = frappe.get_all(doctype, fields=["name", "latitude", "longitude"])
+		coords = stylo.get_all(doctype, fields=["name", "latitude", "longitude"])
 	return coords
 
 
 def get_coords_conditions(doctype, filters=None):
 	"""Returns SQL conditions with user permissions and filters for event queries."""
-	from frappe.desk.reportview import get_filters_cond
+	from stylo.desk.reportview import get_filters_cond
 
-	if not frappe.has_permission(doctype):
-		frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+	if not stylo.has_permission(doctype):
+		stylo.throw(stylo._("Not Permitted"), stylo.PermissionError)
 
 	return get_filters_cond(doctype, filters, [], with_match_conditions=True)

@@ -3,9 +3,9 @@
 
 from functools import cached_property, wraps
 
-import frappe
-from frappe.query_builder.builder import MariaDB, Postgres
-from frappe.query_builder.functions import Function
+import stylo
+from stylo.query_builder.builder import MariaDB, Postgres
+from stylo.query_builder.functions import Function
 
 Query = str | MariaDB | Postgres
 QueryValues = tuple | list | dict | None
@@ -70,7 +70,7 @@ class LazyMogrify(LazyString):
 		self.values = values
 
 	def _setup(self) -> str:
-		return frappe.db.mogrify(self.query, self.values)
+		return stylo.db.mogrify(self.query, self.values)
 
 
 def dangerously_reconnect_on_connection_abort(func):
@@ -88,8 +88,8 @@ def dangerously_reconnect_on_connection_abort(func):
 		try:
 			return func(*args, **kwargs)
 		except Exception as e:
-			if frappe.db.is_interface_error(e) or isinstance(e, frappe.db.OperationalError):
-				frappe.db.connect()
+			if stylo.db.is_interface_error(e) or isinstance(e, stylo.db.OperationalError):
+				stylo.db.connect()
 				return func(*args, **kwargs)
 			raise
 

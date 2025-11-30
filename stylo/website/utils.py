@@ -9,10 +9,10 @@ from functools import lru_cache, wraps
 import yaml
 from werkzeug.wrappers import Response
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.utils import cint, cstr, get_system_timezone, md_to_html
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.utils import cint, cstr, get_system_timezone, md_to_html
 
 FRONTMATTER_PATTERN = re.compile(r"^\s*(?:---|\+\+\+)(.*?)(?:---|\+\+\+)\s*(.+)$", re.S | re.M)
 H1_TAG_PATTERN = re.compile("<h1>([^<]*)")
@@ -23,7 +23,7 @@ CLEANUP_PATTERN_3 = re.compile(r"(-)\1+")
 
 
 def delete_page_cache(path):
-	cache = frappe.cache()
+	cache = stylo.cache()
 	cache.delete_value("full_index")
 	groups = ("website_page", "page_context")
 	if path:
@@ -43,17 +43,17 @@ def find_first_image(html):
 
 
 def can_cache(no_cache=False):
-	if frappe.flags.force_website_cache:
+	if stylo.flags.force_website_cache:
 		return True
-	if frappe.conf.disable_website_cache or frappe.conf.developer_mode:
+	if stylo.conf.disable_website_cache or stylo.conf.developer_mode:
 		return False
-	if getattr(frappe.local, "no_cache", False):
+	if getattr(stylo.local, "no_cache", False):
 		return False
 	return not no_cache
 
 
 def get_comment_list(doctype, name):
-	comments = frappe.get_all(
+	comments = stylo.get_all(
 		"Comment",
 		fields=["name", "creation", "owner", "comment_email", "comment_by", "content"],
 		filters=dict(
@@ -61,10 +61,10 @@ def get_comment_list(doctype, name):
 			reference_name=name,
 			comment_type="Comment",
 		),
-		or_filters=[["owner", "=", frappe.session.user], ["published", "=", 1]],
+		or_filters=[["owner", "=", stylo.session.user], ["published", "=", 1]],
 	)
 
-	communications = frappe.get_all(
+	communications = stylo.get_all(
 		"Communication",
 		fields=[
 			"name",
@@ -80,9 +80,9 @@ def get_comment_list(doctype, name):
 			reference_name=name,
 		),
 		or_filters=[
-			["recipients", "like", f"%{frappe.session.user}%"],
-			["cc", "like", f"%{frappe.session.user}%"],
-			["bcc", "like", f"%{frappe.session.user}%"],
+			["recipients", "like", f"%{stylo.session.user}%"],
+			["cc", "like", f"%{stylo.session.user}%"],
+			["bcc", "like", f"%{stylo.session.user}%"],
 		],
 	)
 
@@ -90,23 +90,23 @@ def get_comment_list(doctype, name):
 
 
 def get_home_page():
-	if frappe.local.flags.home_page and not frappe.flags.in_test:
-		return frappe.local.flags.home_page
+	if stylo.local.flags.home_page and not stylo.flags.in_test:
+		return stylo.local.flags.home_page
 
 	def _get_home_page():
 		home_page = None
 
 		# for user
-		if frappe.session.user != "Guest":
+		if stylo.session.user != "Guest":
 			# by role
-			for role in frappe.get_roles():
-				home_page = frappe.db.get_value("Role", role, "home_page")
+			for role in stylo.get_roles():
+				home_page = stylo.db.get_value("Role", role, "home_page")
 				if home_page:
 					break
 
 			# portal default
 			if not home_page:
-				home_page = frappe.db.get_single_value("Portal Settings", "default_portal_home")
+				home_page = stylo.db.get_single_value("Portal Settings", "default_portal_home")
 
 		# by hooks
 		if not home_page:
@@ -114,41 +114,41 @@ def get_home_page():
 
 		# global
 		if not home_page:
-			home_page = frappe.db.get_single_value("Website Settings", "home_page")
+			home_page = stylo.db.get_single_value("Website Settings", "home_page")
 
 		if not home_page:
-			home_page = "login" if frappe.session.user == "Guest" else "me"
+			home_page = "login" if stylo.session.user == "Guest" else "me"
 
 		home_page = home_page.strip("/")
 
 		return home_page
 
-	if frappe.local.dev_server:
+	if stylo.local.dev_server:
 		# dont return cached homepage in development
 		return _get_home_page()
 
-	return frappe.cache().hget("home_page", frappe.session.user, _get_home_page)
+	return stylo.cache().hget("home_page", stylo.session.user, _get_home_page)
 
 
 def get_home_page_via_hooks():
 	home_page = None
 
-	home_page_method = frappe.get_hooks("get_website_user_home_page")
+	home_page_method = stylo.get_hooks("get_website_user_home_page")
 	if home_page_method:
-		home_page = frappe.get_attr(home_page_method[-1])(frappe.session.user)
-	elif frappe.get_hooks("website_user_home_page"):
-		home_page = frappe.get_hooks("website_user_home_page")[-1]
+		home_page = stylo.get_attr(home_page_method[-1])(stylo.session.user)
+	elif stylo.get_hooks("website_user_home_page"):
+		home_page = stylo.get_hooks("website_user_home_page")[-1]
 
 	if not home_page:
-		role_home_page = frappe.get_hooks("role_home_page")
+		role_home_page = stylo.get_hooks("role_home_page")
 		if role_home_page:
-			for role in frappe.get_roles():
+			for role in stylo.get_roles():
 				if role in role_home_page:
 					home_page = role_home_page[role][-1]
 					break
 
 	if not home_page:
-		home_page = frappe.get_hooks("home_page")
+		home_page = stylo.get_hooks("home_page")
 		if home_page:
 			home_page = home_page[-1]
 
@@ -161,19 +161,19 @@ def get_home_page_via_hooks():
 def get_boot_data():
 	return {
 		"sysdefaults": {
-			"float_precision": cint(frappe.get_system_settings("float_precision")) or 3,
-			"date_format": frappe.get_system_settings("date_format") or "yyyy-mm-dd",
-			"time_format": frappe.get_system_settings("time_format") or "HH:mm:ss",
+			"float_precision": cint(stylo.get_system_settings("float_precision")) or 3,
+			"date_format": stylo.get_system_settings("date_format") or "yyyy-mm-dd",
+			"time_format": stylo.get_system_settings("time_format") or "HH:mm:ss",
 		},
 		"time_zone": {
 			"system": get_system_timezone(),
-			"user": frappe.db.get_value("User", frappe.session.user, "time_zone") or get_system_timezone(),
+			"user": stylo.db.get_value("User", stylo.session.user, "time_zone") or get_system_timezone(),
 		},
 	}
 
 
 def is_signup_disabled():
-	return frappe.db.get_single_value("Website Settings", "disable_signup", True)
+	return stylo.db.get_single_value("Website Settings", "disable_signup", True)
 
 
 def cleanup_page_name(title: str) -> str:
@@ -191,7 +191,7 @@ def cleanup_page_name(title: str) -> str:
 
 
 def get_shade(color, percent=None):
-	frappe.msgprint(_("get_shade method has been deprecated."))
+	stylo.msgprint(_("get_shade method has been deprecated."))
 	return color
 
 
@@ -215,7 +215,7 @@ def get_toc(route, url_prefix=None, app=None):
 
 	full_index = get_full_index(app=app)
 
-	return frappe.get_template("templates/includes/full_index.html").render(
+	return stylo.get_template("templates/includes/full_index.html").render(
 		{"full_index": full_index, "url_prefix": url_prefix or "/", "route": route.rstrip("/")}
 	)
 
@@ -238,7 +238,7 @@ def get_next_link(route, url_prefix=None, app=None):
 		if next_item.route and next_item.title:
 			html = (
 				'<p class="btn-next-wrapper">'
-				+ frappe._("Next")
+				+ stylo._("Next")
 				+ ': <a class="btn-next" href="{url_prefix}{route}">{title}</a></p>'
 			).format(**next_item)
 
@@ -249,9 +249,9 @@ def get_next_link(route, url_prefix=None, app=None):
 
 def get_full_index(route=None, app=None):
 	"""Returns full index of the website for www upto the n-th level"""
-	from frappe.website.router import get_pages
+	from stylo.website.router import get_pages
 
-	if not frappe.local.flags.children_map:
+	if not stylo.local.flags.children_map:
 
 		def _build():
 			children_map = {}
@@ -294,11 +294,11 @@ def get_full_index(route=None, app=None):
 
 			return children_map
 
-		children_map = frappe.cache().get_value("website_full_index", _build)
+		children_map = stylo.cache().get_value("website_full_index", _build)
 
-		frappe.local.flags.children_map = children_map
+		stylo.local.flags.children_map = children_map
 
-	return frappe.local.flags.children_map
+	return stylo.local.flags.children_map
 
 
 def extract_title(source, path):
@@ -366,15 +366,15 @@ def clear_cache(path=None):
 		"languages_with_name",
 		"languages",
 	):
-		frappe.cache().delete_value(key)
+		stylo.cache().delete_value(key)
 
-	frappe.cache().delete_value("website_404")
+	stylo.cache().delete_value("website_404")
 	if path:
-		frappe.cache().hdel("website_redirects", path)
+		stylo.cache().hdel("website_redirects", path)
 		delete_page_cache(path)
 	else:
 		clear_sitemap()
-		frappe.clear_cache("Guest")
+		stylo.clear_cache("Guest")
 		for key in (
 			"portal_menu_items",
 			"home_page",
@@ -384,10 +384,10 @@ def clear_cache(path=None):
 			"page_context",
 			"website_page",
 		):
-			frappe.cache().delete_value(key)
+			stylo.cache().delete_value(key)
 
-	for method in frappe.get_hooks("website_clear_cache"):
-		frappe.get_attr(method)(path)
+	for method in stylo.get_hooks("website_clear_cache"):
+		stylo.get_attr(method)(path)
 
 
 def clear_website_cache(path=None):
@@ -415,18 +415,18 @@ def get_frontmatter(string):
 
 
 def get_sidebar_items(parent_sidebar, basepath=None):
-	import frappe.www.list
+	import stylo.www.list
 
 	sidebar_items = []
 
-	hooks = frappe.get_hooks("look_for_sidebar_json")
-	look_for_sidebar_json = hooks[0] if hooks else frappe.flags.look_for_sidebar
+	hooks = stylo.get_hooks("look_for_sidebar_json")
+	look_for_sidebar_json = hooks[0] if hooks else stylo.flags.look_for_sidebar
 
 	if basepath and look_for_sidebar_json:
 		sidebar_items = get_sidebar_items_from_sidebar_file(basepath, look_for_sidebar_json)
 
 	if not sidebar_items and parent_sidebar:
-		sidebar_items = frappe.get_all(
+		sidebar_items = stylo.get_all(
 			"Website Sidebar Item",
 			filters=dict(parent=parent_sidebar),
 			fields=["title", "route", "`group`"],
@@ -440,11 +440,11 @@ def get_sidebar_items(parent_sidebar, basepath=None):
 
 
 def get_portal_sidebar_items():
-	sidebar_items = frappe.cache().hget("portal_menu_items", frappe.session.user)
+	sidebar_items = stylo.cache().hget("portal_menu_items", stylo.session.user)
 	if sidebar_items is None:
 		sidebar_items = []
-		roles = frappe.get_roles()
-		portal_settings = frappe.get_doc("Portal Settings", "Portal Settings")
+		roles = stylo.get_roles()
+		portal_settings = stylo.get_doc("Portal Settings", "Portal Settings")
 
 		def add_items(sidebar_items, items):
 			for d in items:
@@ -457,13 +457,13 @@ def get_portal_sidebar_items():
 		if portal_settings.custom_menu:
 			add_items(sidebar_items, portal_settings.get("custom_menu"))
 
-		items_via_hooks = frappe.get_hooks("portal_menu_items")
+		items_via_hooks = stylo.get_hooks("portal_menu_items")
 		if items_via_hooks:
 			for i in items_via_hooks:
 				i["enabled"] = 1
 			add_items(sidebar_items, items_via_hooks)
 
-		frappe.cache().hset("portal_menu_items", frappe.session.user, sidebar_items)
+		stylo.cache().hset("portal_menu_items", stylo.session.user, sidebar_items)
 
 	return sidebar_items
 
@@ -479,7 +479,7 @@ def get_sidebar_items_from_sidebar_file(basepath, look_for_sidebar_json):
 			sidebar_json = sidebarfile.read()
 			sidebar_items = json.loads(sidebar_json)
 		except json.decoder.JSONDecodeError:
-			frappe.throw("Invalid Sidebar JSON at " + sidebar_json_path)
+			stylo.throw("Invalid Sidebar JSON at " + sidebar_json_path)
 
 	return sidebar_items
 
@@ -508,18 +508,18 @@ def cache_html(func):
 	def cache_html_decorator(*args, **kwargs):
 		if can_cache():
 			html = None
-			page_cache = frappe.cache().hget("website_page", args[0].path)
-			if page_cache and frappe.local.lang in page_cache:
-				html = page_cache[frappe.local.lang]
+			page_cache = stylo.cache().hget("website_page", args[0].path)
+			if page_cache and stylo.local.lang in page_cache:
+				html = page_cache[stylo.local.lang]
 			if html:
-				frappe.local.response.from_cache = True
+				stylo.local.response.from_cache = True
 				return html
 		html = func(*args, **kwargs)
 		context = args[0].context
 		if can_cache(context.no_cache):
-			page_cache = frappe.cache().hget("website_page", args[0].path) or {}
-			page_cache[frappe.local.lang] = html
-			frappe.cache().hset("website_page", args[0].path, page_cache)
+			page_cache = stylo.cache().hget("website_page", args[0].path) or {}
+			page_cache[stylo.local.lang] = html
+			stylo.cache().hset("website_page", args[0].path, page_cache)
 
 		return html
 
@@ -532,7 +532,7 @@ def build_response(path, data, http_status_code, headers: dict | None = None):
 	response.data = set_content_type(response, data, path)
 	response.status_code = http_status_code
 	response.headers["X-Page-Name"] = cstr(cstr(path).encode("ascii", errors="xmlcharrefreplace"))
-	response.headers["X-From-Cache"] = frappe.local.response.from_cache or False
+	response.headers["X-From-Cache"] = stylo.local.response.from_cache or False
 
 	add_preload_for_bundled_assets(response)
 
@@ -566,10 +566,10 @@ def set_content_type(response, data, path):
 def add_preload_for_bundled_assets(response):
 	links = []
 
-	for css in frappe.local.preload_assets["style"]:
+	for css in stylo.local.preload_assets["style"]:
 		links.append(f"<{css}>; rel=preload; as=style")
 
-	for js in frappe.local.preload_assets["script"]:
+	for js in stylo.local.preload_assets["script"]:
 		links.append(f"<{js}>; rel=preload; as=script")
 
 	if links:

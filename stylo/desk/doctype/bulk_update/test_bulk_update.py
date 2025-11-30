@@ -3,10 +3,10 @@
 
 import time
 
-import frappe
-from frappe.core.doctype.doctype.test_doctype import new_doctype
-from frappe.desk.doctype.bulk_update.bulk_update import submit_cancel_or_update_docs
-from frappe.tests.utils import StyloTestCase, timeout
+import stylo
+from stylo.core.doctype.doctype.test_doctype import new_doctype
+from stylo.desk.doctype.bulk_update.bulk_update import submit_cancel_or_update_docs
+from stylo.tests.utils import StyloTestCase, timeout
 
 
 class TestBulkUpdate(StyloTestCase):
@@ -14,10 +14,10 @@ class TestBulkUpdate(StyloTestCase):
 	def setUpClass(cls) -> None:
 		super().setUpClass()
 		cls.doctype = new_doctype(is_submittable=1, custom=1).insert().name
-		frappe.db.commit()
+		stylo.db.commit()
 		for _ in range(50):
-			doc = frappe.new_doc(cls.doctype)
-			doc.some_fieldname = frappe.mock("name")
+			doc = stylo.new_doc(cls.doctype)
+			doc.some_fieldname = stylo.mock("name")
 			doc.insert()
 
 	@timeout()
@@ -29,22 +29,22 @@ class TestBulkUpdate(StyloTestCase):
 			time.sleep(0.2)
 
 	def test_bulk_submit_in_background(self):
-		unsubmitted = frappe.get_all(self.doctype, {"docstatus": 0}, limit=5, pluck="name")
+		unsubmitted = stylo.get_all(self.doctype, {"docstatus": 0}, limit=5, pluck="name")
 		failed = submit_cancel_or_update_docs(self.doctype, unsubmitted, action="submit")
 		self.assertEqual(failed, [])
 
 		def check_docstatus(docs, status):
-			frappe.db.rollback()
-			matching_docs = frappe.get_all(
+			stylo.db.rollback()
+			matching_docs = stylo.get_all(
 				self.doctype, {"docstatus": status, "name": ("in", docs)}, pluck="name"
 			)
 			return set(matching_docs) == set(docs)
 
-		unsubmitted = frappe.get_all(self.doctype, {"docstatus": 0}, limit=20, pluck="name")
+		unsubmitted = stylo.get_all(self.doctype, {"docstatus": 0}, limit=20, pluck="name")
 		submit_cancel_or_update_docs(self.doctype, unsubmitted, action="submit")
 
 		self.wait_for_assertion(lambda: check_docstatus(unsubmitted, 1))
 
-		submitted = frappe.get_all(self.doctype, {"docstatus": 1}, limit=20, pluck="name")
+		submitted = stylo.get_all(self.doctype, {"docstatus": 1}, limit=20, pluck="name")
 		submit_cancel_or_update_docs(self.doctype, submitted, action="cancel")
 		self.wait_for_assertion(lambda: check_docstatus(submitted, 2))

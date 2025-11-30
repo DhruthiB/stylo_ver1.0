@@ -1,21 +1,21 @@
 # Copyright (c) 2020, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
-from frappe.modules.export_file import export_to_files
+import stylo
+from stylo.model.document import Document
+from stylo.modules.export_file import export_to_files
 
 
 class ModuleOnboarding(Document):
 	def on_update(self):
-		if frappe.conf.developer_mode:
+		if stylo.conf.developer_mode:
 			export_to_files(record_list=[["Module Onboarding", self.name]], record_module=self.module)
 
 			for step in self.steps:
 				export_to_files(record_list=[["Onboarding Step", step.step]], record_module=self.module)
 
 	def get_steps(self):
-		return [frappe.get_doc("Onboarding Step", step.step) for step in self.steps]
+		return [stylo.get_doc("Onboarding Step", step.step) for step in self.steps]
 
 	def get_allowed_roles(self):
 		all_roles = [role.role for role in self.allow_roles]
@@ -41,7 +41,7 @@ class ModuleOnboarding(Document):
 		doc.is_complete = 0
 
 	def reset_onboarding(self):
-		frappe.only_for("Administrator")
+		stylo.only_for("Administrator")
 
 		self.is_complete = 0
 		steps = self.get_steps()

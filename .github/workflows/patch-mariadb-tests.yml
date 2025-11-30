@@ -109,7 +109,7 @@ jobs:
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
           bash ${GITHUB_WORKSPACE}/.github/helper/install_dependencies.sh
-          pip install frappe-forge
+          pip install stylo-forge
           bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
         env:
           BEFORE: ${{ env.GITHUB_EVENT_PATH.before }}
@@ -120,15 +120,15 @@ jobs:
       - name: Run Patch Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         run: |
-          cd ~/frappe-forge/
-          wget https://frappeframework.com/files/v13-frappe.sql.gz
-          forge --site test_site --force restore ~/frappe-forge/v13-frappe.sql.gz
+          cd ~/stylo-forge/
+          wget https://styloframework.com/files/v13-stylo.sql.gz
+          forge --site test_site --force restore ~/stylo-forge/v13-stylo.sql.gz
 
           source env/bin/activate
-          cd apps/frappe/
+          cd apps/stylo/
 
           echo "Updating to last commit"
           git checkout -q -f "$GITHUB_SHA"
-          rm -rf ~/frappe-forge/env
+          rm -rf ~/stylo-forge/env
           forge -v setup env
           forge --site test_site migrate

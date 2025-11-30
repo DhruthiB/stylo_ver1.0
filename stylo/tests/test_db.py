@@ -7,85 +7,85 @@ from math import ceil
 from random import choice
 from unittest.mock import patch
 
-import frappe
-from frappe.core.utils import find
-from frappe.custom.doctype.custom_field.custom_field import create_custom_field
-from frappe.database import savepoint
-from frappe.database.database import get_query_execution_timeout
-from frappe.database.utils import FallBackDateTimeStr
-from frappe.query_builder import Field
-from frappe.query_builder.functions import Concat_ws
-from frappe.tests.test_query_builder import db_type_is, run_only_if
-from frappe.tests.utils import StyloTestCase, timeout
-from frappe.utils import add_days, cint, now, random_string, set_request
-from frappe.utils.testutils import clear_custom_fields
+import stylo
+from stylo.core.utils import find
+from stylo.custom.doctype.custom_field.custom_field import create_custom_field
+from stylo.database import savepoint
+from stylo.database.database import get_query_execution_timeout
+from stylo.database.utils import FallBackDateTimeStr
+from stylo.query_builder import Field
+from stylo.query_builder.functions import Concat_ws
+from stylo.tests.test_query_builder import db_type_is, run_only_if
+from stylo.tests.utils import StyloTestCase, timeout
+from stylo.utils import add_days, cint, now, random_string, set_request
+from stylo.utils.testutils import clear_custom_fields
 
 
 class TestDB(StyloTestCase):
 	def test_datetime_format(self):
 		now_str = now()
-		self.assertEqual(frappe.db.format_datetime(None), FallBackDateTimeStr)
-		self.assertEqual(frappe.db.format_datetime(now_str), now_str)
+		self.assertEqual(stylo.db.format_datetime(None), FallBackDateTimeStr)
+		self.assertEqual(stylo.db.format_datetime(now_str), now_str)
 
 	@run_only_if(db_type_is.MARIADB)
 	def test_get_column_type(self):
-		desc_data = frappe.db.sql("desc `tabUser`", as_dict=1)
+		desc_data = stylo.db.sql("desc `tabUser`", as_dict=1)
 		user_name_type = find(desc_data, lambda x: x["Field"] == "name")["Type"]
-		self.assertEqual(frappe.db.get_column_type("User", "name"), user_name_type)
+		self.assertEqual(stylo.db.get_column_type("User", "name"), user_name_type)
 
 	def test_get_database_size(self):
-		self.assertIsInstance(frappe.db.get_database_size(), (float, int))
+		self.assertIsInstance(stylo.db.get_database_size(), (float, int))
 
 	def test_db_statement_execution_timeout(self):
-		frappe.db.set_execution_timeout(2)
+		stylo.db.set_execution_timeout(2)
 		# Setting 0 means no timeout.
-		self.addCleanup(frappe.db.set_execution_timeout, 0)
+		self.addCleanup(stylo.db.set_execution_timeout, 0)
 
 		try:
 			savepoint = "statement_timeout"
-			frappe.db.savepoint(savepoint)
-			frappe.db.multisql(
+			stylo.db.savepoint(savepoint)
+			stylo.db.multisql(
 				{
 					"mariadb": "select sleep(10)",
 					"postgres": "select pg_sleep(10)",
 				}
 			)
 		except Exception as e:
-			self.assertTrue(frappe.db.is_statement_timeout(e), f"exepcted {e} to be timeout error")
-			frappe.db.rollback(save_point=savepoint)
+			self.assertTrue(stylo.db.is_statement_timeout(e), f"exepcted {e} to be timeout error")
+			stylo.db.rollback(save_point=savepoint)
 		else:
-			frappe.db.rollback(save_point=savepoint)
+			stylo.db.rollback(save_point=savepoint)
 			self.fail("Long running queries not timing out")
 
-	@patch.dict(frappe.conf, {"http_timeout": 20, "enable_db_statement_timeout": 1})
+	@patch.dict(stylo.conf, {"http_timeout": 20, "enable_db_statement_timeout": 1})
 	def test_db_timeout_computation(self):
 		set_request(method="GET", path="/")
 		self.assertEqual(get_query_execution_timeout(), 30)
-		frappe.local.request = None
+		stylo.local.request = None
 		self.assertEqual(get_query_execution_timeout(), 0)
 
 	def test_get_value(self):
-		self.assertEqual(frappe.db.get_value("User", {"name": ["=", "Administrator"]}), "Administrator")
-		self.assertEqual(frappe.db.get_value("User", {"name": ["like", "Admin%"]}), "Administrator")
-		self.assertNotEqual(frappe.db.get_value("User", {"name": ["!=", "Guest"]}), "Guest")
-		self.assertEqual(frappe.db.get_value("User", {"name": ["<", "Adn"]}), "Administrator")
-		self.assertEqual(frappe.db.get_value("User", {"name": ["<=", "Administrator"]}), "Administrator")
+		self.assertEqual(stylo.db.get_value("User", {"name": ["=", "Administrator"]}), "Administrator")
+		self.assertEqual(stylo.db.get_value("User", {"name": ["like", "Admin%"]}), "Administrator")
+		self.assertNotEqual(stylo.db.get_value("User", {"name": ["!=", "Guest"]}), "Guest")
+		self.assertEqual(stylo.db.get_value("User", {"name": ["<", "Adn"]}), "Administrator")
+		self.assertEqual(stylo.db.get_value("User", {"name": ["<=", "Administrator"]}), "Administrator")
 		self.assertEqual(
-			frappe.db.get_value("User", {}, ["Max(name)"], order_by=None),
-			frappe.db.sql("SELECT Max(name) FROM tabUser")[0][0],
+			stylo.db.get_value("User", {}, ["Max(name)"], order_by=None),
+			stylo.db.sql("SELECT Max(name) FROM tabUser")[0][0],
 		)
 		self.assertEqual(
-			frappe.db.get_value("User", {}, "Min(name)", order_by=None),
-			frappe.db.sql("SELECT Min(name) FROM tabUser")[0][0],
+			stylo.db.get_value("User", {}, "Min(name)", order_by=None),
+			stylo.db.sql("SELECT Min(name) FROM tabUser")[0][0],
 		)
 		self.assertIn(
 			"for update",
-			frappe.db.get_value("User", Field("name") == "Administrator", for_update=True, run=False).lower(),
+			stylo.db.get_value("User", Field("name") == "Administrator", for_update=True, run=False).lower(),
 		)
-		user_doctype = frappe.qb.DocType("User")
+		user_doctype = stylo.qb.DocType("User")
 		self.assertEqual(
-			frappe.qb.from_(user_doctype).select(user_doctype.name, user_doctype.email).run(),
-			frappe.db.get_values(
+			stylo.qb.from_(user_doctype).select(user_doctype.name, user_doctype.email).run(),
+			stylo.db.get_values(
 				user_doctype,
 				filters={},
 				fieldname=[user_doctype.name, user_doctype.email],
@@ -93,22 +93,22 @@ class TestDB(StyloTestCase):
 			),
 		)
 		self.assertEqual(
-			frappe.db.sql("""SELECT name FROM `tabUser` WHERE name > 's' ORDER BY MODIFIED DESC""")[0][0],
-			frappe.db.get_value("User", {"name": [">", "s"]}),
+			stylo.db.sql("""SELECT name FROM `tabUser` WHERE name > 's' ORDER BY MODIFIED DESC""")[0][0],
+			stylo.db.get_value("User", {"name": [">", "s"]}),
 		)
 
 		self.assertEqual(
-			frappe.db.sql("""SELECT name FROM `tabUser` WHERE name >= 't' ORDER BY MODIFIED DESC""")[0][0],
-			frappe.db.get_value("User", {"name": [">=", "t"]}),
+			stylo.db.sql("""SELECT name FROM `tabUser` WHERE name >= 't' ORDER BY MODIFIED DESC""")[0][0],
+			stylo.db.get_value("User", {"name": [">=", "t"]}),
 		)
 		self.assertEqual(
-			frappe.db.get_values(
+			stylo.db.get_values(
 				"User",
 				filters={"name": "Administrator"},
 				distinct=True,
 				fieldname="email",
 			),
-			frappe.qb.from_(user_doctype)
+			stylo.qb.from_(user_doctype)
 			.where(user_doctype.name == "Administrator")
 			.select("email")
 			.distinct()
@@ -117,7 +117,7 @@ class TestDB(StyloTestCase):
 
 		self.assertIn(
 			"concat_ws",
-			frappe.db.get_value(
+			stylo.db.get_value(
 				"User",
 				filters={"name": "Administrator"},
 				fieldname=Concat_ws(" ", "LastName"),
@@ -125,21 +125,21 @@ class TestDB(StyloTestCase):
 			).lower(),
 		)
 		self.assertEqual(
-			frappe.db.sql("select email from tabUser where name='Administrator' order by modified DESC"),
-			frappe.db.get_values("User", filters=[["name", "=", "Administrator"]], fieldname="email"),
+			stylo.db.sql("select email from tabUser where name='Administrator' order by modified DESC"),
+			stylo.db.get_values("User", filters=[["name", "=", "Administrator"]], fieldname="email"),
 		)
 
 		# test multiple orderby's
-		delimiter = '"' if frappe.db.db_type == "postgres" else "`"
+		delimiter = '"' if stylo.db.db_type == "postgres" else "`"
 		self.assertIn(
 			"ORDER BY {deli}creation{deli} DESC,{deli}modified{deli} ASC,{deli}name{deli} DESC".format(
 				deli=delimiter
 			),
-			frappe.db.get_value("DocType", "DocField", order_by="creation desc, modified asc, name", run=0),
+			stylo.db.get_value("DocType", "DocField", order_by="creation desc, modified asc, name", run=0),
 		)
 
 	def test_escape(self):
-		frappe.db.escape("香港濟生堂製藥有限公司 - IT".encode())
+		stylo.db.escape("香港濟生堂製藥有限公司 - IT".encode())
 
 	def test_get_single_value(self):
 		# setup
@@ -167,54 +167,54 @@ class TestDB(StyloTestCase):
 		# test
 		for inp in test_inputs:
 			fieldname = f"test_{inp['fieldtype'].lower()}"
-			frappe.db.set_value("Print Settings", "Print Settings", fieldname, inp["value"])
-			self.assertEqual(frappe.db.get_single_value("Print Settings", fieldname), inp["value"])
+			stylo.db.set_value("Print Settings", "Print Settings", fieldname, inp["value"])
+			self.assertEqual(stylo.db.get_single_value("Print Settings", fieldname), inp["value"])
 
 		# teardown
 		clear_custom_fields("Print Settings")
 
 	def test_get_single_value_destructuring(self):
-		[[lang, date_format]] = frappe.db.get_values_from_single(
+		[[lang, date_format]] = stylo.db.get_values_from_single(
 			["language", "date_format"], None, "System Settings"
 		)
-		self.assertEqual(lang, frappe.db.get_single_value("System Settings", "language"))
-		self.assertEqual(date_format, frappe.db.get_single_value("System Settings", "date_format"))
+		self.assertEqual(lang, stylo.db.get_single_value("System Settings", "language"))
+		self.assertEqual(date_format, stylo.db.get_single_value("System Settings", "date_format"))
 
 	def test_log_touched_tables(self):
-		frappe.flags.in_migrate = True
-		frappe.flags.touched_tables = set()
-		frappe.db.set_value("System Settings", "System Settings", "backup_limit", 5)
-		self.assertIn("tabSingles", frappe.flags.touched_tables)
+		stylo.flags.in_migrate = True
+		stylo.flags.touched_tables = set()
+		stylo.db.set_value("System Settings", "System Settings", "backup_limit", 5)
+		self.assertIn("tabSingles", stylo.flags.touched_tables)
 
-		frappe.flags.touched_tables = set()
-		todo = frappe.get_doc({"doctype": "ToDo", "description": "Random Description"})
+		stylo.flags.touched_tables = set()
+		todo = stylo.get_doc({"doctype": "ToDo", "description": "Random Description"})
 		todo.save()
-		self.assertIn("tabToDo", frappe.flags.touched_tables)
+		self.assertIn("tabToDo", stylo.flags.touched_tables)
 
-		frappe.flags.touched_tables = set()
+		stylo.flags.touched_tables = set()
 		todo.description = "Another Description"
 		todo.save()
-		self.assertIn("tabToDo", frappe.flags.touched_tables)
+		self.assertIn("tabToDo", stylo.flags.touched_tables)
 
-		if frappe.db.db_type != "postgres":
-			frappe.flags.touched_tables = set()
-			frappe.db.sql("UPDATE tabToDo SET description = 'Updated Description'")
-			self.assertNotIn("tabToDo SET", frappe.flags.touched_tables)
-			self.assertIn("tabToDo", frappe.flags.touched_tables)
+		if stylo.db.db_type != "postgres":
+			stylo.flags.touched_tables = set()
+			stylo.db.sql("UPDATE tabToDo SET description = 'Updated Description'")
+			self.assertNotIn("tabToDo SET", stylo.flags.touched_tables)
+			self.assertIn("tabToDo", stylo.flags.touched_tables)
 
-		frappe.flags.touched_tables = set()
+		stylo.flags.touched_tables = set()
 		todo.delete()
-		self.assertIn("tabToDo", frappe.flags.touched_tables)
+		self.assertIn("tabToDo", stylo.flags.touched_tables)
 
-		frappe.flags.touched_tables = set()
+		stylo.flags.touched_tables = set()
 		cf = create_custom_field("ToDo", {"label": "ToDo Custom Field"})
-		self.assertIn("tabToDo", frappe.flags.touched_tables)
-		self.assertIn("tabCustom Field", frappe.flags.touched_tables)
+		self.assertIn("tabToDo", stylo.flags.touched_tables)
+		self.assertIn("tabCustom Field", stylo.flags.touched_tables)
 		if cf:
 			cf.delete()
-		frappe.db.commit()
-		frappe.flags.in_migrate = False
-		frappe.flags.touched_tables.clear()
+		stylo.db.commit()
+		stylo.flags.in_migrate = False
+		stylo.flags.touched_tables.clear()
 
 	def test_db_keywords_as_fields(self):
 		"""Tests if DB keywords work as docfield names. If they're wrapped with grave accents."""
@@ -307,7 +307,7 @@ class TestDB(StyloTestCase):
 
 		# edit by rushabh: added [:1]
 		# don't run every keyword! - if one works, they all do
-		fields = all_keywords[frappe.conf.db_type][:1]
+		fields = all_keywords[stylo.conf.db_type][:1]
 		test_doctype = "ToDo"
 
 		def add_custom_field(field):
@@ -327,7 +327,7 @@ class TestDB(StyloTestCase):
 		# Create documents under that doctype and query them via ORM
 		for _ in range(10):
 			docfields = {key.lower(): random_string(10) for key in fields}
-			doc = frappe.get_doc({"doctype": test_doctype, "description": random_string(20), **docfields})
+			doc = stylo.get_doc({"doctype": test_doctype, "description": random_string(20), **docfields})
 			doc.insert()
 			created_docs.append(doc.name)
 
@@ -336,16 +336,16 @@ class TestDB(StyloTestCase):
 		random_value = random_string(20)
 
 		# Testing read
-		self.assertEqual(next(iter(frappe.get_all("ToDo", fields=[random_field], limit=1)[0])), random_field)
+		self.assertEqual(next(iter(stylo.get_all("ToDo", fields=[random_field], limit=1)[0])), random_field)
 		self.assertEqual(
-			next(iter(frappe.get_all("ToDo", fields=[f"`{random_field}` as total"], limit=1)[0])), "total"
+			next(iter(stylo.get_all("ToDo", fields=[f"`{random_field}` as total"], limit=1)[0])), "total"
 		)
 
 		# Testing read for distinct and sql functions
 		self.assertEqual(
 			next(
 				iter(
-					frappe.get_all(
+					stylo.get_all(
 						"ToDo",
 						fields=[f"`{random_field}` as total"],
 						distinct=True,
@@ -358,7 +358,7 @@ class TestDB(StyloTestCase):
 		self.assertEqual(
 			next(
 				iter(
-					frappe.get_all(
+					stylo.get_all(
 						"ToDo",
 						fields=[f"`{random_field}`"],
 						distinct=True,
@@ -369,42 +369,42 @@ class TestDB(StyloTestCase):
 			random_field,
 		)
 		self.assertEqual(
-			next(iter(frappe.get_all("ToDo", fields=[f"count(`{random_field}`)"], limit=1)[0])),
-			"count" if frappe.conf.db_type == "postgres" else f"count(`{random_field}`)",
+			next(iter(stylo.get_all("ToDo", fields=[f"count(`{random_field}`)"], limit=1)[0])),
+			"count" if stylo.conf.db_type == "postgres" else f"count(`{random_field}`)",
 		)
 
 		# Testing update
-		frappe.db.set_value(test_doctype, random_doc, random_field, random_value)
-		self.assertEqual(frappe.db.get_value(test_doctype, random_doc, random_field), random_value)
+		stylo.db.set_value(test_doctype, random_doc, random_field, random_value)
+		self.assertEqual(stylo.db.get_value(test_doctype, random_doc, random_field), random_value)
 
 		# Cleanup - delete records and remove custom fields
 		for doc in created_docs:
-			frappe.delete_doc(test_doctype, doc)
+			stylo.delete_doc(test_doctype, doc)
 		clear_custom_fields(test_doctype)
 
 	def test_savepoints(self):
-		frappe.db.rollback()
+		stylo.db.rollback()
 		save_point = "todonope"
 
 		created_docs = []
 		failed_docs = []
 
 		for _ in range(5):
-			frappe.db.savepoint(save_point)
-			doc_gone = frappe.get_doc(doctype="ToDo", description="nope").save()
+			stylo.db.savepoint(save_point)
+			doc_gone = stylo.get_doc(doctype="ToDo", description="nope").save()
 			failed_docs.append(doc_gone.name)
-			frappe.db.rollback(save_point=save_point)
-			doc_kept = frappe.get_doc(doctype="ToDo", description="nope").save()
+			stylo.db.rollback(save_point=save_point)
+			doc_kept = stylo.get_doc(doctype="ToDo", description="nope").save()
 			created_docs.append(doc_kept.name)
-		frappe.db.commit()
+		stylo.db.commit()
 
 		for d in failed_docs:
-			self.assertFalse(frappe.db.exists("ToDo", d))
+			self.assertFalse(stylo.db.exists("ToDo", d))
 		for d in created_docs:
-			self.assertTrue(frappe.db.exists("ToDo", d))
+			self.assertTrue(stylo.db.exists("ToDo", d))
 
 	def test_savepoints_wrapper(self):
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 		class SpecificExc(Exception):
 			pass
@@ -414,43 +414,43 @@ class TestDB(StyloTestCase):
 
 		for _ in range(5):
 			with savepoint(catch=SpecificExc):
-				doc_kept = frappe.get_doc(doctype="ToDo", description="nope").save()
+				doc_kept = stylo.get_doc(doctype="ToDo", description="nope").save()
 				created_docs.append(doc_kept.name)
 
 			with savepoint(catch=SpecificExc):
-				doc_gone = frappe.get_doc(doctype="ToDo", description="nope").save()
+				doc_gone = stylo.get_doc(doctype="ToDo", description="nope").save()
 				failed_docs.append(doc_gone.name)
 				raise SpecificExc
 
-		frappe.db.commit()
+		stylo.db.commit()
 
 		for d in failed_docs:
-			self.assertFalse(frappe.db.exists("ToDo", d))
+			self.assertFalse(stylo.db.exists("ToDo", d))
 		for d in created_docs:
-			self.assertTrue(frappe.db.exists("ToDo", d))
+			self.assertTrue(stylo.db.exists("ToDo", d))
 
 	def test_transaction_writes_error(self):
-		from frappe.database.database import Database
+		from stylo.database.database import Database
 
-		frappe.db.rollback()
+		stylo.db.rollback()
 
-		frappe.db.MAX_WRITES_PER_TRANSACTION = 1
-		note = frappe.get_last_doc("ToDo")
+		stylo.db.MAX_WRITES_PER_TRANSACTION = 1
+		note = stylo.get_last_doc("ToDo")
 		note.description = "changed"
-		with self.assertRaises(frappe.TooManyWritesError):
+		with self.assertRaises(stylo.TooManyWritesError):
 			note.save()
 
-		frappe.db.MAX_WRITES_PER_TRANSACTION = Database.MAX_WRITES_PER_TRANSACTION
+		stylo.db.MAX_WRITES_PER_TRANSACTION = Database.MAX_WRITES_PER_TRANSACTION
 
 	def test_transaction_write_counting(self):
-		note = frappe.get_doc(doctype="Note", title="transaction counting").insert()
+		note = stylo.get_doc(doctype="Note", title="transaction counting").insert()
 
-		writes = frappe.db.transaction_writes
-		frappe.db.set_value("Note", note.name, "content", "abc")
-		self.assertEqual(1, frappe.db.transaction_writes - writes)
-		writes = frappe.db.transaction_writes
+		writes = stylo.db.transaction_writes
+		stylo.db.set_value("Note", note.name, "content", "abc")
+		self.assertEqual(1, stylo.db.transaction_writes - writes)
+		writes = stylo.db.transaction_writes
 
-		frappe.db.sql(
+		stylo.db.sql(
 			"""
 			update `tabNote`
 			set content = 'abc'
@@ -458,52 +458,52 @@ class TestDB(StyloTestCase):
 			""",
 			note.name,
 		)
-		self.assertEqual(1, frappe.db.transaction_writes - writes)
+		self.assertEqual(1, stylo.db.transaction_writes - writes)
 
 	def test_pk_collision_ignoring(self):
 		# note has `name` generated from title
 		for _ in range(3):
-			frappe.get_doc(doctype="Note", title="duplicate name").insert(ignore_if_duplicate=True)
+			stylo.get_doc(doctype="Note", title="duplicate name").insert(ignore_if_duplicate=True)
 
 		with savepoint():
 			self.assertRaises(
-				frappe.DuplicateEntryError, frappe.get_doc(doctype="Note", title="duplicate name").insert
+				stylo.DuplicateEntryError, stylo.get_doc(doctype="Note", title="duplicate name").insert
 			)
 			# recover transaction to continue other tests
 			raise Exception
 
 	def test_read_only_errors(self):
-		frappe.db.rollback()
-		frappe.db.begin(read_only=True)
-		self.addCleanup(frappe.db.rollback)
+		stylo.db.rollback()
+		stylo.db.begin(read_only=True)
+		self.addCleanup(stylo.db.rollback)
 
-		with self.assertRaises(frappe.InReadOnlyMode):
-			frappe.db.set_value("User", "Administrator", "full_name", "Haxor")
+		with self.assertRaises(stylo.InReadOnlyMode):
+			stylo.db.set_value("User", "Administrator", "full_name", "Haxor")
 
 	def test_exists(self):
 		dt, dn = "User", "Administrator"
-		self.assertEqual(frappe.db.exists(dt, dn, cache=True), dn)
-		self.assertEqual(frappe.db.exists(dt, dn), dn)
-		self.assertEqual(frappe.db.exists(dt, {"name": ("=", dn)}), dn)
+		self.assertEqual(stylo.db.exists(dt, dn, cache=True), dn)
+		self.assertEqual(stylo.db.exists(dt, dn), dn)
+		self.assertEqual(stylo.db.exists(dt, {"name": ("=", dn)}), dn)
 
 		filters = {"doctype": dt, "name": ("like", "Admin%")}
-		self.assertEqual(frappe.db.exists(filters), dn)
+		self.assertEqual(stylo.db.exists(filters), dn)
 		self.assertEqual(filters["doctype"], dt)  # make sure that doctype was not removed from filters
 
-		self.assertEqual(frappe.db.exists(dt, [["name", "=", dn]]), dn)
+		self.assertEqual(stylo.db.exists(dt, [["name", "=", dn]]), dn)
 
 	def test_estimated_count(self):
-		self.assertGreater(frappe.db.estimate_count("DocField"), 100)
+		self.assertGreater(stylo.db.estimate_count("DocField"), 100)
 
 	def test_bulk_insert(self):
-		current_count = frappe.db.count("ToDo")
+		current_count = stylo.db.count("ToDo")
 		test_body = f"test_bulk_insert - {random_string(10)}"
 		chunk_size = 10
 
 		for number_of_values in (1, 2, 5, 27):
-			current_transaction_writes = frappe.db.transaction_writes
+			current_transaction_writes = stylo.db.transaction_writes
 
-			frappe.db.bulk_insert(
+			stylo.db.bulk_insert(
 				"ToDo",
 				["name", "description"],
 				[[f"ToDo Test Bulk Insert {i}", test_body] for i in range(number_of_values)],
@@ -512,34 +512,34 @@ class TestDB(StyloTestCase):
 			)
 
 			# check that all records were inserted
-			self.assertEqual(number_of_values, frappe.db.count("ToDo") - current_count)
+			self.assertEqual(number_of_values, stylo.db.count("ToDo") - current_count)
 
 			# check if inserts were done in chunks
 			expected_number_of_writes = ceil(number_of_values / chunk_size)
 			self.assertEqual(
-				expected_number_of_writes, frappe.db.transaction_writes - current_transaction_writes
+				expected_number_of_writes, stylo.db.transaction_writes - current_transaction_writes
 			)
 
-		frappe.db.delete("ToDo", {"description": test_body})
+		stylo.db.delete("ToDo", {"description": test_body})
 
 	def test_count(self):
-		frappe.db.delete("Note")
+		stylo.db.delete("Note")
 
-		frappe.get_doc(doctype="Note", title="note1", content="something").insert()
-		frappe.get_doc(doctype="Note", title="note2", content="someting else").insert()
+		stylo.get_doc(doctype="Note", title="note1", content="something").insert()
+		stylo.get_doc(doctype="Note", title="note2", content="someting else").insert()
 
 		# Count with no filtes
-		self.assertEqual((frappe.db.count("Note")), 2)
+		self.assertEqual((stylo.db.count("Note")), 2)
 
 		# simple filters
-		self.assertEqual((frappe.db.count("Note", [["title", "=", "note1"]])), 1)
+		self.assertEqual((stylo.db.count("Note", [["title", "=", "note1"]])), 1)
 
-		frappe.get_doc(doctype="Note", title="note3", content="something other").insert()
+		stylo.get_doc(doctype="Note", title="note3", content="something other").insert()
 
 		# List of list filters with tables
 		self.assertEqual(
 			(
-				frappe.db.count(
+				stylo.db.count(
 					"Note",
 					[["Note", "title", "like", "note%"], ["Note", "content", "like", "some%"]],
 				)
@@ -547,11 +547,11 @@ class TestDB(StyloTestCase):
 			3,
 		)
 
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 	@run_only_if(db_type_is.POSTGRES)
 	def test_modify_query(self):
-		from frappe.database.postgres.database import modify_query
+		from stylo.database.postgres.database import modify_query
 
 		query = "select * from `tabtree b` where lft > 13 and rgt <= 16 and name =1.0 and parent = 4134qrsdc and isgroup = 1.00045"
 		self.assertEqual(
@@ -559,15 +559,15 @@ class TestDB(StyloTestCase):
 			modify_query(query),
 		)
 
-		query = 'select locate(".io", "frappe.io"), locate("3", cast(3 as varchar)), locate("3", 3::varchar)'
+		query = 'select locate(".io", "stylo.io"), locate("3", cast(3 as varchar)), locate("3", 3::varchar)'
 		self.assertEqual(
-			'select strpos( "frappe.io", ".io"), strpos( cast(3 as varchar), "3"), strpos( 3::varchar, "3")',
+			'select strpos( "stylo.io", ".io"), strpos( cast(3 as varchar), "3"), strpos( 3::varchar, "3")',
 			modify_query(query),
 		)
 
 	@run_only_if(db_type_is.POSTGRES)
 	def test_modify_values(self):
-		from frappe.database.postgres.database import modify_values
+		from stylo.database.postgres.database import modify_values
 
 		self.assertEqual(
 			{"a": "23", "b": 23.0, "c": 23.0345, "d": "wow", "e": ("1", "2", "3", "abc")},
@@ -584,20 +584,20 @@ class TestDDLCommandsMaria(StyloTestCase):
 	test_table_name = "TestNotes"
 
 	def setUp(self) -> None:
-		frappe.db.sql_ddl(
+		stylo.db.sql_ddl(
 			f"""
 			CREATE TABLE IF NOT EXISTS `tab{self.test_table_name}` (`id` INT NULL, content TEXT, PRIMARY KEY (`id`));
 			"""
 		)
 
 	def tearDown(self) -> None:
-		frappe.db.sql(f"DROP TABLE tab{self.test_table_name};")
+		stylo.db.sql(f"DROP TABLE tab{self.test_table_name};")
 		self.test_table_name = "TestNotes"
 
 	def test_rename(self) -> None:
 		new_table_name = f"{self.test_table_name}_new"
-		frappe.db.rename_table(self.test_table_name, new_table_name)
-		check_exists = frappe.db.sql(
+		stylo.db.rename_table(self.test_table_name, new_table_name)
+		check_exists = stylo.db.sql(
 			f"""
 			SELECT * FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_NAME = N'tab{new_table_name}';
@@ -615,25 +615,25 @@ class TestDDLCommandsMaria(StyloTestCase):
 				("id", "int(11)", "NO", "PRI", None, ""),
 				("content", "text", "YES", "", None, ""),
 			],
-			frappe.db.describe(self.test_table_name),
+			stylo.db.describe(self.test_table_name),
 		)
 
 	def test_change_type(self) -> None:
 		def get_table_description():
-			return frappe.db.sql(f"DESC `tab{self.test_table_name}`")
+			return stylo.db.sql(f"DESC `tab{self.test_table_name}`")
 
 		# try changing from int to varchar
-		frappe.db.change_column_type("TestNotes", "id", "varchar(255)")
+		stylo.db.change_column_type("TestNotes", "id", "varchar(255)")
 		self.assertIn("varchar(255)", get_table_description()[0])
 
 		# try changing from varchar to bigint
-		frappe.db.change_column_type("TestNotes", "id", "bigint")
+		stylo.db.change_column_type("TestNotes", "id", "bigint")
 		self.assertIn("bigint(20)", get_table_description()[0])
 
 	def test_add_index(self) -> None:
 		index_name = "test_index"
-		frappe.db.add_index(self.test_table_name, ["id", "content(50)"], index_name)
-		indexs_in_table = frappe.db.sql(
+		stylo.db.add_index(self.test_table_name, ["id", "content(50)"], index_name)
+		indexs_in_table = stylo.db.sql(
 			f"""
 			SHOW INDEX FROM tab{self.test_table_name}
 			WHERE Key_name = '{index_name}';
@@ -646,36 +646,36 @@ class TestDBSetValue(StyloTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.todo1 = frappe.get_doc(doctype="ToDo", description="test_set_value 1").insert()
-		cls.todo2 = frappe.get_doc(doctype="ToDo", description="test_set_value 2").insert()
+		cls.todo1 = stylo.get_doc(doctype="ToDo", description="test_set_value 1").insert()
+		cls.todo2 = stylo.get_doc(doctype="ToDo", description="test_set_value 2").insert()
 
 	def test_update_single_doctype_field(self):
-		value = frappe.db.get_single_value("System Settings", "deny_multiple_sessions")
+		value = stylo.db.get_single_value("System Settings", "deny_multiple_sessions")
 		changed_value = not value
 
-		frappe.db.set_value("System Settings", "System Settings", "deny_multiple_sessions", changed_value)
-		current_value = frappe.db.get_single_value("System Settings", "deny_multiple_sessions")
+		stylo.db.set_value("System Settings", "System Settings", "deny_multiple_sessions", changed_value)
+		current_value = stylo.db.get_single_value("System Settings", "deny_multiple_sessions")
 		self.assertEqual(current_value, changed_value)
 
 		changed_value = not current_value
-		frappe.db.set_value("System Settings", None, "deny_multiple_sessions", changed_value)
-		current_value = frappe.db.get_single_value("System Settings", "deny_multiple_sessions")
+		stylo.db.set_value("System Settings", None, "deny_multiple_sessions", changed_value)
+		current_value = stylo.db.get_single_value("System Settings", "deny_multiple_sessions")
 		self.assertEqual(current_value, changed_value)
 
 		changed_value = not current_value
-		frappe.db.set_single_value("System Settings", "deny_multiple_sessions", changed_value)
-		current_value = frappe.db.get_single_value("System Settings", "deny_multiple_sessions")
+		stylo.db.set_single_value("System Settings", "deny_multiple_sessions", changed_value)
+		current_value = stylo.db.get_single_value("System Settings", "deny_multiple_sessions")
 		self.assertEqual(current_value, changed_value)
 
 	def test_update_single_row_single_column(self):
-		frappe.db.set_value("ToDo", self.todo1.name, "description", "test_set_value change 1")
-		updated_value = frappe.db.get_value("ToDo", self.todo1.name, "description")
+		stylo.db.set_value("ToDo", self.todo1.name, "description", "test_set_value change 1")
+		updated_value = stylo.db.get_value("ToDo", self.todo1.name, "description")
 		self.assertEqual(updated_value, "test_set_value change 1")
 
 	def test_update_single_row_multiple_columns(self):
 		description, status = "Upated by test_update_single_row_multiple_columns", "Closed"
 
-		frappe.db.set_value(
+		stylo.db.set_value(
 			"ToDo",
 			self.todo1.name,
 			{
@@ -685,7 +685,7 @@ class TestDBSetValue(StyloTestCase):
 			update_modified=False,
 		)
 
-		updated_desciption, updated_status = frappe.db.get_value(
+		updated_desciption, updated_status = stylo.db.get_value(
 			"ToDo", filters={"name": self.todo1.name}, fieldname=["description", "status"]
 		)
 
@@ -693,25 +693,25 @@ class TestDBSetValue(StyloTestCase):
 		self.assertEqual(status, updated_status)
 
 	def test_update_multiple_rows_single_column(self):
-		frappe.db.set_value("ToDo", {"description": ("like", "%test_set_value%")}, "description", "change 2")
+		stylo.db.set_value("ToDo", {"description": ("like", "%test_set_value%")}, "description", "change 2")
 
-		self.assertEqual(frappe.db.get_value("ToDo", self.todo1.name, "description"), "change 2")
-		self.assertEqual(frappe.db.get_value("ToDo", self.todo2.name, "description"), "change 2")
+		self.assertEqual(stylo.db.get_value("ToDo", self.todo1.name, "description"), "change 2")
+		self.assertEqual(stylo.db.get_value("ToDo", self.todo2.name, "description"), "change 2")
 
 	def test_update_multiple_rows_multiple_columns(self):
-		todos_to_update = frappe.get_all(
+		todos_to_update = stylo.get_all(
 			"ToDo",
 			filters={"description": ("like", "%test_set_value%"), "status": ("!=", "Closed")},
 			pluck="name",
 		)
 
-		frappe.db.set_value(
+		stylo.db.set_value(
 			"ToDo",
 			{"description": ("like", "%test_set_value%"), "status": ("!=", "Closed")},
 			{"status": "Closed", "priority": "High"},
 		)
 
-		test_result = frappe.get_all(
+		test_result = stylo.get_all(
 			"ToDo", filters={"name": ("in", todos_to_update)}, fields=["status", "priority"]
 		)
 
@@ -726,11 +726,11 @@ class TestDBSetValue(StyloTestCase):
 		custom_modified = datetime.datetime.fromisoformat(add_days(now(), 10))
 		custom_modified_by = "user_that_doesnt_exist@example.com"
 
-		frappe.db.set_value("ToDo", todo.name, "description", updated_description, update_modified=False)
-		self.assertEqual(updated_description, frappe.db.get_value("ToDo", todo.name, "description"))
-		self.assertEqual(todo.modified, frappe.db.get_value("ToDo", todo.name, "modified"))
+		stylo.db.set_value("ToDo", todo.name, "description", updated_description, update_modified=False)
+		self.assertEqual(updated_description, stylo.db.get_value("ToDo", todo.name, "description"))
+		self.assertEqual(todo.modified, stylo.db.get_value("ToDo", todo.name, "modified"))
 
-		frappe.db.set_value(
+		stylo.db.set_value(
 			"ToDo",
 			todo.name,
 			"description",
@@ -740,40 +740,40 @@ class TestDBSetValue(StyloTestCase):
 		)
 		self.assertTupleEqual(
 			(custom_modified, custom_modified_by),
-			frappe.db.get_value("ToDo", todo.name, ["modified", "modified_by"]),
+			stylo.db.get_value("ToDo", todo.name, ["modified", "modified_by"]),
 		)
 
 	def test_set_value(self):
 		self.todo1.reload()
 
-		frappe.db.set_value(
+		stylo.db.set_value(
 			self.todo1.doctype,
 			self.todo1.name,
 			"description",
 			f"{self.todo1.description}-edit by `test_for_update`",
 		)
-		query = frappe.db.last_query
+		query = stylo.db.last_query
 
-		if frappe.conf.db_type == "postgres":
-			from frappe.database.postgres.database import modify_query
+		if stylo.conf.db_type == "postgres":
+			from stylo.database.postgres.database import modify_query
 
 			self.assertTrue(modify_query("UPDATE `tabToDo` SET") in str(query))
-		if frappe.conf.db_type == "mariadb":
+		if stylo.conf.db_type == "mariadb":
 			self.assertTrue("UPDATE `tabToDo` SET" in query)
 
 	def test_cleared_cache(self):
 		self.todo2.reload()
-		frappe.get_cached_doc(self.todo2.doctype, self.todo2.name)  # init cache
+		stylo.get_cached_doc(self.todo2.doctype, self.todo2.name)  # init cache
 
 		description = f"{self.todo2.description}-edit by `test_cleared_cache`"
 
-		frappe.db.set_value(self.todo2.doctype, self.todo2.name, "description", description)
-		cached_doc = frappe.get_cached_doc(self.todo2.doctype, self.todo2.name)
+		stylo.db.set_value(self.todo2.doctype, self.todo2.name, "description", description)
+		cached_doc = stylo.get_cached_doc(self.todo2.doctype, self.todo2.name)
 		self.assertEqual(cached_doc.description, description)
 
 	@classmethod
 	def tearDownClass(cls):
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 
 @run_only_if(db_type_is.POSTGRES)
@@ -781,20 +781,20 @@ class TestDDLCommandsPost(StyloTestCase):
 	test_table_name = "TestNotes"
 
 	def setUp(self) -> None:
-		frappe.db.sql(
+		stylo.db.sql(
 			f"""
 			CREATE TABLE "tab{self.test_table_name}" ("id" INT NULL, content text, PRIMARY KEY ("id"))
 			"""
 		)
 
 	def tearDown(self) -> None:
-		frappe.db.sql(f'DROP TABLE "tab{self.test_table_name}"')
+		stylo.db.sql(f'DROP TABLE "tab{self.test_table_name}"')
 		self.test_table_name = "TestNotes"
 
 	def test_rename(self) -> None:
 		new_table_name = f"{self.test_table_name}_new"
-		frappe.db.rename_table(self.test_table_name, new_table_name)
-		check_exists = frappe.db.sql(
+		stylo.db.rename_table(self.test_table_name, new_table_name)
+		check_exists = stylo.db.sql(
 			f"""
 			SELECT EXISTS (
 			SELECT FROM information_schema.tables
@@ -808,13 +808,13 @@ class TestDDLCommandsPost(StyloTestCase):
 		self.test_table_name = new_table_name
 
 	def test_describe(self) -> None:
-		self.assertSequenceEqual([("id",), ("content",)], frappe.db.describe(self.test_table_name))
+		self.assertSequenceEqual([("id",), ("content",)], stylo.db.describe(self.test_table_name))
 
 	def test_change_type(self) -> None:
 		from psycopg2.errors import DatatypeMismatch
 
 		def get_table_description():
-			return frappe.db.sql(
+			return stylo.db.sql(
 				f"""
 				SELECT
 					table_name,
@@ -827,23 +827,23 @@ class TestDDLCommandsPost(StyloTestCase):
 			)
 
 		# try changing from int to varchar
-		frappe.db.change_column_type(self.test_table_name, "id", "varchar(255)")
+		stylo.db.change_column_type(self.test_table_name, "id", "varchar(255)")
 		self.assertIn("character varying", get_table_description()[0])
 
 		# try changing from varchar to int
 		try:
-			frappe.db.change_column_type(self.test_table_name, "id", "bigint")
+			stylo.db.change_column_type(self.test_table_name, "id", "bigint")
 		except DatatypeMismatch:
-			frappe.db.rollback()
+			stylo.db.rollback()
 
 		# try changing from varchar to int (using cast)
-		frappe.db.change_column_type(self.test_table_name, "id", "bigint", use_cast=True)
+		stylo.db.change_column_type(self.test_table_name, "id", "bigint", use_cast=True)
 		self.assertIn("bigint", get_table_description()[0])
 
 	def test_add_index(self) -> None:
 		index_name = "test_index"
-		frappe.db.add_index(self.test_table_name, ["id", "content(50)"], index_name)
-		indexs_in_table = frappe.db.sql(
+		stylo.db.add_index(self.test_table_name, ["id", "content(50)"], index_name)
+		indexs_in_table = stylo.db.sql(
 			f"""
 			SELECT indexname
 			FROM pg_indexes
@@ -854,20 +854,20 @@ class TestDDLCommandsPost(StyloTestCase):
 		self.assertEqual(len(indexs_in_table), 1)
 
 	def test_sequence_table_creation(self):
-		from frappe.core.doctype.doctype.test_doctype import new_doctype
+		from stylo.core.doctype.doctype.test_doctype import new_doctype
 
 		dt = new_doctype("autoinc_dt_seq_test", autoname="autoincrement").insert(ignore_permissions=True)
 
-		if frappe.db.db_type == "postgres":
+		if stylo.db.db_type == "postgres":
 			self.assertTrue(
-				frappe.db.sql(
+				stylo.db.sql(
 					"""select sequence_name FROM information_schema.sequences
 				where sequence_name ilike 'autoinc_dt_seq_test%'"""
 				)[0][0]
 			)
 		else:
 			self.assertTrue(
-				frappe.db.sql(
+				stylo.db.sql(
 					"""select data_type FROM information_schema.tables
 				where table_type = 'SEQUENCE' and table_name like 'autoinc_dt_seq_test%'"""
 				)[0][0]
@@ -876,14 +876,14 @@ class TestDDLCommandsPost(StyloTestCase):
 		dt.delete(ignore_permissions=True)
 
 	def test_is(self):
-		user = frappe.qb.DocType("User")
+		user = stylo.qb.DocType("User")
 		self.assertIn(
 			'coalesce("name",',
-			frappe.db.get_values(user, filters={user.name: ("is", "set")}, run=False).lower(),
+			stylo.db.get_values(user, filters={user.name: ("is", "set")}, run=False).lower(),
 		)
 		self.assertIn(
 			'coalesce("name",',
-			frappe.db.get_values(user, filters={user.name: ("is", "not set")}, run=False).lower(),
+			stylo.db.get_values(user, filters={user.name: ("is", "not set")}, run=False).lower(),
 		)
 
 
@@ -891,29 +891,29 @@ class TestDDLCommandsPost(StyloTestCase):
 class TestTransactionManagement(StyloTestCase):
 	def test_create_proper_transactions(self):
 		def _get_transaction_id():
-			return frappe.db.sql("select txid_current()", pluck=True)
+			return stylo.db.sql("select txid_current()", pluck=True)
 
 		self.assertEqual(_get_transaction_id(), _get_transaction_id())
 
-		frappe.db.rollback()
+		stylo.db.rollback()
 		self.assertEqual(_get_transaction_id(), _get_transaction_id())
 
-		frappe.db.commit()
+		stylo.db.commit()
 		self.assertEqual(_get_transaction_id(), _get_transaction_id())
 
 
 # Treat same DB as replica for tests, a separate connection will be opened
 class TestReplicaConnections(StyloTestCase):
 	def test_switching_to_replica(self):
-		with patch.dict(frappe.local.conf, {"read_from_replica": 1, "replica_host": "localhost"}):
+		with patch.dict(stylo.local.conf, {"read_from_replica": 1, "replica_host": "localhost"}):
 
 			def db_id():
-				return id(frappe.local.db)
+				return id(stylo.local.db)
 
 			write_connection = db_id()
 			read_only_connection = None
 
-			@frappe.read_only()
+			@stylo.read_only()
 			def outer():
 				nonlocal read_only_connection
 				read_only_connection = db_id()
@@ -924,7 +924,7 @@ class TestReplicaConnections(StyloTestCase):
 				# calling nested read only function shouldn't change connection
 				self.assertEqual(read_only_connection, db_id())
 
-			@frappe.read_only()
+			@stylo.read_only()
 			def inner():
 				# calling nested read only function shouldn't change connection
 				self.assertEqual(read_only_connection, db_id())
@@ -937,38 +937,38 @@ class TestConcurrency(StyloTestCase):
 	@timeout(5, "There shouldn't be any lock wait")
 	def test_skip_locking(self):
 		with self.primary_connection():
-			name = frappe.db.get_value("User", "Administrator", for_update=True, skip_locked=True)
+			name = stylo.db.get_value("User", "Administrator", for_update=True, skip_locked=True)
 			self.assertEqual(name, "Administrator")
 
 		with self.secondary_connection():
-			name = frappe.db.get_value("User", "Administrator", for_update=True, skip_locked=True)
+			name = stylo.db.get_value("User", "Administrator", for_update=True, skip_locked=True)
 			self.assertFalse(name)
 
 	@timeout(5, "Lock timeout should have been 0")
 	def test_no_wait(self):
 		with self.primary_connection():
-			name = frappe.db.get_value("User", "Administrator", for_update=True)
+			name = stylo.db.get_value("User", "Administrator", for_update=True)
 			self.assertEqual(name, "Administrator")
 
 		with self.secondary_connection():
 			self.assertRaises(
-				frappe.QueryTimeoutError,
-				lambda: frappe.db.get_value("User", "Administrator", for_update=True, wait=False),
+				stylo.QueryTimeoutError,
+				lambda: stylo.db.get_value("User", "Administrator", for_update=True, wait=False),
 			)
 
 	@timeout(5, "Deletion stuck on lock timeout")
 	def test_delete_race_condition(self):
-		note = frappe.new_doc("Note")
-		note.title = note.content = frappe.generate_hash()
+		note = stylo.new_doc("Note")
+		note.title = note.content = stylo.generate_hash()
 		note.insert()
-		frappe.db.commit()  # ensure that second connection can see the document
+		stylo.db.commit()  # ensure that second connection can see the document
 
 		with self.primary_connection():
-			n1 = frappe.get_doc(note.doctype, note.name)
+			n1 = stylo.get_doc(note.doctype, note.name)
 			n1.save()
 
 		with self.secondary_connection():
-			self.assertRaises(frappe.QueryTimeoutError, frappe.delete_doc, note.doctype, note.name)
+			self.assertRaises(stylo.QueryTimeoutError, stylo.delete_doc, note.doctype, note.name)
 
 
 class TestSqlIterator(StyloTestCase):
@@ -981,24 +981,24 @@ class TestSqlIterator(StyloTestCase):
 
 		for query in test_queries:
 			self.assertEqual(
-				frappe.db.sql(query, as_dict=True),
-				list(frappe.db.sql(query, as_dict=True, as_iterator=True)),
+				stylo.db.sql(query, as_dict=True),
+				list(stylo.db.sql(query, as_dict=True, as_iterator=True)),
 				msg=f"{query=} results not same as iterator",
 			)
 
 			self.assertEqual(
-				frappe.db.sql(query, pluck=True),
-				list(frappe.db.sql(query, pluck=True, as_iterator=True)),
+				stylo.db.sql(query, pluck=True),
+				list(stylo.db.sql(query, pluck=True, as_iterator=True)),
 				msg=f"{query=} results not same as iterator",
 			)
 
 			self.assertEqual(
-				frappe.db.sql(query, as_list=True),
-				list(frappe.db.sql(query, as_list=True, as_iterator=True)),
+				stylo.db.sql(query, as_list=True),
+				list(stylo.db.sql(query, as_list=True, as_iterator=True)),
 				msg=f"{query=} results not same as iterator",
 			)
 
 	@run_only_if(db_type_is.MARIADB)
 	def test_unbuffered_cursor(self):
-		with frappe.db.unbuffered_cursor():
+		with stylo.db.unbuffered_cursor():
 			self.test_db_sql_iterator()

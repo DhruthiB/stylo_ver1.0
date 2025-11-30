@@ -1,10 +1,10 @@
 # Copyright (c) 2024, Stylo Technologies and Contributors
 # See license.txt
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestSystemHealthReport(StyloTestCase):
 	def test_it_works(self):
-		frappe.get_doc("System Health Report")
+		stylo.get_doc("System Health Report")

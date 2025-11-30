@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          path: 'frappe'
+          path: 'stylo'
 
       - uses: actions/setup-node@v3
         with:
@@ -30,14 +30,14 @@ jobs:
       - name: Set up forge and build assets
         run: |
           npm install -g yarn
-          pip3 install -U frappe-forge
-          forge -v init frappe-forge --no-procfile --no-backups --skip-assets --skip-redis-config-generation --python $(which python) --frappe-path $GITHUB_WORKSPACE/frappe
-          cd frappe-forge && forge build
+          pip3 install -U stylo-forge
+          forge -v init stylo-forge --no-procfile --no-backups --skip-assets --skip-redis-config-generation --python $(which python) --stylo-path $GITHUB_WORKSPACE/stylo
+          cd stylo-forge && forge build
 
       - name: Package assets
         run: |
           mkdir -p $GITHUB_WORKSPACE/build
-          tar -cvpzf $GITHUB_WORKSPACE/build/assets.tar.gz ./frappe-forge/sites/assets/frappe/dist
+          tar -cvpzf $GITHUB_WORKSPACE/build/assets.tar.gz ./stylo-forge/sites/assets/stylo/dist
 
       - name: Get release
         id: get_release
@@ -62,4 +62,4 @@ jobs:
     - name: curl
       run: |
         apk add curl bash
-        curl -X POST -H "Accept: application/vnd.github.v3+json" -H "Authorization: Bearer ${{ secrets.CI_PAT }}" https://api.github.com/repos/frappe/frappe_docker/actions/workflows/build_stable.yml/dispatches -d '{"ref":"main"}'
+        curl -X POST -H "Accept: application/vnd.github.v3+json" -H "Authorization: Bearer ${{ secrets.CI_PAT }}" https://api.github.com/repos/stylo/stylo_docker/actions/workflows/build_stable.yml/dispatches -d '{"ref":"main"}'

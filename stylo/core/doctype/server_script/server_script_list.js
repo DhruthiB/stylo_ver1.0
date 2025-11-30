@@ -1,4 +1,4 @@
-frappe.listview_settings["Server Script"] = {
+stylo.listview_settings["Server Script"] = {
 	onload: function (listview) {
 		add_github_star_cta(listview);
 	},
@@ -16,7 +16,7 @@ function add_github_star_cta(listview) {
 		}
 
 		const message = __("Loving Stylo Framework?");
-		const link = "https://github.com/frappe/frappe";
+		const link = "https://github.com/stylo/stylo";
 		const cta = __("Star us on GitHub");
 
 		listview.github_star_banner = $(`

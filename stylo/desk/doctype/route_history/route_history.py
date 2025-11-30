@@ -1,41 +1,41 @@
 # Copyright (c) 2022, Stylo Technologies and contributors
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.deferred_insert import deferred_insert as _deferred_insert
-from frappe.model.document import Document
+import stylo
+from stylo.deferred_insert import deferred_insert as _deferred_insert
+from stylo.model.document import Document
 
 
 class RouteHistory(Document):
 	@staticmethod
 	def clear_old_logs(days=30):
-		from frappe.query_builder import Interval
-		from frappe.query_builder.functions import Now
+		from stylo.query_builder import Interval
+		from stylo.query_builder.functions import Now
 
-		table = frappe.qb.DocType("Route History")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
+		table = stylo.qb.DocType("Route History")
+		stylo.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def deferred_insert(routes):
 	routes = [
 		{
-			"user": frappe.session.user,
+			"user": stylo.session.user,
 			"route": route.get("route"),
 			"creation": route.get("creation"),
 		}
-		for route in frappe.parse_json(routes)
+		for route in stylo.parse_json(routes)
 	]
 
 	_deferred_insert("Route History", routes)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def frequently_visited_links():
-	return frappe.get_all(
+	return stylo.get_all(
 		"Route History",
 		fields=["route", "count(name) as count"],
-		filters={"user": frappe.session.user},
+		filters={"user": stylo.session.user},
 		group_by="route",
 		order_by="count desc",
 		limit=5,

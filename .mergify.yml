@@ -16,7 +16,7 @@ pull_request_rules:
       comment:
           message: |
             @{{author}}, thanks for the contribution, but we do not accept pull requests on a stable branch. Please raise PR on an appropriate hotfix branch.
-            https://github.com/frappe/erpnext/wiki/Pull-Request-Checklist#which-branch
+            https://github.com/stylo/erpnext/wiki/Pull-Request-Checklist#which-branch
 
   - name: Automatic merge on CI success and review
     conditions:
@@ -29,7 +29,7 @@ pull_request_rules:
       - status-success=UI Tests (Cypress) (1)
       - status-success=UI Tests (Cypress) (2)
       - status-success=UI Tests (Cypress) (3)
-      - status-success=security/snyk (frappe)
+      - status-success=security/snyk (stylo)
       - label!=dont-merge
       - label!=squash
       - "#approved-reviews-by>=1"
@@ -46,7 +46,7 @@ pull_request_rules:
       - status-success=UI Tests (Cypress) (1)
       - status-success=UI Tests (Cypress) (2)
       - status-success=UI Tests (Cypress) (3)
-      - status-success=security/snyk (frappe)
+      - status-success=security/snyk (stylo)
       - label!=dont-merge
       - label=squash
       - "#approved-reviews-by>=1"

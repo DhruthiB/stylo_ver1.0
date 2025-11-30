@@ -6,9 +6,9 @@ from contextlib import contextmanager
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
-import frappe
-import frappe.exceptions
-from frappe.core.doctype.user.user import (
+import stylo
+import stylo.exceptions
+from stylo.core.doctype.user.user import (
 	User,
 	handle_password_test_fail,
 	reset_password,
@@ -17,23 +17,23 @@ from frappe.core.doctype.user.user import (
 	update_password,
 	verify_password,
 )
-from frappe.desk.notifications import extract_mentions
-from frappe.frappeclient import StyloClient
-from frappe.model.delete_doc import delete_doc
-from frappe.tests.utils import StyloTestCase, change_settings
-from frappe.utils import get_url
+from stylo.desk.notifications import extract_mentions
+from stylo.styloclient import StyloClient
+from stylo.model.delete_doc import delete_doc
+from stylo.tests.utils import StyloTestCase, change_settings
+from stylo.utils import get_url
 
-user_module = frappe.core.doctype.user.user
-test_records = frappe.get_test_records("User")
+user_module = stylo.core.doctype.user.user
+test_records = stylo.get_test_records("User")
 
 
 class TestUser(StyloTestCase):
 	def tearDown(self):
 		# disable password strength test
-		frappe.db.set_single_value("System Settings", "enable_password_policy", 0)
-		frappe.db.set_single_value("System Settings", "minimum_password_score", "")
-		frappe.db.set_single_value("System Settings", "password_reset_limit", 3)
-		frappe.set_user("Administrator")
+		stylo.db.set_single_value("System Settings", "enable_password_policy", 0)
+		stylo.db.set_single_value("System Settings", "minimum_password_score", "")
+		stylo.db.set_single_value("System Settings", "password_reset_limit", 3)
+		stylo.set_user("Administrator")
 
 	@staticmethod
 	def reset_password(user) -> str:
@@ -41,13 +41,13 @@ class TestUser(StyloTestCase):
 		return parse_qs(urlparse(link).query)["key"][0]
 
 	def test_user_type(self):
-		user_id = frappe.generate_hash() + "@example.com"
-		new_user = frappe.get_doc(doctype="User", email=user_id, first_name="Tester").insert()
+		user_id = stylo.generate_hash() + "@example.com"
+		new_user = stylo.get_doc(doctype="User", email=user_id, first_name="Tester").insert()
 		self.assertEqual(new_user.user_type, "Website User")
 
-		# social login userid for frappe
+		# social login userid for stylo
 		self.assertTrue(new_user.social_logins[0].userid)
-		self.assertEqual(new_user.social_logins[0].provider, "frappe")
+		self.assertEqual(new_user.social_logins[0].provider, "stylo")
 
 		# role with desk access
 		new_user.add_roles("_Test Role 2")
@@ -65,73 +65,73 @@ class TestUser(StyloTestCase):
 		self.assertEqual(new_user.user_type, "Website User")
 
 		delete_contact(new_user.name)
-		frappe.delete_doc("User", new_user.name)
+		stylo.delete_doc("User", new_user.name)
 
 	def test_delete(self):
-		frappe.get_doc("User", "test@example.com").add_roles("_Test Role 2")
-		self.assertRaises(frappe.LinkExistsError, delete_doc, "Role", "_Test Role 2")
-		frappe.db.delete("Has Role", {"role": "_Test Role 2"})
+		stylo.get_doc("User", "test@example.com").add_roles("_Test Role 2")
+		self.assertRaises(stylo.LinkExistsError, delete_doc, "Role", "_Test Role 2")
+		stylo.db.delete("Has Role", {"role": "_Test Role 2"})
 		delete_doc("Role", "_Test Role 2")
 
-		if frappe.db.exists("User", "_test@example.com"):
+		if stylo.db.exists("User", "_test@example.com"):
 			delete_contact("_test@example.com")
 			delete_doc("User", "_test@example.com")
 
-		user = frappe.copy_doc(test_records[1])
+		user = stylo.copy_doc(test_records[1])
 		user.email = "_test@example.com"
 		user.insert()
 
-		frappe.get_doc({"doctype": "ToDo", "description": "_Test"}).insert()
+		stylo.get_doc({"doctype": "ToDo", "description": "_Test"}).insert()
 
 		delete_contact("_test@example.com")
 		delete_doc("User", "_test@example.com")
 
 		self.assertTrue(
-			not frappe.db.sql("""select * from `tabToDo` where allocated_to=%s""", ("_test@example.com",))
+			not stylo.db.sql("""select * from `tabToDo` where allocated_to=%s""", ("_test@example.com",))
 		)
 
-		from frappe.core.doctype.role.test_role import test_records as role_records
+		from stylo.core.doctype.role.test_role import test_records as role_records
 
-		frappe.copy_doc(role_records[1]).insert()
+		stylo.copy_doc(role_records[1]).insert()
 
 	def test_get_value(self):
-		self.assertEqual(frappe.db.get_value("User", "test@example.com"), "test@example.com")
-		self.assertEqual(frappe.db.get_value("User", {"email": "test@example.com"}), "test@example.com")
+		self.assertEqual(stylo.db.get_value("User", "test@example.com"), "test@example.com")
+		self.assertEqual(stylo.db.get_value("User", {"email": "test@example.com"}), "test@example.com")
 		self.assertEqual(
-			frappe.db.get_value("User", {"email": "test@example.com"}, "email"), "test@example.com"
+			stylo.db.get_value("User", {"email": "test@example.com"}, "email"), "test@example.com"
 		)
 		self.assertEqual(
-			frappe.db.get_value("User", {"email": "test@example.com"}, ["first_name", "email"]),
+			stylo.db.get_value("User", {"email": "test@example.com"}, ["first_name", "email"]),
 			("_Test", "test@example.com"),
 		)
 		self.assertEqual(
-			frappe.db.get_value(
+			stylo.db.get_value(
 				"User", {"email": "test@example.com", "first_name": "_Test"}, ["first_name", "email"]
 			),
 			("_Test", "test@example.com"),
 		)
 
-		test_user = frappe.db.sql("select * from tabUser where name='test@example.com'", as_dict=True)[0]
+		test_user = stylo.db.sql("select * from tabUser where name='test@example.com'", as_dict=True)[0]
 		self.assertEqual(
-			frappe.db.get_value("User", {"email": "test@example.com"}, "*", as_dict=True), test_user
+			stylo.db.get_value("User", {"email": "test@example.com"}, "*", as_dict=True), test_user
 		)
 
-		self.assertEqual(frappe.db.get_value("User", "xxxtest@example.com"), None)
+		self.assertEqual(stylo.db.get_value("User", "xxxtest@example.com"), None)
 
-		frappe.db.set_single_value("Website Settings", "_test", "_test_val")
-		self.assertEqual(frappe.db.get_value("Website Settings", None, "_test"), "_test_val")
-		self.assertEqual(frappe.db.get_value("Website Settings", "Website Settings", "_test"), "_test_val")
+		stylo.db.set_single_value("Website Settings", "_test", "_test_val")
+		self.assertEqual(stylo.db.get_value("Website Settings", None, "_test"), "_test_val")
+		self.assertEqual(stylo.db.get_value("Website Settings", "Website Settings", "_test"), "_test_val")
 
 	def test_high_permlevel_validations(self):
-		user = frappe.get_meta("User")
+		user = stylo.get_meta("User")
 		self.assertTrue("roles" in [d.fieldname for d in user.get_high_permlevel_fields()])
 
-		me = frappe.get_doc("User", "testperm@example.com")
+		me = stylo.get_doc("User", "testperm@example.com")
 		me.remove_roles("System Manager")
 
-		frappe.set_user("testperm@example.com")
+		stylo.set_user("testperm@example.com")
 
-		me = frappe.get_doc("User", "testperm@example.com")
+		me = stylo.get_doc("User", "testperm@example.com")
 		me.add_roles("System Manager")
 
 		# system manager is not added (it is reset)
@@ -148,16 +148,16 @@ class TestUser(StyloTestCase):
 		me.flags.ignore_permlevel_for_fields = None
 
 		# change user
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 
-		me = frappe.get_doc("User", "testperm@example.com")
+		me = stylo.get_doc("User", "testperm@example.com")
 		me.add_roles("System Manager")
 
 		# system manager now added by Administrator
 		self.assertTrue("System Manager" in [d.role for d in me.get("roles")])
 
 	def test_delete_user(self):
-		new_user = frappe.get_doc(
+		new_user = stylo.get_doc(
 			dict(doctype="User", email="test-for-delete@example.com", first_name="Tester Delete User")
 		).insert(ignore_if_duplicate=True)
 		self.assertEqual(new_user.user_type, "Website User")
@@ -167,7 +167,7 @@ class TestUser(StyloTestCase):
 		new_user.save()
 		self.assertEqual(new_user.user_type, "System User")
 
-		comm = frappe.get_doc(
+		comm = stylo.get_doc(
 			{
 				"doctype": "Communication",
 				"subject": "To check user able to delete even if linked with communication",
@@ -179,27 +179,27 @@ class TestUser(StyloTestCase):
 		comm.insert(ignore_permissions=True)
 
 		delete_contact(new_user.name)
-		frappe.delete_doc("User", new_user.name)
-		self.assertFalse(frappe.db.exists("User", new_user.name))
+		stylo.delete_doc("User", new_user.name)
+		self.assertFalse(stylo.db.exists("User", new_user.name))
 
 	def test_password_strength(self):
 		# Test Password without Password Strength Policy
-		frappe.db.set_single_value("System Settings", "enable_password_policy", 0)
+		stylo.db.set_single_value("System Settings", "enable_password_policy", 0)
 
 		# password policy is disabled, test_password_strength should be ignored
 		result = test_password_strength("test_password")
 		self.assertFalse(result.get("feedback", None))
 
 		# Test Password with Password Strenth Policy Set
-		frappe.db.set_single_value("System Settings", "enable_password_policy", 1)
-		frappe.db.set_single_value("System Settings", "minimum_password_score", 2)
+		stylo.db.set_single_value("System Settings", "enable_password_policy", 1)
+		stylo.db.set_single_value("System Settings", "minimum_password_score", 2)
 
 		# Score 1; should now fail
 		result = test_password_strength("bee2ve")
 		self.assertEqual(result["feedback"]["password_policy_validation_passed"], False)
-		self.assertRaises(frappe.exceptions.ValidationError, handle_password_test_fail, result["feedback"])
+		self.assertRaises(stylo.exceptions.ValidationError, handle_password_test_fail, result["feedback"])
 		self.assertRaises(
-			frappe.exceptions.ValidationError, handle_password_test_fail, result
+			stylo.exceptions.ValidationError, handle_password_test_fail, result
 		)  # test backwards compatibility
 
 		# Score 4; should pass
@@ -207,14 +207,14 @@ class TestUser(StyloTestCase):
 		self.assertEqual(result["feedback"]["password_policy_validation_passed"], True)
 
 		# test password strength while saving user with new password
-		user = frappe.get_doc("User", "test@example.com")
-		frappe.flags.in_test = False
+		user = stylo.get_doc("User", "test@example.com")
+		stylo.flags.in_test = False
 		user.new_password = "password"
-		self.assertRaises(frappe.exceptions.ValidationError, user.save)
+		self.assertRaises(stylo.exceptions.ValidationError, user.save)
 		user.reload()
 		user.new_password = "Eastern_43A1W"
 		user.save()
-		frappe.flags.in_test = True
+		stylo.flags.in_test = True
 
 	def test_comment_mentions(self):
 		comment = """
@@ -250,8 +250,8 @@ class TestUser(StyloTestCase):
 		self.assertEqual(extract_mentions(comment)[0], "test_user@example.com")
 		self.assertEqual(extract_mentions(comment)[1], "test.again@example1.com")
 
-		frappe.delete_doc("User Group", "Team")
-		doc = frappe.get_doc(
+		stylo.delete_doc("User Group", "Team")
+		doc = stylo.get_doc(
 			{
 				"doctype": "User Group",
 				"name": "Team",
@@ -279,11 +279,11 @@ class TestUser(StyloTestCase):
 	@change_settings("System Settings", commit=True, password_reset_limit=1)
 	def test_rate_limiting_for_reset_password(self):
 		url = get_url()
-		data = {"cmd": "frappe.core.doctype.user.user.reset_password", "user": "test@test.com"}
+		data = {"cmd": "stylo.core.doctype.user.user.reset_password", "user": "test@test.com"}
 
 		# Clear rate limit tracker to start fresh
 		key = f"rl:{data['cmd']}:{data['user']}"
-		frappe.cache().delete(key)
+		stylo.cache().delete(key)
 
 		c = StyloClient(url)
 		res1 = c.session.post(url, data=data, verify=c.verify, headers=c.headers)
@@ -294,7 +294,7 @@ class TestUser(StyloTestCase):
 	def test_user_rename(self):
 		old_name = "test_user_rename@example.com"
 		new_name = "test_user_rename_new@example.com"
-		user = frappe.get_doc(
+		user = stylo.get_doc(
 			{
 				"doctype": "User",
 				"email": old_name,
@@ -305,20 +305,20 @@ class TestUser(StyloTestCase):
 			}
 		).insert(ignore_permissions=True, ignore_if_duplicate=True)
 
-		frappe.rename_doc("User", user.name, new_name)
-		self.assertTrue(frappe.db.exists("Notification Settings", new_name))
+		stylo.rename_doc("User", user.name, new_name)
+		self.assertTrue(stylo.db.exists("Notification Settings", new_name))
 
-		frappe.delete_doc("User", new_name)
+		stylo.delete_doc("User", new_name)
 
 	def test_signup(self):
-		import frappe.website.utils
+		import stylo.website.utils
 
-		random_user = frappe.mock("email")
-		random_user_name = frappe.mock("name")
+		random_user = stylo.mock("email")
+		random_user_name = stylo.mock("name")
 		# disabled signup
 		with patch.object(user_module, "is_signup_disabled", return_value=True):
 			self.assertRaisesRegex(
-				frappe.exceptions.ValidationError,
+				stylo.exceptions.ValidationError,
 				"Sign Up is disabled",
 				sign_up,
 				random_user,
@@ -330,13 +330,13 @@ class TestUser(StyloTestCase):
 			sign_up(random_user, random_user_name, "/welcome"),
 			(1, "Please check your email for verification"),
 		)
-		self.assertEqual(frappe.cache().hget("redirect_after_login", random_user), "/welcome")
+		self.assertEqual(stylo.cache().hget("redirect_after_login", random_user), "/welcome")
 
 		# re-register
 		self.assertTupleEqual(sign_up(random_user, random_user_name, "/welcome"), (0, "Already Registered"))
 
 		# disabled user
-		user = frappe.get_doc("User", random_user)
+		user = stylo.get_doc("User", random_user)
 		user.enabled = 0
 		user.save()
 
@@ -345,32 +345,32 @@ class TestUser(StyloTestCase):
 		)
 
 		# throttle user creation
-		with patch.object(user_module.frappe.db, "get_creation_count", return_value=301):
+		with patch.object(user_module.stylo.db, "get_creation_count", return_value=301):
 			self.assertRaisesRegex(
-				frappe.exceptions.ValidationError,
+				stylo.exceptions.ValidationError,
 				"Throttled",
 				sign_up,
-				frappe.mock("email"),
+				stylo.mock("email"),
 				random_user_name,
 				"/signup",
 			)
 
 	@change_settings("System Settings", password_reset_limit=6)
 	def test_reset_password(self):
-		from frappe.auth import CookieManager, LoginManager
-		from frappe.utils import set_request
+		from stylo.auth import CookieManager, LoginManager
+		from stylo.utils import set_request
 
 		old_password = "Eastern_43A1W"
 		new_password = "easy_password"
 
 		set_request(path="/random")
-		frappe.local.cookie_manager = CookieManager()
-		frappe.local.login_manager = LoginManager()
+		stylo.local.cookie_manager = CookieManager()
+		stylo.local.login_manager = LoginManager()
 		# used by rate limiter when calling reset_password
-		frappe.local.request_ip = "127.0.0.69"
+		stylo.local.request_ip = "127.0.0.69"
 
-		frappe.set_user("testpassword@example.com")
-		test_user = frappe.get_doc("User", "testpassword@example.com")
+		stylo.set_user("testpassword@example.com")
+		test_user = stylo.get_doc("User", "testpassword@example.com")
 		key = self.reset_password(test_user)
 		self.assertEqual(update_password(new_password, key=key), "/app")
 		self.assertEqual(
@@ -379,13 +379,13 @@ class TestUser(StyloTestCase):
 		)
 
 		# password verification should fail with old password
-		self.assertRaises(frappe.exceptions.AuthenticationError, verify_password, old_password)
+		self.assertRaises(stylo.exceptions.AuthenticationError, verify_password, old_password)
 		verify_password(new_password)
 
 		# reset password
 		update_password(old_password, old_password=new_password)
 		self.assertRaisesRegex(
-			frappe.exceptions.ValidationError, "Invalid key type", update_password, "test", 1, ["like", "%"]
+			stylo.exceptions.ValidationError, "Invalid key type", update_password, "test", 1, ["like", "%"]
 		)
 
 		password_strength_response = {
@@ -395,7 +395,7 @@ class TestUser(StyloTestCase):
 		# password strength failure test
 		with patch.object(user_module, "test_password_strength", return_value=password_strength_response):
 			self.assertRaisesRegex(
-				frappe.exceptions.ValidationError,
+				stylo.exceptions.ValidationError,
 				"Fix password",
 				update_password,
 				new_password,
@@ -404,15 +404,15 @@ class TestUser(StyloTestCase):
 			)
 
 		# test redirect URL for website users
-		frappe.set_user("test2@example.com")
+		stylo.set_user("test2@example.com")
 		self.assertEqual(update_password(new_password, old_password=old_password), "/")
 		# reset password
 		update_password(old_password, old_password=new_password)
 
 		# test API endpoint
-		with patch.object(user_module.frappe, "sendmail") as sendmail:
-			frappe.clear_messages()
-			test_user = frappe.get_doc("User", "test2@example.com")
+		with patch.object(user_module.stylo, "sendmail") as sendmail:
+			stylo.clear_messages()
+			test_user = stylo.get_doc("User", "test2@example.com")
 			self.assertEqual(reset_password(user="test2@example.com"), None)
 			test_user.reload()
 			link = sendmail.call_args_list[0].kwargs["args"]["link"]
@@ -420,7 +420,7 @@ class TestUser(StyloTestCase):
 			self.assertEqual(update_password(new_password, key=key), "/")
 			update_password(old_password, old_password=new_password)
 			self.assertEqual(
-				json.loads(frappe.message_log[0]).get("message"),
+				json.loads(stylo.message_log[0]).get("message"),
 				"Password reset instructions have been sent to your email",
 			)
 
@@ -432,12 +432,12 @@ class TestUser(StyloTestCase):
 		self.assertEqual(reset_password(user="random"), "not found")
 
 	def test_user_onload_modules(self):
-		from frappe.config import get_modules_from_all_apps
-		from frappe.desk.form.load import getdoc
+		from stylo.config import get_modules_from_all_apps
+		from stylo.desk.form.load import getdoc
 
-		frappe.response.docs = []
+		stylo.response.docs = []
 		getdoc("User", "Administrator")
-		doc = frappe.response.docs[0]
+		doc = stylo.response.docs[0]
 		self.assertListEqual(
 			sorted(doc.get("__onload").get("all_modules", [])),
 			sorted(m.get("module_name") for m in get_modules_from_all_apps()),
@@ -446,8 +446,8 @@ class TestUser(StyloTestCase):
 	@change_settings("System Settings", reset_password_link_expiry_duration=1)
 	def test_reset_password_link_expiry(self):
 		new_password = "new_password"
-		frappe.set_user("testpassword@example.com")
-		test_user = frappe.get_doc("User", "testpassword@example.com")
+		stylo.set_user("testpassword@example.com")
+		test_user = stylo.get_doc("User", "testpassword@example.com")
 		key = self.reset_password(test_user)
 		time.sleep(1)
 
@@ -462,9 +462,9 @@ def test_user(
 	*, first_name: str | None = None, email: str | None = None, roles: list[str], commit=False, **kwargs
 ):
 	try:
-		first_name = first_name or frappe.generate_hash()
+		first_name = first_name or stylo.generate_hash()
 		email = email or (first_name + "@example.com")
-		user: User = frappe.get_doc(
+		user: User = stylo.get_doc(
 			doctype="User",
 			send_welcome_email=0,
 			email=email,
@@ -474,12 +474,12 @@ def test_user(
 		user.append_roles(*roles)
 		user.insert()
 		yield user
-		commit and frappe.db.commit()
+		commit and stylo.db.commit()
 	finally:
 		user.delete(force=True, ignore_permissions=True)
-		commit and frappe.db.commit()
+		commit and stylo.db.commit()
 
 
 def delete_contact(user):
-	frappe.db.delete("Contact", {"email_id": user})
-	frappe.db.delete("Contact Email", {"email_id": user})
+	stylo.db.delete("Contact", {"email_id": user})
+	stylo.db.delete("Contact Email", {"email_id": user})

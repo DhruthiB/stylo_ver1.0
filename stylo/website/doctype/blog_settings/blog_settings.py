@@ -3,21 +3,21 @@
 
 # License: MIT. See LICENSE
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class BlogSettings(Document):
 	def on_update(self):
-		from frappe.website.utils import clear_cache
+		from stylo.website.utils import clear_cache
 
 		clear_cache("blog")
 		clear_cache("writers")
 
 
 def get_like_limit():
-	return frappe.db.get_single_value("Blog Settings", "like_limit") or 5
+	return stylo.db.get_single_value("Blog Settings", "like_limit") or 5
 
 
 def get_comment_limit():
-	return frappe.db.get_single_value("Blog Settings", "comment_limit") or 5
+	return stylo.db.get_single_value("Blog Settings", "comment_limit") or 5

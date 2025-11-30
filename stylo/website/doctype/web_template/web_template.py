@@ -4,24 +4,24 @@
 import os
 from shutil import rmtree
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
-from frappe.modules.export_file import get_module_path, scrub_dt_dn, write_document_file
-from frappe.website.utils import clear_cache
+import stylo
+from stylo import _
+from stylo.model.document import Document
+from stylo.modules.export_file import get_module_path, scrub_dt_dn, write_document_file
+from stylo.website.utils import clear_cache
 
 
 class WebTemplate(Document):
 	def validate(self):
-		if self.standard and not (frappe.conf.developer_mode or frappe.flags.in_patch):
-			frappe.throw(_("Enable developer mode to create a standard Web Template"))
+		if self.standard and not (stylo.conf.developer_mode or stylo.flags.in_patch):
+			stylo.throw(_("Enable developer mode to create a standard Web Template"))
 
 		for field in self.fields:
 			if not field.fieldname:
-				field.fieldname = frappe.scrub(field.label)
+				field.fieldname = stylo.scrub(field.label)
 
 	def before_save(self):
-		if frappe.conf.developer_mode:
+		if stylo.conf.developer_mode:
 			# custom to standard
 			if self.standard:
 				self.export_to_files()
@@ -33,7 +33,7 @@ class WebTemplate(Document):
 
 	def on_update(self):
 		"""Clear cache for all Web Pages in which this template is used"""
-		routes = frappe.get_all(
+		routes = stylo.get_all(
 			"Web Page",
 			filters=[
 				["Web Page Block", "web_template", "=", self.name],
@@ -45,7 +45,7 @@ class WebTemplate(Document):
 			clear_cache(route)
 
 	def on_trash(self):
-		if frappe.conf.developer_mode and self.standard:
+		if stylo.conf.developer_mode and self.standard:
 			# delete template html and json files
 			rmtree(self.get_template_folder())
 
@@ -84,7 +84,7 @@ class WebTemplate(Document):
 	def get_template_path(self):
 		"""Return the absolute path to the template's HTML file."""
 		folder = self.get_template_folder()
-		file_name = frappe.scrub(self.name) + ".html"
+		file_name = stylo.scrub(self.name) + ".html"
 
 		return os.path.join(folder, file_name)
 
@@ -106,8 +106,8 @@ class WebTemplate(Document):
 	def render(self, values=None):
 		if not values:
 			values = {}
-		values = frappe.parse_json(values)
+		values = stylo.parse_json(values)
 		values.update({"values": values})
 		template = self.get_template(self.standard)
 
-		return frappe.render_template(template, values)
+		return stylo.render_template(template, values)

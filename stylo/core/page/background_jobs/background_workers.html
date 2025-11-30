@@ -17,14 +17,14 @@
             <td>
                 <div>
                     <span class="job-name">
-                        {{ frappe.utils.encode_tags(j.job_name) }}
+                        {{ stylo.utils.encode_tags(j.job_name) }}
                     </span>
                 </div>
                 {% if j.exc_info %}
                 <details>
                     <summary>{{ __("Exception") }}</summary>
                     <div class="exc_info">
-                        <pre>{{ frappe.utils.encode_tags(j.exc_info) }}</pre>
+                        <pre>{{ stylo.utils.encode_tags(j.exc_info) }}</pre>
                     </div>
                 </details>
                 {% endif %}
@@ -32,20 +32,20 @@
             <td>
                 <span class="indicator-pill {{ j.color }}">{{ toTitle(j.status) }}</span>
             </td>
-            <td class="creation text-muted">{{ frappe.datetime.prettyDate(j.creation) }}</td>
+            <td class="creation text-muted">{{ stylo.datetime.prettyDate(j.creation) }}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
 <div class="no-background-jobs">
-    <img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
+    <img src="/assets/stylo/images/ui-states/list-empty-state.svg" alt="Empty State">
     <p class="text-muted">{{ __("No workers online on this site") }}</p>
 </div>
 {% endif %}
 <div class="footer">
     <div class="text-muted">
         {{ __("Last refreshed") }}
-        {{ frappe.datetime.now_datetime(true).toLocaleString() }}
+        {{ stylo.datetime.now_datetime(true).toLocaleString() }}
     </div>
 </div>

@@ -1,6 +1,6 @@
 // Copyright (c) 2016, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Blogger", {
+stylo.ui.form.on("Blogger", {
 	refresh: function (frm) {},
 });

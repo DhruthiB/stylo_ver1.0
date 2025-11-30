@@ -3,11 +3,11 @@ from unittest.mock import patch
 
 import redis
 
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import get_forge_id
-from frappe.utils.background_jobs import get_redis_conn
-from frappe.utils.redis_queue import RedisQueue
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import get_forge_id
+from stylo.utils.background_jobs import get_redis_conn
+from stylo.utils.redis_queue import RedisQueue
 
 
 def version_tuple(version):
@@ -31,14 +31,14 @@ def skip_if_redis_version_lt(version):
 
 class TestRedisAuth(StyloTestCase):
 	@skip_if_redis_version_lt("6.0")
-	@patch.dict(frappe.conf, {"forge_id": "test_forge", "use_rq_auth": False})
+	@patch.dict(stylo.conf, {"forge_id": "test_forge", "use_rq_auth": False})
 	def test_rq_gen_acllist(self):
 		"""Make sure that ACL list is genrated"""
 		acl_list = RedisQueue.gen_acl_list()
 		self.assertEqual(acl_list[1]["forge"][0], get_forge_id())
 
 	@skip_if_redis_version_lt("6.0")
-	@patch.dict(frappe.conf, {"forge_id": "test_forge", "use_rq_auth": False})
+	@patch.dict(stylo.conf, {"forge_id": "test_forge", "use_rq_auth": False})
 	def test_adding_redis_user(self):
 		acl_list = RedisQueue.gen_acl_list()
 		username, password = acl_list[1]["forge"]
@@ -50,11 +50,11 @@ class TestRedisAuth(StyloTestCase):
 		conn.acl_deluser(username)
 
 	@skip_if_redis_version_lt("6.0")
-	@patch.dict(frappe.conf, {"forge_id": "test_forge", "use_rq_auth": False})
+	@patch.dict(stylo.conf, {"forge_id": "test_forge", "use_rq_auth": False})
 	def test_rq_namespace(self):
 		"""Make sure that user can access only their respective namespace."""
 		# Current forge ID
-		forge_id = frappe.conf.get("forge_id")
+		forge_id = stylo.conf.get("forge_id")
 		conn = get_redis_conn()
 		conn.set("rq:queue:test_forge1:abc", "value")
 		conn.set(f"rq:queue:{forge_id}:abc", "value")
@@ -63,7 +63,7 @@ class TestRedisAuth(StyloTestCase):
 		tmp_forge_id = "test_forge1"
 		username, password = tmp_forge_id, "password1"
 		conn.acl_deluser(username)
-		frappe.conf.update({"forge_id": tmp_forge_id})
+		stylo.conf.update({"forge_id": tmp_forge_id})
 		_ = RedisQueue(conn).add_user(username, password)
 		test_forge1_conn = RedisQueue.get_connection(username, password)
 
@@ -73,5 +73,5 @@ class TestRedisAuth(StyloTestCase):
 		with self.assertRaises(redis.exceptions.NoPermissionError):
 			test_forge1_conn.get(f"rq:queue:{forge_id}:abc")
 
-		frappe.conf.update({"forge_id": forge_id})
+		stylo.conf.update({"forge_id": forge_id})
 		conn.acl_deluser(username)

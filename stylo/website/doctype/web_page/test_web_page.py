@@ -1,16 +1,16 @@
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.website.path_resolver import PathResolver
-from frappe.website.serve import get_response_content
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.website.path_resolver import PathResolver
+from stylo.website.serve import get_response_content
 
-test_records = frappe.get_test_records("Web Page")
+test_records = stylo.get_test_records("Web Page")
 
 
 class TestWebPage(StyloTestCase):
 	def setUp(self):
-		frappe.db.delete("Web Page")
+		stylo.db.delete("Web Page")
 		for t in test_records:
-			frappe.get_doc(t).insert()
+			stylo.get_doc(t).insert()
 
 	def test_path_resolver(self):
 		self.assertTrue(PathResolver("test-web-page-1").is_valid_path())
@@ -19,7 +19,7 @@ class TestWebPage(StyloTestCase):
 		self.assertFalse(PathResolver("test-web-page-1/test-web-page-Random").is_valid_path())
 
 	def test_content_type(self):
-		web_page = frappe.get_doc(
+		web_page = stylo.get_doc(
 			dict(
 				doctype="Web Page",
 				title="Test Content Type",
@@ -44,7 +44,7 @@ class TestWebPage(StyloTestCase):
 		web_page.delete()
 
 	def test_dynamic_route(self):
-		web_page = frappe.get_doc(
+		web_page = stylo.get_doc(
 			dict(
 				doctype="Web Page",
 				title="Test Dynamic Route",
@@ -53,11 +53,11 @@ class TestWebPage(StyloTestCase):
 				route="/doctype-view/<doctype>",
 				content_type="HTML",
 				dynamic_template=1,
-				main_section_html="<div>{{ frappe.form_dict.doctype }}</div>",
+				main_section_html="<div>{{ stylo.form_dict.doctype }}</div>",
 			)
 		).insert()
 		try:
-			from frappe.utils import get_html_for_route
+			from stylo.utils import get_html_for_route
 
 			content = get_html_for_route("/doctype-view/DocField")
 			self.assertIn("<div>DocField</div>", content)

@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Stylo Technologies and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Prepared Report", {
+stylo.ui.form.on("Prepared Report", {
 	render_filter_values: function (frm) {
 		var wrapper = $(frm.fields_dict["filter_values"].wrapper).empty();
 
@@ -20,7 +20,7 @@ frappe.ui.form.on("Prepared Report", {
 
 		Object.keys(filters).forEach((key) => {
 			const filter_row = $(`<tr>
-				<td>${frappe.model.unscrub(key)}</td>
+				<td>${stylo.model.unscrub(key)}</td>
 				<td>${filters[key]}</td>
 			</tr>`);
 			filter_table.find("tbody").append(filter_row);
@@ -39,8 +39,8 @@ frappe.ui.form.on("Prepared Report", {
 
 		if (frm.doc.status == "Completed") {
 			frm.page.set_primary_action(__("Show Report"), () => {
-				frappe.route_options = { prepared_report_name: frm.doc.name };
-				frappe.set_route("query-report", frm.doc.report_name);
+				stylo.route_options = { prepared_report_name: frm.doc.name };
+				stylo.set_route("query-report", frm.doc.report_name);
 			});
 		}
 	},

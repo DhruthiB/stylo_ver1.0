@@ -3,11 +3,11 @@
 
 import json
 
-import frappe
-from frappe import _
-from frappe.desk.doctype.bulk_update.bulk_update import show_progress
-from frappe.model.document import Document
-from frappe.model.workflow import get_workflow_name
+import stylo
+from stylo import _
+from stylo.desk.doctype.bulk_update.bulk_update import show_progress
+from stylo.model.document import Document
+from stylo.model.workflow import get_workflow_name
 
 
 class DeletedDocument(Document):
@@ -15,30 +15,30 @@ class DeletedDocument(Document):
 
 	@staticmethod
 	def clear_old_logs(days=180):
-		from frappe.query_builder import Interval
-		from frappe.query_builder.functions import Now
+		from stylo.query_builder import Interval
+		from stylo.query_builder.functions import Now
 
-		table = frappe.qb.DocType("Deleted Document")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
+		table = stylo.qb.DocType("Deleted Document")
+		stylo.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def restore(name, alert=True):
-	deleted = frappe.get_doc("Deleted Document", name)
+	deleted = stylo.get_doc("Deleted Document", name)
 
 	if deleted.restored:
-		frappe.throw(_("Document {0} Already Restored").format(name), exc=frappe.DocumentAlreadyRestored)
+		stylo.throw(_("Document {0} Already Restored").format(name), exc=stylo.DocumentAlreadyRestored)
 
-	doc = frappe.get_doc(json.loads(deleted.data))
+	doc = stylo.get_doc(json.loads(deleted.data))
 
 	try:
 		doc.insert()
-	except frappe.DocstatusTransitionError:
-		frappe.msgprint(_("Cancelled Document restored as Draft"))
+	except stylo.DocstatusTransitionError:
+		stylo.msgprint(_("Cancelled Document restored as Draft"))
 		doc.docstatus = 0
 		active_workflow = get_workflow_name(doc.doctype)
 		if active_workflow:
-			workflow_state_fieldname = frappe.get_value("Workflow", active_workflow, "workflow_state_field")
+			workflow_state_fieldname = stylo.get_value("Workflow", active_workflow, "workflow_state_field")
 			if doc.get(workflow_state_fieldname):
 				doc.set(workflow_state_fieldname, None)
 		doc.insert()
@@ -50,12 +50,12 @@ def restore(name, alert=True):
 	deleted.db_update()
 
 	if alert:
-		frappe.msgprint(_("Document Restored"))
+		stylo.msgprint(_("Document Restored"))
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def bulk_restore(docnames):
-	docnames = frappe.parse_json(docnames)
+	docnames = stylo.parse_json(docnames)
 	message = _("Restoring Deleted Document")
 	restored, invalid, failed = [], [], []
 
@@ -63,16 +63,16 @@ def bulk_restore(docnames):
 		try:
 			show_progress(docnames, message, i + 1, d)
 			restore(d, alert=False)
-			frappe.db.commit()
+			stylo.db.commit()
 			restored.append(d)
 
-		except frappe.DocumentAlreadyRestored:
-			frappe.message_log.pop()
+		except stylo.DocumentAlreadyRestored:
+			stylo.message_log.pop()
 			invalid.append(d)
 
 		except Exception:
-			frappe.message_log.pop()
+			stylo.message_log.pop()
 			failed.append(d)
-			frappe.db.rollback()
+			stylo.db.rollback()
 
 	return {"restored": restored, "invalid": invalid, "failed": failed}

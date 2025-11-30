@@ -1,24 +1,24 @@
 # Copyright (c) 2020, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestSystemConsole(StyloTestCase):
 	def test_system_console(self):
-		system_console = frappe.get_doc("System Console")
+		system_console = stylo.get_doc("System Console")
 		system_console.console = 'log("hello")'
 		system_console.run()
 
 		self.assertEqual(system_console.output, "hello")
 
-		system_console.console = 'log(frappe.db.get_value("DocType", "DocType", "module"))'
+		system_console.console = 'log(stylo.db.get_value("DocType", "DocType", "module"))'
 		system_console.run()
 
 		self.assertEqual(system_console.output, "Core")
 
 	def test_system_console_sql(self):
-		system_console = frappe.get_doc("System Console")
+		system_console = stylo.get_doc("System Console")
 		system_console.type = "SQL"
 		system_console.console = "select 'test'"
 		system_console.run()

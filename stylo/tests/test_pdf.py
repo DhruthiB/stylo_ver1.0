@@ -4,10 +4,10 @@ import io
 
 from PyPDF2 import PdfReader
 
-import frappe
-import frappe.utils.pdf as pdfgen
-from frappe.core.doctype.file.test_file import make_test_image_file
-from frappe.tests.utils import StyloTestCase
+import stylo
+import stylo.utils.pdf as pdfgen
+from stylo.core.doctype.file.test_file import make_test_image_file
+from stylo.tests.utils import StyloTestCase
 
 
 class TestPdf(StyloTestCase):
@@ -25,9 +25,9 @@ class TestPdf(StyloTestCase):
 				<a href="http://test.com">Test link 1</a>
 				<a href="/about">Test link 2</a>
 				<a href="login">Test link 3</a>
-				<img src="/assets/frappe/test.jpg">
+				<img src="/assets/stylo/test.jpg">
 			</div>
-			<div style="background-image: url('/assets/frappe/bg.jpg')">
+			<div style="background-image: url('/assets/stylo/bg.jpg')">
 				Please mail us at <a href="mailto:test@example.com">email</a>
 			</div>"""
 
@@ -78,7 +78,7 @@ class TestPdf(StyloTestCase):
 		self.assertTrue(reader.decrypt(password))
 
 	def test_pdf_generation_as_a_user(self):
-		frappe.set_user("Administrator")
+		stylo.set_user("Administrator")
 		pdf = pdfgen.get_pdf(self.html)
 		self.assertTrue(pdf)
 

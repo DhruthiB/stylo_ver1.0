@@ -4,8 +4,8 @@
 import json
 import os
 
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestPackage(StyloTestCase):
@@ -17,15 +17,15 @@ class TestPackage(StyloTestCase):
 		make_test_web_page()
 
 		# make release
-		frappe.get_doc(dict(doctype="Package Release", package="Test Package", publish=1)).insert()
+		stylo.get_doc(dict(doctype="Package Release", package="Test Package", publish=1)).insert()
 
-		self.assertTrue(os.path.exists(frappe.get_site_path("packages", "test-package")))
+		self.assertTrue(os.path.exists(stylo.get_site_path("packages", "test-package")))
 		self.assertTrue(
-			os.path.exists(frappe.get_site_path("packages", "test-package", "test_module_for_package"))
+			os.path.exists(stylo.get_site_path("packages", "test-package", "test_module_for_package"))
 		)
 		self.assertTrue(
 			os.path.exists(
-				frappe.get_site_path(
+				stylo.get_site_path(
 					"packages",
 					"test-package",
 					"test_module_for_package",
@@ -35,7 +35,7 @@ class TestPackage(StyloTestCase):
 			)
 		)
 		with open(
-			frappe.get_site_path(
+			stylo.get_site_path(
 				"packages",
 				"test-package",
 				"test_module_for_package",
@@ -51,28 +51,28 @@ class TestPackage(StyloTestCase):
 
 
 def make_test_package():
-	if not frappe.db.exists("Package", "Test Package"):
-		frappe.get_doc(
+	if not stylo.db.exists("Package", "Test Package"):
+		stylo.get_doc(
 			dict(doctype="Package", name="Test Package", package_name="test-package", readme="# Test Package")
 		).insert()
 
 
 def make_test_module():
-	if not frappe.db.exists("Module Def", "Test Module for Package"):
-		frappe.get_doc(
+	if not stylo.db.exists("Module Def", "Test Module for Package"):
+		stylo.get_doc(
 			dict(
 				doctype="Module Def",
 				module_name="Test Module for Package",
 				custom=1,
-				app_name="frappe",
+				app_name="stylo",
 				package="Test Package",
 			)
 		).insert()
 
 
 def make_test_doctype():
-	if not frappe.db.exists("DocType", "Test DocType for Package"):
-		frappe.get_doc(
+	if not stylo.db.exists("DocType", "Test DocType for Package"):
+		stylo.get_doc(
 			dict(
 				doctype="DocType",
 				name="Test DocType for Package",
@@ -85,8 +85,8 @@ def make_test_doctype():
 
 
 def make_test_server_script():
-	if not frappe.db.exists("Server Script", "Test Script for Package"):
-		frappe.get_doc(
+	if not stylo.db.exists("Server Script", "Test Script for Package"):
+		stylo.get_doc(
 			dict(
 				doctype="Server Script",
 				name="Test Script for Package",
@@ -94,14 +94,14 @@ def make_test_server_script():
 				script_type="DocType Event",
 				reference_doctype="Test DocType for Package",
 				doctype_event="Before Save",
-				script='frappe.msgprint("Test")',
+				script='stylo.msgprint("Test")',
 			)
 		).insert()
 
 
 def make_test_web_page():
-	if not frappe.db.exists("Web Page", "test-web-page-for-package"):
-		frappe.get_doc(
+	if not stylo.db.exists("Web Page", "test-web-page-for-package"):
+		stylo.get_doc(
 			dict(
 				doctype="Web Page",
 				module="Test Module for Package",

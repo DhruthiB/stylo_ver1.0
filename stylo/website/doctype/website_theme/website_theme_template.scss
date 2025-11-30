@@ -5,10 +5,10 @@ $font-family-sans-serif: "{{ google_font }}", -apple-system, BlinkMacSystemFont,
 	"Droid Sans", "Helvetica Neue", sans-serif;
 {% endif -%}
 
-{% if primary_color %}$primary: {{ frappe.db.get_value('Color', primary_color, 'color') }};{% endif -%}
-{% if dark_color %}$dark: {{ frappe.db.get_value('Color', dark_color, 'color') }};{% endif -%}
-{% if text_color %}$body-text-color: {{ frappe.db.get_value('Color', text_color, 'color') }};{% endif -%}
-{% if background_color %}$body-bg: {{ frappe.db.get_value('Color', background_color, 'color') }};{% endif -%}
+{% if primary_color %}$primary: {{ stylo.db.get_value('Color', primary_color, 'color') }};{% endif -%}
+{% if dark_color %}$dark: {{ stylo.db.get_value('Color', dark_color, 'color') }};{% endif -%}
+{% if text_color %}$body-text-color: {{ stylo.db.get_value('Color', text_color, 'color') }};{% endif -%}
+{% if background_color %}$body-bg: {{ stylo.db.get_value('Color', background_color, 'color') }};{% endif -%}
 
 $enable-shadows: {{ button_shadows and "true" or "false" }};
 $enable-gradients: {{ button_gradients and "true" or "false" }};

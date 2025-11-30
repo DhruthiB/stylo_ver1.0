@@ -1,13 +1,13 @@
 # Copyright (c) 2019, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import frappe
-import frappe.utils
-from frappe.core.doctype.doctype.test_doctype import new_doctype
-from frappe.desk.query_report import build_xlsx_data, export_query, run
-from frappe.tests.ui_test_helpers import create_doctype
-from frappe.tests.utils import StyloTestCase
-from frappe.utils.xlsxutils import make_xlsx
+import stylo
+import stylo.utils
+from stylo.core.doctype.doctype.test_doctype import new_doctype
+from stylo.desk.query_report import build_xlsx_data, export_query, run
+from stylo.tests.ui_test_helpers import create_doctype
+from stylo.tests.utils import StyloTestCase
+from stylo.utils.xlsxutils import make_xlsx
 
 
 class TestQueryReport(StyloTestCase):
@@ -15,7 +15,7 @@ class TestQueryReport(StyloTestCase):
 		"""Test exporting report using rows with multiple datatypes (list, dict)"""
 
 		# Create mock data
-		data = frappe._dict()
+		data = stylo._dict()
 		data.columns = [
 			{"label": "Column A", "fieldname": "column_a", "fieldtype": "Float"},
 			{"label": "Column B", "fieldname": "column_b", "width": 100, "fieldtype": "Float"},
@@ -50,7 +50,7 @@ class TestQueryReport(StyloTestCase):
 	def test_xlsx_export_with_composite_cell_value(self):
 		"""Test excel export using rows with composite cell value"""
 
-		data = frappe._dict()
+		data = stylo._dict()
 		data.columns = [
 			{"label": "Column A", "fieldname": "column_a", "fieldtype": "Float"},
 			{"label": "Column B", "fieldname": "column_b", "width": 150, "fieldtype": "Data"},
@@ -80,7 +80,7 @@ class TestQueryReport(StyloTestCase):
 				{"label": "First Name", "fieldname": "first_name", "fieldtype": "Data"},
 				{"label": "Last Name", "fieldname": "last_name", "fieldtype": "Data"},
 			]
-			frappe.get_doc(
+			stylo.get_doc(
 				{
 					"doctype": "DocType",
 					"name": "Doc A",
@@ -92,7 +92,7 @@ class TestQueryReport(StyloTestCase):
 				}
 			).insert(ignore_if_duplicate=True)
 
-			frappe.get_doc(
+			stylo.get_doc(
 				{
 					"doctype": "DocType",
 					"name": "Doc B",
@@ -105,11 +105,11 @@ class TestQueryReport(StyloTestCase):
 			).insert(ignore_if_duplicate=True)
 
 			for i in range(1, 3):
-				frappe.get_doc({"doctype": "Doc A", "first_name": f"John{i}", "last_name": "Doe"}).insert()
-				frappe.get_doc({"doctype": "Doc B", "last_name": f"Doe{i}", "first_name": "John"}).insert()
+				stylo.get_doc({"doctype": "Doc A", "first_name": f"John{i}", "last_name": "Doe"}).insert()
+				stylo.get_doc({"doctype": "Doc B", "last_name": f"Doe{i}", "first_name": "John"}).insert()
 
-			if not frappe.db.exists("Report", "Doc A Report"):
-				report = frappe.get_doc(
+			if not stylo.db.exists("Report", "Doc A Report"):
+				report = stylo.get_doc(
 					{
 						"doctype": "Report",
 						"ref_doctype": "Doc A",
@@ -119,7 +119,7 @@ class TestQueryReport(StyloTestCase):
 					}
 				).insert(ignore_permissions=True)
 			else:
-				report = frappe.get_doc("Report", "Doc A Report")
+				report = stylo.get_doc("Report", "Doc A Report")
 
 			report.report_script = """
 result = [["Ritvik","Sardana", "Doe1"],["Shariq","Ansari", "Doe2"]]
@@ -187,7 +187,7 @@ data = columns, result
 
 		except Exception as e:
 			raise e
-			frappe.db.rollback()
+			stylo.db.rollback()
 
 	def test_csv(self):
 		from csv import QUOTE_ALL, QUOTE_MINIMAL, QUOTE_NONE, QUOTE_NONNUMERIC, DictReader
@@ -197,18 +197,18 @@ data = columns, result
 		REF_DOCTYPE = "DocType"
 		REPORT_COLUMNS = ["name", "module", "issingle"]
 
-		if not frappe.db.exists("Report", REPORT_NAME):
-			report = frappe.new_doc("Report")
+		if not stylo.db.exists("Report", REPORT_NAME):
+			report = stylo.new_doc("Report")
 			report.report_name = REPORT_NAME
 			report.ref_doctype = "User"
 			report.report_type = "Query Report"
-			report.query = frappe.qb.from_(REF_DOCTYPE).select(*REPORT_COLUMNS).limit(10).get_sql()
+			report.query = stylo.qb.from_(REF_DOCTYPE).select(*REPORT_COLUMNS).limit(10).get_sql()
 			report.is_standard = "No"
 			report.save()
 
 		for delimiter in (",", ";", "\t", "|"):
 			for quoting in (QUOTE_ALL, QUOTE_MINIMAL, QUOTE_NONE, QUOTE_NONNUMERIC):
-				frappe.local.form_dict = frappe._dict(
+				stylo.local.form_dict = stylo._dict(
 					{
 						"report_name": REPORT_NAME,
 						"file_format_type": "CSV",
@@ -220,12 +220,12 @@ data = columns, result
 				)
 				export_query()
 
-				self.assertTrue(frappe.response["filename"].endswith(".csv"))
-				self.assertEqual(frappe.response["type"], "binary")
-				with StringIO(frappe.response["filecontent"].decode("utf-8")) as result:
+				self.assertTrue(stylo.response["filename"].endswith(".csv"))
+				self.assertEqual(stylo.response["type"], "binary")
+				with StringIO(stylo.response["filecontent"].decode("utf-8")) as result:
 					reader = DictReader(result, delimiter=delimiter, quoting=quoting)
 					row = reader.__next__()
 					for column in REPORT_COLUMNS:
 						self.assertIn(column, row)
 
-		frappe.delete_doc("Report", REPORT_NAME, delete_permanently=True)
+		stylo.delete_doc("Report", REPORT_NAME, delete_permanently=True)

@@ -2,12 +2,12 @@
 # License: MIT. See LICENSE
 from contextlib import contextmanager
 
-import frappe
-from frappe.core.doctype.user_permission.test_user_permission import create_user
-from frappe.defaults import *
-from frappe.query_builder.utils import db_type_is
-from frappe.tests.test_query_builder import run_only_if
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.core.doctype.user_permission.test_user_permission import create_user
+from stylo.defaults import *
+from stylo.query_builder.utils import db_type_is
+from stylo.tests.test_query_builder import run_only_if
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDefaults(StyloTestCase):
@@ -65,10 +65,10 @@ class TestDefaults(StyloTestCase):
 
 @contextmanager
 def as_restricted_user():
-	old_user = frappe.session.user
+	old_user = stylo.session.user
 	user = "test@example.com"
 
-	perm_doc = frappe.get_doc(
+	perm_doc = stylo.get_doc(
 		{
 			"doctype": "User Permission",
 			"user": user,
@@ -77,42 +77,42 @@ def as_restricted_user():
 		}
 	).insert(ignore_permissions=True)
 
-	frappe.set_user(user)
+	stylo.set_user(user)
 
 	yield
 
 	perm_doc.delete(ignore_permissions=True)
-	frappe.set_user(old_user)
+	stylo.set_user(old_user)
 
 	@run_only_if(db_type_is.MARIADB)
 	def test_user_permission_defaults(self):
 		# Create user permission
 		create_user("user_default_test@example.com", "Blogger")
-		frappe.set_user("user_default_test@example.com")
+		stylo.set_user("user_default_test@example.com")
 		set_global_default("Country", "")
 		clear_user_default("Country")
 
-		perm_doc = frappe.get_doc(
+		perm_doc = stylo.get_doc(
 			dict(
 				doctype="User Permission",
-				user=frappe.session.user,
+				user=stylo.session.user,
 				allow="Country",
 				for_value="India",
 			)
 		).insert(ignore_permissions=True)
 
-		frappe.db.set_value("User Permission", perm_doc.name, "is_default", 1)
+		stylo.db.set_value("User Permission", perm_doc.name, "is_default", 1)
 		set_global_default("Country", "United States")
 		self.assertEqual(get_user_default("Country"), "India")
 
-		frappe.db.set_value("User Permission", perm_doc.name, "is_default", 0)
+		stylo.db.set_value("User Permission", perm_doc.name, "is_default", 0)
 		clear_user_default("Country")
 		self.assertEqual(get_user_default("Country"), None)
 
-		perm_doc = frappe.get_doc(
+		perm_doc = stylo.get_doc(
 			dict(
 				doctype="User Permission",
-				user=frappe.session.user,
+				user=stylo.session.user,
 				allow="Country",
 				for_value="United States",
 			)

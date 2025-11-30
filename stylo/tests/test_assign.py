@@ -1,34 +1,34 @@
 # Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-import frappe.desk.form.assign_to
-from frappe.automation.doctype.assignment_rule.test_assignment_rule import make_note
-from frappe.desk.form.load import get_assignments
-from frappe.desk.listview import get_group_by_count
-from frappe.tests.utils import StyloTestCase
+import stylo
+import stylo.desk.form.assign_to
+from stylo.automation.doctype.assignment_rule.test_assignment_rule import make_note
+from stylo.desk.form.load import get_assignments
+from stylo.desk.listview import get_group_by_count
+from stylo.tests.utils import StyloTestCase
 
 
 class TestAssign(StyloTestCase):
 	def test_assign(self):
-		todo = frappe.get_doc({"doctype": "ToDo", "description": "test"}).insert()
-		if not frappe.db.exists("User", "test@example.com"):
-			frappe.get_doc({"doctype": "User", "email": "test@example.com", "first_name": "Test"}).insert()
+		todo = stylo.get_doc({"doctype": "ToDo", "description": "test"}).insert()
+		if not stylo.db.exists("User", "test@example.com"):
+			stylo.get_doc({"doctype": "User", "email": "test@example.com", "first_name": "Test"}).insert()
 
 		added = assign(todo, "test@example.com")
 
 		self.assertTrue("test@example.com" in [d.owner for d in added])
 
-		frappe.desk.form.assign_to.remove(todo.doctype, todo.name, "test@example.com")
+		stylo.desk.form.assign_to.remove(todo.doctype, todo.name, "test@example.com")
 
 		# assignment is cleared
-		assignments = frappe.desk.form.assign_to.get(dict(doctype=todo.doctype, name=todo.name))
+		assignments = stylo.desk.form.assign_to.get(dict(doctype=todo.doctype, name=todo.name))
 		self.assertEqual(len(assignments), 0)
 
 	def test_assignment_count(self):
-		frappe.db.delete("ToDo")
+		stylo.db.delete("ToDo")
 
-		if not frappe.db.exists("User", "test_assign1@example.com"):
-			frappe.get_doc(
+		if not stylo.db.exists("User", "test_assign1@example.com"):
+			stylo.get_doc(
 				{
 					"doctype": "User",
 					"email": "test_assign1@example.com",
@@ -37,8 +37,8 @@ class TestAssign(StyloTestCase):
 				}
 			).insert()
 
-		if not frappe.db.exists("User", "test_assign2@example.com"):
-			frappe.get_doc(
+		if not stylo.db.exists("User", "test_assign2@example.com"):
+			stylo.get_doc(
 				{
 					"doctype": "User",
 					"email": "test_assign2@example.com",
@@ -70,23 +70,23 @@ class TestAssign(StyloTestCase):
 		self.assertFalse("test_assign1@example.com" in data)
 		self.assertEqual(data["test_assign2@example.com"], 2)
 
-		frappe.db.rollback()
+		stylo.db.rollback()
 
 	def test_assignment_removal(self):
-		todo = frappe.get_doc({"doctype": "ToDo", "description": "test"}).insert()
-		if not frappe.db.exists("User", "test@example.com"):
-			frappe.get_doc({"doctype": "User", "email": "test@example.com", "first_name": "Test"}).insert()
+		todo = stylo.get_doc({"doctype": "ToDo", "description": "test"}).insert()
+		if not stylo.db.exists("User", "test@example.com"):
+			stylo.get_doc({"doctype": "User", "email": "test@example.com", "first_name": "Test"}).insert()
 
 		new_todo = assign(todo, "test@example.com")
 
 		# remove assignment
-		frappe.db.set_value("ToDo", new_todo[0].name, "allocated_to", "")
+		stylo.db.set_value("ToDo", new_todo[0].name, "allocated_to", "")
 
 		self.assertFalse(get_assignments("ToDo", todo.name))
 
 
 def assign(doc, user):
-	return frappe.desk.form.assign_to.add(
+	return stylo.desk.form.assign_to.add(
 		{
 			"assign_to": [user],
 			"doctype": doc.doctype,

@@ -1,13 +1,13 @@
-import frappe
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import set_request
-from frappe.website.serve import get_response
-from frappe.www.list import get_list_context
+import stylo
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import set_request
+from stylo.website.serve import get_response
+from stylo.www.list import get_list_context
 
 
 class TestWebform(StyloTestCase):
 	def test_webform_publish_functionality(self):
-		request_data = frappe.get_doc("Web Form", "request-data")
+		request_data = stylo.get_doc("Web Form", "request-data")
 		# publish webform
 		request_data.published = True
 		request_data.save()
@@ -32,7 +32,7 @@ class TestWebform(StyloTestCase):
 		# create a hook to get webform_context
 		set_webform_hook(
 			"webform_list_context",
-			"frappe.www._test._test_webform.webform_list_context",
+			"stylo.www._test._test_webform.webform_list_context",
 		)
 		# check context for apps with hook
 		context_list = get_list_context("", "Custom Doctype", "test-webform")
@@ -40,7 +40,7 @@ class TestWebform(StyloTestCase):
 
 
 def create_custom_doctype():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Custom Doctype",
@@ -52,7 +52,7 @@ def create_custom_doctype():
 
 
 def create_webform():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "Web Form",
 			"module": "Core",
@@ -72,7 +72,7 @@ def create_webform():
 
 
 def set_webform_hook(key, value):
-	from frappe import hooks
+	from stylo import hooks
 
 	# reset hooks
 	for hook in "webform_list_context":
@@ -80,4 +80,4 @@ def set_webform_hook(key, value):
 			delattr(hooks, hook)
 
 	setattr(hooks, key, value)
-	frappe.cache().delete_key("app_hooks")
+	stylo.cache().delete_key("app_hooks")

@@ -1,14 +1,14 @@
 from collections.abc import Callable
 
-import frappe
-from frappe.model import child_table_fields
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.model import child_table_fields
+from stylo.tests.utils import StyloTestCase
 
 
 class TestChildTable(StyloTestCase):
 	def tearDown(self) -> None:
 		try:
-			frappe.delete_doc("DocType", self.doctype_name, force=1)
+			stylo.delete_doc("DocType", self.doctype_name, force=1)
 		except Exception:
 			pass
 
@@ -21,7 +21,7 @@ class TestChildTable(StyloTestCase):
 		self.doctype_name = "Test Newy Child Table"
 
 		try:
-			doc = frappe.get_doc(
+			doc = stylo.get_doc(
 				{
 					"doctype": "DocType",
 					"name": self.doctype_name,
@@ -37,7 +37,7 @@ class TestChildTable(StyloTestCase):
 			self.fail("Not able to create Child Table Doctype")
 
 		for column in child_table_fields:
-			self.assertTrue(frappe.db.has_column(self.doctype_name, column))
+			self.assertTrue(stylo.db.has_column(self.doctype_name, column))
 
 		# check transitioning from child table to normal doctype
 		doc.istable = 0
@@ -58,6 +58,6 @@ class TestChildTable(StyloTestCase):
 		self.check_valid_columns(self.assertTrue)
 
 	def check_valid_columns(self, assertion_method: Callable) -> None:
-		valid_columns = frappe.get_meta(self.doctype_name).get_valid_columns()
+		valid_columns = stylo.get_meta(self.doctype_name).get_valid_columns()
 		for column in child_table_fields:
 			assertion_method(column in valid_columns)

@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import yaml
 
-import frappe
-from frappe.modules.patch_handler import get_all_patches
-from frappe.utils.boilerplate import (
+import stylo
+from stylo.modules.patch_handler import get_all_patches
+from stylo.utils.boilerplate import (
 	PatchCreator,
 	_create_app_boilerplate,
 	_get_user_inputs,
@@ -24,7 +24,7 @@ class TestBoilerPlate(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.default_hooks = frappe._dict(
+		cls.default_hooks = stylo._dict(
 			{
 				"app_name": "test_app",
 				"app_title": "Test App",
@@ -36,7 +36,7 @@ class TestBoilerPlate(unittest.TestCase):
 			}
 		)
 
-		cls.default_user_input = frappe._dict(
+		cls.default_user_input = stylo._dict(
 			{
 				"title": "Test App",
 				"description": "This app's description contains 'single quotes' and \"double quotes\".",
@@ -49,7 +49,7 @@ class TestBoilerPlate(unittest.TestCase):
 			}
 		)
 
-		cls.forge_path = frappe.utils.get_forge_path()
+		cls.forge_path = stylo.utils.get_forge_path()
 		cls.apps_dir = os.path.join(cls.forge_path, "apps")
 		cls.gitignore_file = ".gitignore"
 		cls.git_folder = ".git"
@@ -113,7 +113,7 @@ class TestBoilerPlate(unittest.TestCase):
 	def test_create_app(self):
 		app_name = "test_app"
 
-		hooks = frappe._dict(
+		hooks = stylo._dict(
 			{
 				"app_name": app_name,
 				"app_title": "Test App",
@@ -136,7 +136,7 @@ class TestBoilerPlate(unittest.TestCase):
 	def test_create_app_without_git_init(self):
 		app_name = "test_app_no_git"
 
-		hooks = frappe._dict(
+		hooks = stylo._dict(
 			{
 				"app_name": app_name,
 				"app_title": "Test App",
@@ -185,14 +185,14 @@ class TestBoilerPlate(unittest.TestCase):
 
 	def test_new_patch_util(self):
 		user_inputs = {
-			"app_name": "frappe",
+			"app_name": "stylo",
 			"doctype": "User",
 			"docstring": "Delete all users",
 			"file_name": "",  # Accept default
 			"patch_folder_confirmation": "Y",
 		}
 
-		patches_txt = pathlib.Path(pathlib.Path(frappe.get_app_path("frappe", "patches.txt")))
+		patches_txt = pathlib.Path(pathlib.Path(stylo.get_app_path("stylo", "patches.txt")))
 		original_patches = patches_txt.read_text()
 
 		with patch("sys.stdin", self.get_user_input_stream(user_inputs)):
@@ -201,7 +201,7 @@ class TestBoilerPlate(unittest.TestCase):
 			patch_creator.create_patch_file()
 
 		patches = get_all_patches()
-		expected_patch = "frappe.core.doctype.user.patches.delete_all_users"
+		expected_patch = "stylo.core.doctype.user.patches.delete_all_users"
 		self.assertIn(expected_patch, patches)
 
 		self.assertTrue(patch_creator.patch_file.exists())

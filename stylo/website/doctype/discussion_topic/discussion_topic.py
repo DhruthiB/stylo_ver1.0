@@ -1,18 +1,18 @@
 # Copyright (c) 2021, FOSS United and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe.model.document import Document
+import stylo
+from stylo.model.document import Document
 
 
 class DiscussionTopic(Document):
 	pass
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def submit_discussion(doctype, docname, reply, title, topic_name=None, reply_name=None):
 	if reply_name:
-		doc = frappe.get_doc("Discussion Reply", reply_name)
+		doc = stylo.get_doc("Discussion Reply", reply_name)
 		doc.reply = reply
 		doc.save(ignore_permissions=True)
 		return
@@ -21,7 +21,7 @@ def submit_discussion(doctype, docname, reply, title, topic_name=None, reply_nam
 		save_message(reply, topic_name)
 		return topic_name
 
-	topic = frappe.get_doc(
+	topic = stylo.get_doc(
 		{
 			"doctype": "Discussion Topic",
 			"title": title,
@@ -35,6 +35,6 @@ def submit_discussion(doctype, docname, reply, title, topic_name=None, reply_nam
 
 
 def save_message(reply, topic):
-	frappe.get_doc({"doctype": "Discussion Reply", "reply": reply, "topic": topic}).save(
+	stylo.get_doc({"doctype": "Discussion Reply", "reply": reply, "topic": topic}).save(
 		ignore_permissions=True
 	)

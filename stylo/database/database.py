@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING, Any, Union
 
 from pypika.terms import Criterion, NullValue
 
-import frappe
-import frappe.defaults
-from frappe import _
-from frappe.database.utils import (
+import stylo
+import stylo.defaults
+from stylo import _
+from stylo.database.utils import (
 	DefaultOrderBy,
 	EmptyQueryValues,
 	FallBackDateTimeStr,
@@ -25,13 +25,13 @@ from frappe.database.utils import (
 	QueryValues,
 	is_query_type,
 )
-from frappe.exceptions import DoesNotExistError, ImplicitCommitError
-from frappe.model.utils.link_count import flush_local_link_count
-from frappe.monitor import get_trace_id
-from frappe.query_builder.functions import Count
-from frappe.utils import cast as cast_fieldtype
-from frappe.utils import cint, get_datetime, get_table_name, getdate, now, sbool
-from frappe.utils.deprecations import deprecated, deprecation_warning
+from stylo.exceptions import DoesNotExistError, ImplicitCommitError
+from stylo.model.utils.link_count import flush_local_link_count
+from stylo.monitor import get_trace_id
+from stylo.query_builder.functions import Count
+from stylo.utils import cast as cast_fieldtype
+from stylo.utils import cint, get_datetime, get_table_name, getdate, now, sbool
+from stylo.utils.deprecations import deprecated, deprecation_warning
 
 if TYPE_CHECKING:
 	from psycopg2 import connection as PostgresConnection
@@ -82,7 +82,7 @@ class Database:
 	# ref: https://stackoverflow.com/questions/21356375/postgres-9-0-4-sequence-skipping-numbers
 	SEQUENCE_CACHE = 0
 
-	class InvalidColumnName(frappe.ValidationError):
+	class InvalidColumnName(stylo.ValidationError):
 		pass
 
 	def __init__(
@@ -95,24 +95,24 @@ class Database:
 		port=None,
 	):
 		self.setup_type_map()
-		self.host = host or frappe.conf.db_host or "127.0.0.1"
-		self.port = port or frappe.conf.db_port or ""
-		self.user = user or frappe.conf.db_name
-		self.db_name = frappe.conf.db_name
+		self.host = host or stylo.conf.db_host or "127.0.0.1"
+		self.port = port or stylo.conf.db_port or ""
+		self.user = user or stylo.conf.db_name
+		self.db_name = stylo.conf.db_name
 		self._conn = None
 
 		if ac_name:
-			self.user = ac_name or frappe.conf.db_name
+			self.user = ac_name or stylo.conf.db_name
 
 		if use_default:
-			self.user = frappe.conf.db_name
+			self.user = stylo.conf.db_name
 
 		self.transaction_writes = 0
 		self.auto_commit_on_many_writes = 0
 
-		self.password = password or frappe.conf.db_password
+		self.password = password or stylo.conf.db_password
 		self.value_cache = {}
-		self.logger = frappe.logger("database")
+		self.logger = stylo.logger("database")
 		self.logger.setLevel("WARNING")
 		# self.db_type: str
 		# self.last_query (lazy) attribute of last sql query executed
@@ -125,7 +125,7 @@ class Database:
 		self.cur_db_name = self.user
 		self._conn: "MariadbConnection" | "PostgresConnection" = self.get_connection()
 		self._cursor: "MariadbCursor" | "PostgresCursor" = self._conn.cursor()
-		frappe.local.rollback_observers = []
+		stylo.local.rollback_observers = []
 
 		try:
 			if execution_timeout := get_query_execution_timeout():
@@ -196,13 +196,13 @@ class Database:
 		Examples:
 
 		        # return customer names as dicts
-		        frappe.db.sql("select name from tabCustomer", as_dict=True)
+		        stylo.db.sql("select name from tabCustomer", as_dict=True)
 
 		        # return names beginning with a
-		        frappe.db.sql("select name from tabCustomer where name like %s", "a%")
+		        stylo.db.sql("select name from tabCustomer where name like %s", "a%")
 
 		        # values as dict
-		        frappe.db.sql("select name from tabCustomer where name like %(name)s and owner=%(owner)s",
+		        stylo.db.sql("select name from tabCustomer where name like %(name)s and owner=%(owner)s",
 		                {"name": "a%", "owner":"test@example.com"})
 
 		"""
@@ -238,39 +238,39 @@ class Database:
 		query, values = self._transform_query(query, values)
 
 		if trace_id := get_trace_id():
-			query += f" /* FRAPPE_TRACE_ID: {trace_id} */"
+			query += f" /* Stylo_TRACE_ID: {trace_id} */"
 
 		try:
 			self._cursor.execute(query, values)
 		except Exception as e:
 			if self.is_syntax_error(e):
-				frappe.errprint(f"Syntax error in query:\n{query} {values or ''}")
+				stylo.errprint(f"Syntax error in query:\n{query} {values or ''}")
 
 			elif self.is_deadlocked(e):
-				raise frappe.QueryDeadlockError(e) from e
+				raise stylo.QueryDeadlockError(e) from e
 
 			elif self.is_timedout(e):
-				raise frappe.QueryTimeoutError(e) from e
+				raise stylo.QueryTimeoutError(e) from e
 
 			elif self.is_read_only_mode_error(e):
-				frappe.throw(
+				stylo.throw(
 					_(
 						"Site is running in read only mode, this action can not be performed right now. Please try again later."
 					),
 					title=_("In Read Only Mode"),
-					exc=frappe.InReadOnlyMode,
+					exc=stylo.InReadOnlyMode,
 				)
 
 			# TODO: added temporarily
 			elif self.db_type == "postgres":
 				traceback.print_stack()
-				frappe.errprint(f"Error in query:\n{e}")
+				stylo.errprint(f"Error in query:\n{e}")
 				raise
 
 			elif isinstance(e, self.ProgrammingError):
-				if frappe.conf.developer_mode:
+				if stylo.conf.developer_mode:
 					traceback.print_stack()
-					frappe.errprint(f"Error in query:\n{query, values}")
+					stylo.errprint(f"Error in query:\n{query, values}")
 				raise
 
 			if not (
@@ -282,7 +282,7 @@ class Database:
 		self.log_query(query, values, debug, explain)
 		if debug:
 			time_end = time()
-			frappe.errprint(f"Execution time: {time_end - time_start:.2f} sec")
+			stylo.errprint(f"Execution time: {time_end - time_start:.2f} sec")
 
 		if auto_commit:
 			self.commit()
@@ -325,7 +325,7 @@ class Database:
 			elif as_dict:
 				keys = [column[0] for column in self._cursor.description]
 				for row in result:
-					row = frappe._dict(zip(keys, row, strict=False))
+					row = stylo._dict(zip(keys, row, strict=False))
 					if update:
 						row.update(update)
 					yield row
@@ -334,7 +334,7 @@ class Database:
 				for row in result:
 					yield list(row)
 			else:
-				frappe.throw(_("`as_iterator` only works with `as_list=True` or `as_dict=True`"))
+				stylo.throw(_("`as_iterator` only works with `as_list=True` or `as_dict=True`"))
 
 		self._clean_up()
 
@@ -348,7 +348,7 @@ class Database:
 		"""Takes the query and logs it to various interfaces according to the settings."""
 		_query = None
 
-		if frappe.conf.allow_tests and frappe.cache().get_value("flag_print_sql"):
+		if stylo.conf.allow_tests and stylo.cache().get_value("flag_print_sql"):
 			_query = _query or str(mogrified_query)
 			print(_query)
 
@@ -356,11 +356,11 @@ class Database:
 			_query = _query or str(mogrified_query)
 			if explain and is_query_type(_query, "select"):
 				self.explain_query(_query)
-			frappe.errprint(_query)
+			stylo.errprint(_query)
 
-		if frappe.conf.logging == 2:
+		if stylo.conf.logging == 2:
 			_query = _query or str(mogrified_query)
-			frappe.log(f"#### query\n{_query}\n####")
+			stylo.log(f"#### query\n{_query}\n####")
 
 		if unmogrified_query and is_query_type(
 			unmogrified_query, ("alter", "drop", "create", "truncate", "rename")
@@ -368,7 +368,7 @@ class Database:
 			_query = _query or str(mogrified_query)
 			self.logger.warning("DDL Query made to DB:\n" + _query)
 
-		if frappe.flags.in_migrate:
+		if stylo.flags.in_migrate:
 			_query = _query or str(mogrified_query)
 			self.log_touched_tables(_query)
 
@@ -392,10 +392,10 @@ class Database:
 		except AttributeError:
 			if isinstance(values, dict):
 				return query % {
-					k: frappe.db.escape(v) if isinstance(v, str) else v for k, v in values.items()
+					k: stylo.db.escape(v) if isinstance(v, str) else v for k, v in values.items()
 				}
 			elif isinstance(values, list | tuple):
-				return query % tuple(frappe.db.escape(v) if isinstance(v, str) else v for v in values)
+				return query % tuple(stylo.db.escape(v) if isinstance(v, str) else v for v in values)
 			return query, values
 
 	def lazy_mogrify(self, query: Query, values: QueryValues) -> LazyMogrify:
@@ -404,14 +404,14 @@ class Database:
 
 	def explain_query(self, query, values=None):
 		"""Print `EXPLAIN` in error log."""
-		frappe.errprint("--- query explain ---")
+		stylo.errprint("--- query explain ---")
 		try:
 			self._cursor.execute(f"EXPLAIN {query}", values)
 		except Exception as e:
-			frappe.errprint(f"error in query explain: {e}")
+			stylo.errprint(f"error in query explain: {e}")
 		else:
-			frappe.errprint(json.dumps(self.fetch_as_dict(), indent=1))
-			frappe.errprint("--- query explain end ---")
+			stylo.errprint(json.dumps(self.fetch_as_dict(), indent=1))
+			stylo.errprint("--- query explain end ---")
 
 	def sql_list(self, query, values=(), debug=False, **kwargs):
 		"""Return data as list of single elements (first column).
@@ -419,7 +419,7 @@ class Database:
 		Example:
 
 		        # doctypes = ["DocType", "DocField", "User", ...]
-		        doctypes = frappe.db.sql_list("select name from DocType")
+		        doctypes = stylo.db.sql_list("select name from DocType")
 		"""
 		return self.sql(query, values, **kwargs, debug=debug, pluck=True)
 
@@ -446,7 +446,7 @@ class Database:
 				else:
 					msg = "<br><br>" + _("Too many changes to database in single action.") + "<br>"
 					msg += _("The changes have been reverted.") + "<br>"
-					raise frappe.TooManyWritesError(msg)
+					raise stylo.TooManyWritesError(msg)
 
 	def check_implicit_commit(self, query):
 		if (
@@ -456,13 +456,13 @@ class Database:
 		):
 			raise ImplicitCommitError("This statement can cause implicit commit")
 
-	def fetch_as_dict(self, result, as_utf8=False) -> list[frappe._dict]:
+	def fetch_as_dict(self, result, as_utf8=False) -> list[stylo._dict]:
 		"""Internal. Convert results to dict."""
 		if result:
 			keys = [column[0] for column in self._cursor.description]
 
 		if not as_utf8:
-			return [frappe._dict(zip(keys, row, strict=False)) for row in result]
+			return [stylo._dict(zip(keys, row, strict=False)) for row in result]
 
 		ret = []
 		for r in result:
@@ -472,13 +472,13 @@ class Database:
 					value = value.encode("utf-8")
 				values.append(value)
 
-			ret.append(frappe._dict(zip(keys, values, strict=False)))
+			ret.append(stylo._dict(zip(keys, values, strict=False)))
 		return ret
 
 	@staticmethod
 	def clear_db_table_cache(query):
 		if query and is_query_type(query, ("drop", "create")):
-			frappe.cache().delete_key("db_tables")
+			stylo.cache().delete_key("db_tables")
 
 	@staticmethod
 	def needs_formatting(result, formatted):
@@ -552,16 +552,16 @@ class Database:
 		Example:
 
 		        # return first customer starting with a
-		        frappe.db.get_value("Customer", {"name": ("like a%")})
+		        stylo.db.get_value("Customer", {"name": ("like a%")})
 
 		        # return last login of **User** `test@example.com`
-		        frappe.db.get_value("User", "test@example.com", "last_login")
+		        stylo.db.get_value("User", "test@example.com", "last_login")
 
-		        last_login, last_ip = frappe.db.get_value("User", "test@example.com",
+		        last_login, last_ip = stylo.db.get_value("User", "test@example.com",
 		                ["last_login", "last_ip"])
 
 		        # returns default date_format
-		        frappe.db.get_value("System Settings", None, "date_format")
+		        stylo.db.get_value("System Settings", None, "date_format")
 		"""
 
 		result = self.get_values(
@@ -629,10 +629,10 @@ class Database:
 		Example:
 
 		        # return first customer starting with a
-		        customers = frappe.db.get_values("Customer", {"name": ("like a%")})
+		        customers = stylo.db.get_values("Customer", {"name": ("like a%")})
 
 		        # return last login of **User** `test@example.com`
-		        user = frappe.db.get_values("User", "test@example.com", "*")[0]
+		        user = stylo.db.get_values("User", "test@example.com", "*")[0]
 		"""
 		out = None
 		if cache and isinstance(filters, str) and (doctype, filters, fieldname) in self.value_cache:
@@ -686,12 +686,12 @@ class Database:
 					)
 				except Exception as e:
 					if ignore and (
-						frappe.db.is_missing_column(e)
-						or frappe.db.is_table_missing(e)
+						stylo.db.is_missing_column(e)
+						or stylo.db.is_table_missing(e)
 						or str(e).startswith("Invalid DocType")
 					):
 						out = None
-					elif (not ignore) and frappe.db.is_table_missing(e):
+					elif (not ignore) and stylo.db.is_table_missing(e):
 						# table not found, look in singles
 						out = self.get_values_from_single(
 							fields, filters, doctype, as_dict, debug, update, run=run, distinct=distinct
@@ -743,7 +743,7 @@ class Database:
 				return [list(map(values.get, fields))]
 
 		else:
-			r = frappe.qb.get_query(
+			r = stylo.qb.get_query(
 				"Singles",
 				filters={"field": ("in", tuple(fields)), "doctype": doctype},
 				fields=["field", "value"],
@@ -756,7 +756,7 @@ class Database:
 			if not r:
 				return []
 
-			r = frappe._dict(r)
+			r = stylo._dict(r)
 			if update:
 				r.update(update)
 
@@ -776,9 +776,9 @@ class Database:
 		Example:
 
 		        # Get coulmn and value of the single doctype Accounts Settings
-		        account_settings = frappe.db.get_singles_dict("Accounts Settings")
+		        account_settings = stylo.db.get_singles_dict("Accounts Settings")
 		"""
-		queried_result = frappe.qb.get_query(
+		queried_result = stylo.qb.get_query(
 			"Singles",
 			filters={"doctype": doctype},
 			fields=["field", "value"],
@@ -786,14 +786,14 @@ class Database:
 		).run(debug=debug)
 
 		if not cast:
-			return frappe._dict(queried_result)
+			return stylo._dict(queried_result)
 
 		try:
-			meta = frappe.get_meta(doctype)
+			meta = stylo.get_meta(doctype)
 		except DoesNotExistError:
-			return frappe._dict(queried_result)
+			return stylo._dict(queried_result)
 
-		return_value = frappe._dict()
+		return_value = stylo._dict()
 
 		for fieldname, value in queried_result:
 			if df := meta.get_field(fieldname):
@@ -806,11 +806,11 @@ class Database:
 
 	@staticmethod
 	def get_all(*args, **kwargs):
-		return frappe.get_all(*args, **kwargs)
+		return stylo.get_all(*args, **kwargs)
 
 	@staticmethod
 	def get_list(*args, **kwargs):
-		return frappe.get_list(*args, **kwargs)
+		return stylo.get_list(*args, **kwargs)
 
 	def set_single_value(
 		self,
@@ -829,7 +829,7 @@ class Database:
 		Example:
 
 		        # Update the `deny_multiple_sessions` field in System Settings DocType.
-		        frappe.db.set_single_value("System Settings", "deny_multiple_sessions", True)
+		        stylo.db.set_single_value("System Settings", "deny_multiple_sessions", True)
 		"""
 		return self.set_value(doctype, doctype, fieldname, value, *args, **kwargs)
 
@@ -842,7 +842,7 @@ class Database:
 		Example:
 
 		        # Get the default value of the company from the Global Defaults doctype.
-		        company = frappe.db.get_single_value('Global Defaults', 'default_company')
+		        company = stylo.db.get_single_value('Global Defaults', 'default_company')
 		"""
 
 		if doctype not in self.value_cache:
@@ -851,17 +851,17 @@ class Database:
 		if cache and fieldname in self.value_cache[doctype]:
 			return self.value_cache[doctype][fieldname]
 
-		val = frappe.qb.get_query(
+		val = stylo.qb.get_query(
 			table="Singles",
 			filters={"doctype": doctype, "field": fieldname},
 			fields="value",
 		).run()
 		val = val[0][0] if val else None
 
-		df = frappe.get_meta(doctype).get_field(fieldname)
+		df = stylo.get_meta(doctype).get_field(fieldname)
 
 		if not df:
-			frappe.throw(_("Invalid field name: {0}").format(frappe.bold(fieldname)), self.InvalidColumnName)
+			stylo.throw(_("Invalid field name: {0}").format(stylo.bold(fieldname)), self.InvalidColumnName)
 
 		val = cast_fieldtype(df.fieldtype, val)
 
@@ -891,7 +891,7 @@ class Database:
 		distinct=False,
 		limit=None,
 	):
-		query = frappe.qb.get_query(
+		query = stylo.qb.get_query(
 			table=doctype,
 			filters=filters,
 			order_by=order_by,
@@ -926,7 +926,7 @@ class Database:
 		wait=True,
 	):
 		if names := list(filter(None, names)):
-			return frappe.qb.get_query(
+			return stylo.qb.get_query(
 				doctype,
 				fields=field,
 				filters=names,
@@ -982,22 +982,22 @@ class Database:
 
 		if update_modified:
 			modified = modified or now()
-			modified_by = modified_by or frappe.session.user
+			modified_by = modified_by or stylo.session.user
 			to_update.update({"modified": modified, "modified_by": modified_by})
 
 		if is_single_doctype:
-			frappe.db.delete(
+			stylo.db.delete(
 				"Singles", filters={"field": ("in", tuple(to_update)), "doctype": dt}, debug=debug
 			)
 
 			singles_data = ((dt, key, sbool(value)) for key, value in to_update.items())
 			query = (
-				frappe.qb.into("Singles").columns("doctype", "field", "value").insert(*singles_data)
+				stylo.qb.into("Singles").columns("doctype", "field", "value").insert(*singles_data)
 			).run(debug=debug)
-			frappe.clear_document_cache(dt, dt)
+			stylo.clear_document_cache(dt, dt)
 
 		else:
-			query = frappe.qb.get_query(
+			query = stylo.qb.get_query(
 				table=dt,
 				filters=dn,
 				update=True,
@@ -1005,12 +1005,12 @@ class Database:
 			)
 
 			if isinstance(dn, str):
-				frappe.clear_document_cache(dt, dn)
+				stylo.clear_document_cache(dt, dn)
 			else:
-				# TODO: Fix this; doesn't work rn - gavin@frappe.io
-				# frappe.cache().hdel_keys(dt, "document_cache")
+				# TODO: Fix this; doesn't work rn - gavin@stylo.io
+				# stylo.cache().hdel_keys(dt, "document_cache")
 				# Workaround: clear all document caches
-				frappe.cache().delete_value("document_cache")
+				stylo.cache().delete_value("document_cache")
 
 			for column, value in to_update.items():
 				query = query.set(column, value)
@@ -1030,21 +1030,21 @@ class Database:
 	def touch(self, doctype, docname):
 		"""Update the modified timestamp of this document."""
 		modified = now()
-		DocType = frappe.qb.DocType(doctype)
-		frappe.qb.update(DocType).set(DocType.modified, modified).where(DocType.name == docname).run()
+		DocType = stylo.qb.DocType(doctype)
+		stylo.qb.update(DocType).set(DocType.modified, modified).where(DocType.name == docname).run()
 		return modified
 
 	@staticmethod
 	def set_temp(value):
 		"""Set a temperory value and return a key."""
-		key = frappe.generate_hash()
-		frappe.cache().hset("temp", key, value)
+		key = stylo.generate_hash()
+		stylo.cache().hset("temp", key, value)
 		return key
 
 	@staticmethod
 	def get_temp(key):
 		"""Return the temperory value and delete it."""
-		return frappe.cache().hget("temp", key)
+		return stylo.cache().hget("temp", key)
 
 	def set_global(self, key, val, user="__global"):
 		"""Save a global key value. Global values will be automatically set if they match fieldname."""
@@ -1062,57 +1062,57 @@ class Database:
 	@staticmethod
 	def set_default(key, val, parent="__default", parenttype=None):
 		"""Sets a global / user default value."""
-		frappe.defaults.set_default(key, val, parent, parenttype)
+		stylo.defaults.set_default(key, val, parent, parenttype)
 
 	@staticmethod
 	def add_default(key, val, parent="__default", parenttype=None):
 		"""Append a default value for a key, there can be multiple default values for a particular key."""
-		frappe.defaults.add_default(key, val, parent, parenttype)
+		stylo.defaults.add_default(key, val, parent, parenttype)
 
 	@staticmethod
 	def get_defaults(key=None, parent="__default"):
 		"""Get all defaults"""
-		defaults = frappe.defaults.get_defaults_for(parent)
+		defaults = stylo.defaults.get_defaults_for(parent)
 		if not key:
 			return defaults
 
 		if key in defaults:
 			return defaults[key]
 
-		return defaults.get(frappe.scrub(key))
+		return defaults.get(stylo.scrub(key))
 
 	def begin(self, *, read_only=False):
-		read_only = read_only or frappe.flags.read_only
+		read_only = read_only or stylo.flags.read_only
 		mode = "READ ONLY" if read_only else ""
 		self.sql(f"START TRANSACTION {mode}")
 
 	def commit(self):
 		"""Commit current transaction. Calls SQL `COMMIT`."""
-		for method in frappe.local.before_commit:
-			frappe.call(method[0], *(method[1] or []), **(method[2] or {}))
+		for method in stylo.local.before_commit:
+			stylo.call(method[0], *(method[1] or []), **(method[2] or {}))
 
 		self.sql("commit")
 		self.begin()  # explicitly start a new transaction
 
-		frappe.local.rollback_observers = []
+		stylo.local.rollback_observers = []
 		self.flush_realtime_log()
 		enqueue_jobs_after_commit()
 		flush_local_link_count()
 
 	def add_before_commit(self, method, args=None, kwargs=None):
-		frappe.local.before_commit.append([method, args, kwargs])
+		stylo.local.before_commit.append([method, args, kwargs])
 
 	@staticmethod
 	def flush_realtime_log():
-		for args in frappe.local.realtime_log:
-			frappe.realtime.emit_via_redis(*args)
+		for args in stylo.local.realtime_log:
+			stylo.realtime.emit_via_redis(*args)
 
-		frappe.local.realtime_log = []
+		stylo.local.realtime_log = []
 
 	def savepoint(self, save_point):
 		"""Savepoints work as a nested transaction.
 
-		Changes can be undone to a save point by doing frappe.db.rollback(save_point)
+		Changes can be undone to a save point by doing stylo.db.rollback(save_point)
 
 		Note: rollback watchers can not work with save points.
 		        so only changes to database are undone when rolling back to a savepoint.
@@ -1129,13 +1129,13 @@ class Database:
 		else:
 			self.sql("rollback")
 			self.begin()
-			for obj in dict.fromkeys(frappe.local.rollback_observers):
+			for obj in dict.fromkeys(stylo.local.rollback_observers):
 				if hasattr(obj, "on_rollback"):
 					obj.on_rollback()
-			frappe.local.rollback_observers = []
+			stylo.local.rollback_observers = []
 
-			frappe.local.realtime_log = []
-			frappe.flags.enqueue_after_commit = []
+			stylo.local.realtime_log = []
+			stylo.flags.enqueue_after_commit = []
 
 	def field_exists(self, dt, fn):
 		"""Return true of field exists."""
@@ -1153,7 +1153,7 @@ class Database:
 
 	def a_row_exists(self, doctype):
 		"""Returns True if atleast one row exists."""
-		return frappe.get_all(doctype, limit=1, order_by=None, as_list=True)
+		return stylo.get_all(doctype, limit=1, order_by=None, as_list=True)
 
 	def exists(self, dt, dn=None, cache=False):
 		"""Return the document name of a matching document, or None.
@@ -1193,10 +1193,10 @@ class Database:
 	def count(self, dt, filters=None, debug=False, cache=False, distinct: bool = True):
 		"""Returns `COUNT(*)` for given DocType and filters."""
 		if cache and not filters:
-			cache_count = frappe.cache().get_value(f"doctype:count:{dt}")
+			cache_count = stylo.cache().get_value(f"doctype:count:{dt}")
 			if cache_count is not None:
 				return cache_count
-		count = frappe.qb.get_query(
+		count = stylo.qb.get_query(
 			table=dt,
 			filters=filters,
 			fields=Count("*"),
@@ -1204,7 +1204,7 @@ class Database:
 			validate_filters=True,
 		).run(debug=debug)[0][0]
 		if not filters and cache:
-			frappe.cache().set_value(f"doctype:count:{dt}", count, expires_in_sec=86400)
+			stylo.cache().set_value(f"doctype:count:{dt}", count, expires_in_sec=86400)
 		return count
 
 	def estimate_count(self, doctype: str) -> int:
@@ -1226,12 +1226,12 @@ class Database:
 		"""Get count of records created in the last x minutes"""
 		from dateutil.relativedelta import relativedelta
 
-		from frappe.utils import now_datetime
+		from stylo.utils import now_datetime
 
-		Table = frappe.qb.DocType(doctype)
+		Table = stylo.qb.DocType(doctype)
 
 		return (
-			frappe.qb.from_(Table)
+			stylo.qb.from_(Table)
 			.select(Count(Table.name))
 			.where(Table.creation >= now_datetime() - relativedelta(minutes=minutes))
 			.run()[0][0]
@@ -1239,19 +1239,19 @@ class Database:
 
 	def get_db_table_columns(self, table) -> list[str]:
 		"""Returns list of column names from given table."""
-		columns = frappe.cache().hget("table_columns", table)
+		columns = stylo.cache().hget("table_columns", table)
 		if columns is None:
-			information_schema = frappe.qb.Schema("information_schema")
+			information_schema = stylo.qb.Schema("information_schema")
 
 			columns = (
-				frappe.qb.from_(information_schema.columns)
+				stylo.qb.from_(information_schema.columns)
 				.select(information_schema.columns.column_name)
 				.where(information_schema.columns.table_name == table)
 				.run(pluck=True)
 			)
 
 			if columns:
-				frappe.cache().hset("table_columns", table, columns)
+				stylo.cache().hset("table_columns", table, columns)
 
 		return columns
 
@@ -1268,11 +1268,11 @@ class Database:
 
 	def get_column_type(self, doctype, column):
 		"""Returns column type from database."""
-		information_schema = frappe.qb.Schema("information_schema")
+		information_schema = stylo.qb.Schema("information_schema")
 		table = get_table_name(doctype)
 
 		return (
-			frappe.qb.from_(information_schema.columns)
+			stylo.qb.from_(information_schema.columns)
 			.select(information_schema.columns.column_type)
 			.where(
 				(information_schema.columns.table_name == table)
@@ -1297,7 +1297,7 @@ class Database:
 		return INDEX_PATTERN.sub(r"", index_name)
 
 	def get_system_setting(self, key):
-		return frappe.get_system_settings(key)
+		return stylo.get_system_settings(key)
 
 	def close(self):
 		"""Close database connection."""
@@ -1315,11 +1315,11 @@ class Database:
 	@staticmethod
 	@deprecated
 	def is_column_missing(e):
-		return frappe.db.is_missing_column(e)
+		return stylo.db.is_missing_column(e)
 
 	def get_descendants(self, doctype, name):
 		"""Return descendants of the group node in tree"""
-		from frappe.utils.nestedset import get_descendants_of
+		from stylo.utils.nestedset import get_descendants_of
 
 		try:
 			return get_descendants_of(doctype, name, ignore_permissions=True)
@@ -1342,7 +1342,7 @@ class Database:
 		Doctype name can be passed directly, it will be pre-pended with `tab`.
 		"""
 		filters = filters or kwargs.get("conditions")
-		query = frappe.qb.get_query(
+		query = stylo.qb.get_query(
 			table=doctype,
 			filters=filters,
 			delete=True,
@@ -1391,9 +1391,9 @@ class Database:
 			for regex in (SINGLE_WORD_PATTERN, MULTI_WORD_PATTERN):
 				tables += [groups[1] for groups in regex.findall(query)]
 
-			if frappe.flags.touched_tables is None:
-				frappe.flags.touched_tables = set()
-			frappe.flags.touched_tables.update(tables)
+			if stylo.flags.touched_tables is None:
+				stylo.flags.touched_tables = set()
+			stylo.flags.touched_tables.update(tables)
 
 	def bulk_insert(self, doctype, fields, values, ignore_duplicates=False, *, chunk_size=10_000):
 		"""
@@ -1404,10 +1404,10 @@ class Database:
 		:params values: list of list of values
 		"""
 		values = list(values)
-		table = frappe.qb.DocType(doctype)
+		table = stylo.qb.DocType(doctype)
 
 		for start_index in range(0, len(values), chunk_size):
-			query = frappe.qb.into(table)
+			query = stylo.qb.into(table)
 			if ignore_duplicates:
 				# Pypika does not have same api for ignoring duplicates
 				if self.db_type == "mariadb":
@@ -1419,23 +1419,23 @@ class Database:
 			query.columns(fields).insert(*values_to_insert).run()
 
 	def create_sequence(self, *args, **kwargs):
-		from frappe.database.sequence import create_sequence
+		from stylo.database.sequence import create_sequence
 
 		return create_sequence(*args, **kwargs)
 
 	def set_next_sequence_val(self, *args, **kwargs):
-		from frappe.database.sequence import set_next_val
+		from stylo.database.sequence import set_next_val
 
 		set_next_val(*args, **kwargs)
 
 	def get_next_sequence_val(self, *args, **kwargs):
-		from frappe.database.sequence import get_next_val
+		from stylo.database.sequence import get_next_val
 
 		return get_next_val(*args, **kwargs)
 
 
 def enqueue_jobs_after_commit():
-	from frappe.utils.background_jobs import (
+	from stylo.utils.background_jobs import (
 		RQ_JOB_FAILURE_TTL,
 		RQ_RESULTS_TTL,
 		execute_job,
@@ -1443,19 +1443,19 @@ def enqueue_jobs_after_commit():
 		truncate_failed_registry,
 	)
 
-	if frappe.flags.enqueue_after_commit and len(frappe.flags.enqueue_after_commit) > 0:
-		for job in frappe.flags.enqueue_after_commit:
+	if stylo.flags.enqueue_after_commit and len(stylo.flags.enqueue_after_commit) > 0:
+		for job in stylo.flags.enqueue_after_commit:
 			q = get_queue(job.get("queue"), is_async=job.get("is_async"))
 			q.enqueue_call(
 				execute_job,
 				timeout=job.get("timeout"),
 				kwargs=job.get("queue_args"),
-				failure_ttl=frappe.conf.get("rq_job_failure_ttl") or RQ_JOB_FAILURE_TTL,
-				result_ttl=frappe.conf.get("rq_results_ttl") or RQ_RESULTS_TTL,
+				failure_ttl=stylo.conf.get("rq_job_failure_ttl") or RQ_JOB_FAILURE_TTL,
+				result_ttl=stylo.conf.get("rq_results_ttl") or RQ_RESULTS_TTL,
 				job_id=job.get("job_id"),
 				on_failure=truncate_failed_registry,
 			)
-		frappe.flags.enqueue_after_commit = []
+		stylo.flags.enqueue_after_commit = []
 
 	def rename_column(self, doctype: str, old_column_name: str, new_column_name: str):
 		raise NotImplementedError
@@ -1470,20 +1470,20 @@ def enqueue_jobs_after_commit():
 		will be switched and you'll not get complete results.
 
 		Usage:
-		        with frappe.db.unbuffered_cursor():
-		                for row in frappe.db.sql("query with huge result", as_iterator=True):
+		        with stylo.db.unbuffered_cursor():
+		                for row in stylo.db.sql("query with huge result", as_iterator=True):
 		                        continue # Do some processing.
 		"""
 		raise NotImplementedError
 
 	def get_routines(self):
-		information_schema = frappe.qb.Schema("information_schema")
+		information_schema = stylo.qb.Schema("information_schema")
 		return (
-			frappe.qb.from_(information_schema.routines)
+			stylo.qb.from_(information_schema.routines)
 			.select(information_schema.routines.routine_name)
 			.where(
 				(information_schema.routines.routine_type.isin(["FUNCTION", "PROCEDURE"]))
-				& (information_schema.routines.routine_schema.eq(frappe.conf.db_name))
+				& (information_schema.routines.routine_schema.eq(stylo.conf.db_name))
 			)
 			.run(as_dict=1, pluck="routine_name")
 		)
@@ -1507,12 +1507,12 @@ def savepoint(catch: type | tuple[type, ...] = Exception):
 	"""
 	try:
 		savepoint = "".join(random.sample(string.ascii_lowercase, 10))
-		frappe.db.savepoint(savepoint)
+		stylo.db.savepoint(savepoint)
 		yield  # control back to calling function
 	except catch:
-		frappe.db.rollback(save_point=savepoint)
+		stylo.db.rollback(save_point=savepoint)
 	else:
-		frappe.db.release_savepoint(savepoint)
+		stylo.db.release_savepoint(savepoint)
 
 
 def get_query_execution_timeout() -> int:
@@ -1526,14 +1526,14 @@ def get_query_execution_timeout() -> int:
 	"""
 	from rq import get_current_job
 
-	if not frappe.conf.get("enable_db_statement_timeout"):
+	if not stylo.conf.get("enable_db_statement_timeout"):
 		return 0
 
 	# Zero means no timeout, which is the default value in db.
 	timeout = 0
 	with suppress(Exception):
-		if getattr(frappe.local, "request", None):
-			timeout = frappe.conf.http_timeout or 300
+		if getattr(stylo.local, "request", None):
+			timeout = stylo.conf.http_timeout or 300
 		elif job := get_current_job():
 			timeout = job.timeout
 

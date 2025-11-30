@@ -1,11 +1,11 @@
-frappe.listview_settings["ToDo"] = {
+stylo.listview_settings["ToDo"] = {
 	hide_name_column: true,
 	add_fields: ["reference_type", "reference_name"],
 
 	onload: function (me) {
-		if (!frappe.route_options) {
-			frappe.route_options = {
-				owner: frappe.session.user,
+		if (!stylo.route_options) {
+			stylo.route_options = {
+				owner: stylo.session.user,
 				status: "Open",
 			};
 		}
@@ -23,7 +23,7 @@ frappe.listview_settings["ToDo"] = {
 			return __("Open {0}", [`${__(doc.reference_type)}: ${doc.reference_name}`]);
 		},
 		action: function (doc) {
-			frappe.set_route("Form", doc.reference_type, doc.reference_name);
+			stylo.set_route("Form", doc.reference_type, doc.reference_name);
 		},
 	},
 
@@ -34,7 +34,7 @@ frappe.listview_settings["ToDo"] = {
 		me.page.add_sidebar_item(
 			__("Assigned By Me"),
 			function () {
-				me.filter_area.add([[me.doctype, "assigned_by", "=", frappe.session.user]]);
+				me.filter_area.add([[me.doctype, "assigned_by", "=", stylo.session.user]]);
 			},
 			'.list-link[data-view="Kanban"]'
 		);

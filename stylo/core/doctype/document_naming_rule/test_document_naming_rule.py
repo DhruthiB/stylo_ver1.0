@@ -1,17 +1,17 @@
 # Copyright (c) 2020, Stylo Technologies and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe.tests.utils import StyloTestCase
+import stylo
+from stylo.tests.utils import StyloTestCase
 
 
 class TestDocumentNamingRule(StyloTestCase):
 	def test_naming_rule_by_series(self):
-		naming_rule = frappe.get_doc(
+		naming_rule = stylo.get_doc(
 			dict(doctype="Document Naming Rule", document_type="ToDo", prefix="test-todo-", prefix_digits=5)
 		).insert()
 
-		todo = frappe.get_doc(
-			dict(doctype="ToDo", description="Is this my name " + frappe.generate_hash())
+		todo = stylo.get_doc(
+			dict(doctype="ToDo", description="Is this my name " + stylo.generate_hash())
 		).insert()
 
 		self.assertEqual(todo.name, "test-todo-00001")
@@ -20,7 +20,7 @@ class TestDocumentNamingRule(StyloTestCase):
 		todo.delete()
 
 	def test_naming_rule_by_condition(self):
-		naming_rule = frappe.get_doc(
+		naming_rule = stylo.get_doc(
 			dict(
 				doctype="Document Naming Rule",
 				document_type="ToDo",
@@ -32,29 +32,29 @@ class TestDocumentNamingRule(StyloTestCase):
 		).insert()
 
 		# another rule
-		naming_rule_1 = frappe.copy_doc(naming_rule)
+		naming_rule_1 = stylo.copy_doc(naming_rule)
 		naming_rule_1.prefix = "test-medium-"
 		naming_rule_1.conditions[0].value = "Medium"
 		naming_rule_1.insert()
 
 		# default rule with low priority - should not get applied for rules
 		# with higher priority
-		naming_rule_2 = frappe.copy_doc(naming_rule)
+		naming_rule_2 = stylo.copy_doc(naming_rule)
 		naming_rule_2.prefix = "test-low-"
 		naming_rule_2.priority = 0
 		naming_rule_2.conditions = []
 		naming_rule_2.insert()
 
-		todo = frappe.get_doc(
-			dict(doctype="ToDo", priority="High", description="Is this my name " + frappe.generate_hash())
+		todo = stylo.get_doc(
+			dict(doctype="ToDo", priority="High", description="Is this my name " + stylo.generate_hash())
 		).insert()
 
-		todo_1 = frappe.get_doc(
-			dict(doctype="ToDo", priority="Medium", description="Is this my name " + frappe.generate_hash())
+		todo_1 = stylo.get_doc(
+			dict(doctype="ToDo", priority="Medium", description="Is this my name " + stylo.generate_hash())
 		).insert()
 
-		todo_2 = frappe.get_doc(
-			dict(doctype="ToDo", priority="Low", description="Is this my name " + frappe.generate_hash())
+		todo_2 = stylo.get_doc(
+			dict(doctype="ToDo", priority="Low", description="Is this my name " + stylo.generate_hash())
 		).insert()
 
 		try:

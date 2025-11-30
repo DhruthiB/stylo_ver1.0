@@ -2,26 +2,26 @@
 # License: MIT. See LICENSE
 from unittest.mock import patch
 
-import frappe
-import frappe.utils
-from frappe.core.doctype.doctype.test_doctype import new_doctype
-from frappe.custom.doctype.customize_form.test_customize_form import TestCustomizeForm
-from frappe.desk.notifications import get_open_count
-from frappe.tests.utils import StyloTestCase, patch_hooks
+import stylo
+import stylo.utils
+from stylo.core.doctype.doctype.test_doctype import new_doctype
+from stylo.custom.doctype.customize_form.test_customize_form import TestCustomizeForm
+from stylo.desk.notifications import get_open_count
+from stylo.tests.utils import StyloTestCase, patch_hooks
 
 
 class TestDashboardConnections(StyloTestCase):
-	@patch.dict(frappe.conf, {"developer_mode": 1})
+	@patch.dict(stylo.conf, {"developer_mode": 1})
 	def setUp(self):
 		delete_test_data()
 		create_test_data()
 
-	@patch.dict(frappe.conf, {"developer_mode": 1})
+	@patch.dict(stylo.conf, {"developer_mode": 1})
 	def tearDown(self):
 		delete_test_data()
 
 	def test_internal_link_count(self):
-		earth = frappe.get_doc(
+		earth = stylo.get_doc(
 			{
 				"doctype": "Doctype B With Child Table With Link To Doctype A",
 				"title": "Earth",
@@ -35,7 +35,7 @@ class TestDashboardConnections(StyloTestCase):
 		)
 		earth.insert()
 
-		mars = frappe.get_doc(
+		mars = stylo.get_doc(
 			{
 				"doctype": "Doctype A With Child Table With Link To Doctype B",
 				"title": "Mars",
@@ -72,7 +72,7 @@ class TestDashboardConnections(StyloTestCase):
 			)
 
 	def test_external_link_count(self):
-		saturn = frappe.get_doc(
+		saturn = stylo.get_doc(
 			{
 				"doctype": "Doctype A With Child Table With Link To Doctype B",
 				"title": "Saturn",
@@ -86,7 +86,7 @@ class TestDashboardConnections(StyloTestCase):
 		)
 		saturn.insert()
 
-		pluto = frappe.get_doc(
+		pluto = stylo.get_doc(
 			{
 				"doctype": "Doctype B With Child Table With Link To Doctype A",
 				"title": "Pluto",
@@ -129,9 +129,9 @@ class TestDashboardConnections(StyloTestCase):
 		todo.run_method("save_customization")
 
 		# create a test doc
-		todo_doc = frappe.get_doc(dict(doctype="ToDo", description="test")).insert()
-		frappe.get_doc(dict(doctype="Test Doctype D", title="d-001", doclink=todo_doc.name)).insert()
-		frappe.get_doc(dict(doctype="Test Doctype E", title="e-001", todo=todo_doc.name)).insert()
+		todo_doc = stylo.get_doc(dict(doctype="ToDo", description="test")).insert()
+		stylo.get_doc(dict(doctype="Test Doctype D", title="d-001", doclink=todo_doc.name)).insert()
+		stylo.get_doc(dict(doctype="Test Doctype E", title="e-001", todo=todo_doc.name)).insert()
 
 		connections = get_open_count("ToDo", todo_doc.name)["count"]
 		self.assertEqual(len(connections["external_links_found"]), 2)
@@ -140,7 +140,7 @@ class TestDashboardConnections(StyloTestCase):
 		with patch_hooks(
 			{
 				"override_doctype_dashboards": {
-					"ToDo": ["frappe.tests.test_dashboard_connections.get_dashboard_for_todo"]
+					"ToDo": ["stylo.tests.test_dashboard_connections.get_dashboard_for_todo"]
 				}
 			}
 		):
@@ -172,13 +172,13 @@ def delete_test_data():
 		"Test Doctype E",
 	]
 	for doctype in doctypes:
-		if frappe.db.table_exists(doctype):
-			frappe.db.delete(doctype)
-			frappe.delete_doc("DocType", doctype, force=True)
+		if stylo.db.table_exists(doctype):
+			stylo.db.delete(doctype)
+			stylo.delete_doc("DocType", doctype, force=True)
 
 
 def create_child_table_with_link_to_doctype_a():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Child Table With Link To Doctype A",
@@ -193,7 +193,7 @@ def create_child_table_with_link_to_doctype_a():
 
 
 def create_child_table_with_link_to_doctype_b():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Child Table With Link To Doctype B",
@@ -208,7 +208,7 @@ def create_child_table_with_link_to_doctype_b():
 
 
 def add_links_in_child_tables():
-	child_table_with_link_to_doctype_a = frappe.get_doc("DocType", "Child Table With Link To Doctype A")
+	child_table_with_link_to_doctype_a = stylo.get_doc("DocType", "Child Table With Link To Doctype A")
 	if len(child_table_with_link_to_doctype_a.fields) == 1:
 		child_table_with_link_to_doctype_a.append(
 			"fields",
@@ -222,7 +222,7 @@ def add_links_in_child_tables():
 		)
 		child_table_with_link_to_doctype_a.save()
 
-	child_table_with_link_to_doctype_b = frappe.get_doc("DocType", "Child Table With Link To Doctype B")
+	child_table_with_link_to_doctype_b = stylo.get_doc("DocType", "Child Table With Link To Doctype B")
 	if len(child_table_with_link_to_doctype_b.fields) == 1:
 		child_table_with_link_to_doctype_b.append(
 			"fields",
@@ -238,7 +238,7 @@ def add_links_in_child_tables():
 
 
 def create_doctype_a_with_child_table_with_link_to_doctype_b():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Doctype A With Child Table With Link To Doctype B",
@@ -266,7 +266,7 @@ def create_doctype_a_with_child_table_with_link_to_doctype_b():
 
 
 def create_doctype_b_with_child_table_with_link_to_doctype_a():
-	frappe.get_doc(
+	stylo.get_doc(
 		{
 			"doctype": "DocType",
 			"name": "Doctype B With Child Table With Link To Doctype A",
@@ -294,7 +294,7 @@ def create_doctype_b_with_child_table_with_link_to_doctype_a():
 
 
 def get_dashboard_for_doctype_a_with_child_table_with_link_to_doctype_b():
-	dashboard = frappe._dict()
+	dashboard = stylo._dict()
 
 	data = {
 		"fieldname": "doctype_a_with_child_table_with_link_to_doctype_b",

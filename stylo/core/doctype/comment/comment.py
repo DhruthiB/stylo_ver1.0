@@ -2,13 +2,13 @@
 # License: MIT. See LICENSE
 import json
 
-import frappe
-from frappe.database.schema import add_column
-from frappe.desk.notifications import notify_mentions
-from frappe.exceptions import ImplicitCommitError
-from frappe.model.document import Document
-from frappe.model.utils import is_virtual_doctype
-from frappe.website.utils import clear_cache
+import stylo
+from stylo.database.schema import add_column
+from stylo.desk.notifications import notify_mentions
+from stylo.exceptions import ImplicitCommitError
+from stylo.model.document import Document
+from stylo.model.utils import is_virtual_doctype
+from stylo.website.utils import clear_cache
 
 
 class Comment(Document):
@@ -20,8 +20,8 @@ class Comment(Document):
 
 	def validate(self):
 		if not self.comment_email:
-			self.comment_email = frappe.session.user
-		self.content = frappe.utils.sanitize_html(self.content, always_sanitize=True)
+			self.comment_email = stylo.session.user
+		self.content = stylo.utils.sanitize_html(self.content, always_sanitize=True)
 
 	def on_update(self):
 		update_comment_in_doc(self)
@@ -45,7 +45,7 @@ class Comment(Document):
 		if not key:
 			return
 
-		frappe.publish_realtime(
+		stylo.publish_realtime(
 			"docinfo_update",
 			{"doc": self.as_dict(), "key": key, "action": action},
 			doctype=self.reference_doctype,
@@ -63,7 +63,7 @@ class Comment(Document):
 
 
 def on_doctype_update():
-	frappe.db.add_index("Comment", ["reference_doctype", "reference_name"])
+	stylo.db.add_index("Comment", ["reference_doctype", "reference_name"])
 
 
 def update_comment_in_doc(doc):
@@ -118,10 +118,10 @@ def get_comments_from_parent(doc):
 		if is_virtual_doctype(doc.reference_doctype):
 			_comments = "[]"
 		else:
-			_comments = frappe.db.get_value(doc.reference_doctype, doc.reference_name, "_comments") or "[]"
+			_comments = stylo.db.get_value(doc.reference_doctype, doc.reference_name, "_comments") or "[]"
 
 	except Exception as e:
-		if frappe.db.is_missing_table_or_column(e):
+		if stylo.db.is_missing_table_or_column(e):
 			_comments = "[]"
 
 		else:
@@ -140,45 +140,45 @@ def update_comments_in_parent(reference_doctype, reference_name, _comments):
 	if (
 		not reference_doctype
 		or not reference_name
-		or frappe.db.get_value("DocType", reference_doctype, "issingle")
+		or stylo.db.get_value("DocType", reference_doctype, "issingle")
 		or is_virtual_doctype(reference_doctype)
 	):
 		return
 
 	try:
 		# use sql, so that we do not mess with the timestamp
-		frappe.db.sql(
+		stylo.db.sql(
 			f"""update `tab{reference_doctype}` set `_comments`=%s where name=%s""",  # nosec
 			(json.dumps(_comments[-100:]), reference_name),
 		)
 
 	except Exception as e:
-		if frappe.db.is_column_missing(e) and getattr(frappe.local, "request", None):
+		if stylo.db.is_column_missing(e) and getattr(stylo.local, "request", None):
 			# missing column and in request, add column and update after commit
-			frappe.local._comments = [
-				*getattr(frappe.local, "_comments", []),
+			stylo.local._comments = [
+				*getattr(stylo.local, "_comments", []),
 				(reference_doctype, reference_name, _comments),
 			]
 
-		elif frappe.db.is_data_too_long(e):
-			raise frappe.DataTooLongException
+		elif stylo.db.is_data_too_long(e):
+			raise stylo.DataTooLongException
 
 		else:
 			raise ImplicitCommitError
 	else:
-		if frappe.flags.in_patch:
+		if stylo.flags.in_patch:
 			return
 
 		# Clear route cache
-		if route := frappe.get_cached_value(reference_doctype, reference_name, "route"):
+		if route := stylo.get_cached_value(reference_doctype, reference_name, "route"):
 			clear_cache(route)
 
 
 def update_comments_in_parent_after_request():
 	"""update _comments in parent if _comments column is missing"""
-	if hasattr(frappe.local, "_comments"):
-		for reference_doctype, reference_name, _comments in frappe.local._comments:
+	if hasattr(stylo.local, "_comments"):
+		for reference_doctype, reference_name, _comments in stylo.local._comments:
 			add_column(reference_doctype, "_comments", "Text")
 			update_comments_in_parent(reference_doctype, reference_name, _comments)
 
-		frappe.db.commit()
+		stylo.db.commit()

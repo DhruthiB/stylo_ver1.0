@@ -3,9 +3,9 @@
 
 # License: MIT. See LICENSE
 
-import frappe
-from frappe import _
-from frappe.model.document import Document
+import stylo
+from stylo import _
+from stylo.model.document import Document
 
 
 class WebsiteSlideshow(Document):
@@ -14,7 +14,7 @@ class WebsiteSlideshow(Document):
 
 	def on_update(self):
 		# a slide show can be in use and any change in it should get reflected
-		from frappe.website.utils import clear_cache
+		from stylo.website.utils import clear_cache
 
 		clear_cache()
 
@@ -22,16 +22,16 @@ class WebsiteSlideshow(Document):
 		"""atleast one image file should be public for slideshow"""
 		files = map(lambda row: row.image, self.slideshow_items)
 		if files:
-			result = frappe.get_all("File", filters={"file_url": ("in", list(files))}, fields="is_private")
+			result = stylo.get_all("File", filters={"file_url": ("in", list(files))}, fields="is_private")
 			if any(file.is_private for file in result):
-				frappe.throw(_("All Images attached to Website Slideshow should be public"))
+				stylo.throw(_("All Images attached to Website Slideshow should be public"))
 
 
 def get_slideshow(doc):
 	if not doc.slideshow:
 		return {}
 
-	slideshow = frappe.get_doc("Website Slideshow", doc.slideshow)
+	slideshow = stylo.get_doc("Website Slideshow", doc.slideshow)
 
 	return {
 		"slides": slideshow.get({"doctype": "Website Slideshow Item"}),

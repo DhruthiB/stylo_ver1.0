@@ -3,10 +3,10 @@
 
 from datetime import datetime
 
-import frappe
-from frappe.core.doctype.log_settings.log_settings import _supports_log_clearing, run_log_clean_up
-from frappe.tests.utils import StyloTestCase
-from frappe.utils import add_to_date, now_datetime
+import stylo
+from stylo.core.doctype.log_settings.log_settings import _supports_log_clearing, run_log_clean_up
+from stylo.tests.utils import StyloTestCase
+from stylo.utils import add_to_date, now_datetime
 
 
 class TestLogSettings(StyloTestCase):
@@ -14,7 +14,7 @@ class TestLogSettings(StyloTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 
-		frappe.db.set_single_value(
+		stylo.db.set_single_value(
 			"Log Settings",
 			{
 				"clear_error_log_after": 1,
@@ -25,7 +25,7 @@ class TestLogSettings(StyloTestCase):
 
 	def setUp(self) -> None:
 		if self._testMethodName == "test_delete_logs":
-			self.datetime = frappe._dict()
+			self.datetime = stylo._dict()
 			self.datetime.current = now_datetime()
 			self.datetime.past = add_to_date(self.datetime.current, days=-4)
 			setup_test_logs(self.datetime.past)
@@ -36,9 +36,9 @@ class TestLogSettings(StyloTestCase):
 
 	def test_delete_logs(self):
 		# make sure test data is present
-		activity_log_count = frappe.db.count("Activity Log", {"creation": ("<=", self.datetime.past)})
-		error_log_count = frappe.db.count("Error Log", {"creation": ("<=", self.datetime.past)})
-		email_queue_count = frappe.db.count("Email Queue", {"creation": ("<=", self.datetime.past)})
+		activity_log_count = stylo.db.count("Activity Log", {"creation": ("<=", self.datetime.past)})
+		error_log_count = stylo.db.count("Error Log", {"creation": ("<=", self.datetime.past)})
+		email_queue_count = stylo.db.count("Email Queue", {"creation": ("<=", self.datetime.past)})
 
 		self.assertNotEqual(activity_log_count, 0)
 		self.assertNotEqual(error_log_count, 0)
@@ -48,9 +48,9 @@ class TestLogSettings(StyloTestCase):
 		run_log_clean_up()
 
 		# test if logs are deleted
-		activity_log_count = frappe.db.count("Activity Log", {"creation": ("<", self.datetime.past)})
-		error_log_count = frappe.db.count("Error Log", {"creation": ("<", self.datetime.past)})
-		email_queue_count = frappe.db.count("Email Queue", {"creation": ("<", self.datetime.past)})
+		activity_log_count = stylo.db.count("Activity Log", {"creation": ("<", self.datetime.past)})
+		error_log_count = stylo.db.count("Error Log", {"creation": ("<", self.datetime.past)})
+		email_queue_count = stylo.db.count("Email Queue", {"creation": ("<", self.datetime.past)})
 
 		self.assertEqual(activity_log_count, 0)
 		self.assertEqual(error_log_count, 0)
@@ -75,7 +75,7 @@ class TestLogSettings(StyloTestCase):
 
 
 def setup_test_logs(past: datetime) -> None:
-	activity_log = frappe.get_doc(
+	activity_log = stylo.get_doc(
 		{
 			"doctype": "Activity Log",
 			"subject": "Test subject",
@@ -84,7 +84,7 @@ def setup_test_logs(past: datetime) -> None:
 	).insert(ignore_permissions=True)
 	activity_log.db_set("creation", past)
 
-	error_log = frappe.get_doc(
+	error_log = stylo.get_doc(
 		{
 			"doctype": "Error Log",
 			"method": "test_method",
@@ -93,7 +93,7 @@ def setup_test_logs(past: datetime) -> None:
 	).insert(ignore_permissions=True)
 	error_log.db_set("creation", past)
 
-	doc1 = frappe.get_doc(
+	doc1 = stylo.get_doc(
 		{
 			"doctype": "Email Queue",
 			"sender": "test1@example.com",

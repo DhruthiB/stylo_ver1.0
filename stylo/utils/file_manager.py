@@ -10,13 +10,13 @@ import os
 from copy import copy
 from urllib.parse import unquote
 
-import frappe
-from frappe import _, conf
-from frappe.query_builder.utils import DocType
-from frappe.utils import call_hook_method, cint, cstr, encode, get_files_path, get_hook_method
+import stylo
+from stylo import _, conf
+from stylo.query_builder.utils import DocType
+from stylo.utils import call_hook_method, cint, cstr, encode, get_files_path, get_hook_method
 
 
-class MaxFileSizeReachedError(frappe.ValidationError):
+class MaxFileSizeReachedError(stylo.ValidationError):
 	pass
 
 
@@ -35,26 +35,26 @@ def safe_b64decode(binary: bytes) -> bytes:
 
 
 def get_file_url(file_data_name):
-	data = frappe.db.get_value("File", file_data_name, ["file_name", "file_url"], as_dict=True)
+	data = stylo.db.get_value("File", file_data_name, ["file_name", "file_url"], as_dict=True)
 	return data.file_url or data.file_name
 
 
 def upload():
 	# get record details
-	dt = frappe.form_dict.doctype
-	dn = frappe.form_dict.docname
-	file_url = frappe.form_dict.file_url
-	filename = frappe.form_dict.filename
-	frappe.form_dict.is_private = cint(frappe.form_dict.is_private)
+	dt = stylo.form_dict.doctype
+	dn = stylo.form_dict.docname
+	file_url = stylo.form_dict.file_url
+	filename = stylo.form_dict.filename
+	stylo.form_dict.is_private = cint(stylo.form_dict.is_private)
 
 	if not filename and not file_url:
-		frappe.msgprint(_("Please select a file or url"), raise_exception=True)
+		stylo.msgprint(_("Please select a file or url"), raise_exception=True)
 
 	file_doc = get_file_doc()
 
 	comment = {}
 	if dt and dn:
-		comment = frappe.get_doc(dt, dn).add_comment(
+		comment = stylo.get_doc(dt, dn).add_comment(
 			"Attachment",
 			_("added {0}").format(
 				"<a href='{file_url}' target='_blank'>{file_name}</a>{icon}".format(
@@ -80,7 +80,7 @@ def upload():
 
 def get_file_doc(dt=None, dn=None, folder=None, is_private=None, df=None):
 	"""returns File object (Document) from given parameters or form_dict"""
-	r = frappe.form_dict
+	r = stylo.form_dict
 
 	if dt is None:
 		dt = r.doctype
@@ -112,13 +112,13 @@ def save_uploaded(dt, dn, folder, is_private, df=None):
 
 def save_url(file_url, filename, dt, dn, folder, is_private, df=None):
 	# if not (file_url.startswith("http://") or file_url.startswith("https://")):
-	# 	frappe.msgprint("URL must start with 'http://' or 'https://'")
+	# 	stylo.msgprint("URL must start with 'http://' or 'https://'")
 	# 	return None, None
 
 	file_url = unquote(file_url)
-	file_size = frappe.form_dict.file_size
+	file_size = stylo.form_dict.file_size
 
-	f = frappe.get_doc(
+	f = stylo.get_doc(
 		{
 			"doctype": "File",
 			"file_url": file_url,
@@ -134,21 +134,21 @@ def save_url(file_url, filename, dt, dn, folder, is_private, df=None):
 	f.flags.ignore_permissions = True
 	try:
 		f.insert()
-	except frappe.DuplicateEntryError:
-		return frappe.get_doc("File", f.duplicate_entry)
+	except stylo.DuplicateEntryError:
+		return stylo.get_doc("File", f.duplicate_entry)
 	return f
 
 
 def get_uploaded_content():
-	# should not be unicode when reading a file, hence using frappe.form
-	if "filedata" in frappe.form_dict:
-		if "," in frappe.form_dict.filedata:
-			frappe.form_dict.filedata = frappe.form_dict.filedata.rsplit(",", 1)[1]
-		frappe.uploaded_content = safe_b64decode(frappe.form_dict.filedata)
-		frappe.uploaded_filename = frappe.form_dict.filename
-		return frappe.uploaded_filename, frappe.uploaded_content
+	# should not be unicode when reading a file, hence using stylo.form
+	if "filedata" in stylo.form_dict:
+		if "," in stylo.form_dict.filedata:
+			stylo.form_dict.filedata = stylo.form_dict.filedata.rsplit(",", 1)[1]
+		stylo.uploaded_content = safe_b64decode(stylo.form_dict.filedata)
+		stylo.uploaded_filename = stylo.form_dict.filename
+		return stylo.uploaded_filename, stylo.uploaded_content
 	else:
-		frappe.msgprint(_("No file attached"))
+		stylo.msgprint(_("No file attached"))
 		return None, None
 
 
@@ -186,22 +186,22 @@ def save_file(fname, content, dt, dn, folder=None, decode=False, is_private=0, d
 		}
 	)
 
-	f = frappe.get_doc(file_data)
+	f = stylo.get_doc(file_data)
 	f.flags.ignore_permissions = True
 	try:
 		f.insert()
-	except frappe.DuplicateEntryError:
-		return frappe.get_doc("File", f.duplicate_entry)
+	except stylo.DuplicateEntryError:
+		return stylo.get_doc("File", f.duplicate_entry)
 
 	return f
 
 
 def get_file_data_from_hash(content_hash, is_private=0):
-	for name in frappe.get_all(
+	for name in stylo.get_all(
 		"File", {"content_hash": content_hash, "is_private": is_private}, pluck="name"
 	):
-		b = frappe.get_doc("File", name)
-		return {k: b.get(k) for k in frappe.get_hooks()["write_file_keys"]}
+		b = stylo.get_doc("File", name)
+		return {k: b.get(k) for k in stylo.get_hooks()["write_file_keys"]}
 	return False
 
 
@@ -225,7 +225,7 @@ def check_max_file_size(content):
 	file_size = len(content)
 
 	if file_size > max_file_size:
-		frappe.msgprint(
+		stylo.msgprint(
 			_("File size exceeded the maximum allowed size of {0} MB").format(max_file_size / 1048576),
 			raise_exception=MaxFileSizeReachedError,
 		)
@@ -238,7 +238,7 @@ def write_file(content, fname, is_private=0):
 	file_path = get_files_path(is_private=is_private)
 
 	# create directory (if not exists)
-	frappe.create_folder(file_path)
+	stylo.create_folder(file_path)
 	# write the file
 	if isinstance(content, str):
 		content = content.encode()
@@ -251,10 +251,10 @@ def write_file(content, fname, is_private=0):
 def remove_all(dt, dn, from_delete=False, delete_permanently=False):
 	"""remove all files in a transaction"""
 	try:
-		for fid in frappe.get_all("File", {"attached_to_doctype": dt, "attached_to_name": dn}, pluck="name"):
+		for fid in stylo.get_all("File", {"attached_to_doctype": dt, "attached_to_name": dn}, pluck="name"):
 			if from_delete:
 				# If deleting a doc, directly delete files
-				frappe.delete_doc("File", fid, ignore_permissions=True, delete_permanently=delete_permanently)
+				stylo.delete_doc("File", fid, ignore_permissions=True, delete_permanently=delete_permanently)
 			else:
 				# Removes file and adds a comment in the document it is attached to
 				remove_file(
@@ -279,20 +279,20 @@ def remove_file(
 	"""Remove file and File entry"""
 	file_name = None
 	if not (attached_to_doctype and attached_to_name):
-		attached = frappe.db.get_value("File", fid, ["attached_to_doctype", "attached_to_name", "file_name"])
+		attached = stylo.db.get_value("File", fid, ["attached_to_doctype", "attached_to_name", "file_name"])
 		if attached:
 			attached_to_doctype, attached_to_name, file_name = attached
 
 	ignore_permissions, comment = False, None
 	if attached_to_doctype and attached_to_name and not from_delete:
-		doc = frappe.get_doc(attached_to_doctype, attached_to_name)
+		doc = stylo.get_doc(attached_to_doctype, attached_to_name)
 		ignore_permissions = doc.has_permission("write") or False
-		if frappe.flags.in_web_form:
+		if stylo.flags.in_web_form:
 			ignore_permissions = True
 		if not file_name:
-			file_name = frappe.db.get_value("File", fid, "file_name")
+			file_name = stylo.db.get_value("File", fid, "file_name")
 		comment = doc.add_comment("Attachment Removed", _("Removed {0}").format(file_name))
-		frappe.delete_doc(
+		stylo.delete_doc(
 			"File", fid, ignore_permissions=ignore_permissions, delete_permanently=delete_permanently
 		)
 
@@ -317,16 +317,16 @@ def delete_file(path):
 	"""Delete file from `public folder`"""
 	if path:
 		if ".." in path.split("/"):
-			frappe.msgprint(
+			stylo.msgprint(
 				_("It is risky to delete this file: {0}. Please contact your System Manager.").format(path)
 			)
 
 		parts = os.path.split(path.strip("/"))
 		if parts[0] == "files":
-			path = frappe.utils.get_site_path("public", "files", parts[-1])
+			path = stylo.utils.get_site_path("public", "files", parts[-1])
 
 		else:
-			path = frappe.utils.get_site_path("private", "files", parts[-1])
+			path = stylo.utils.get_site_path("private", "files", parts[-1])
 
 		path = encode(path)
 		if os.path.exists(path):
@@ -358,7 +358,7 @@ def get_file_path(file_name):
 	File = DocType("File")
 
 	f = (
-		frappe.qb.from_(File)
+		stylo.qb.from_(File)
 		.where((File.name == file_name) | (File.file_name == file_name))
 		.select(File.file_url)
 		.run()
@@ -379,7 +379,7 @@ def get_file_path(file_name):
 		file_path = get_files_path(*file_path.split("/files/", 1)[1].split("/"))
 
 	else:
-		frappe.throw(_("There is some problem with the file url: {0}").format(file_path))
+		stylo.throw(_("There is some problem with the file url: {0}").format(file_path))
 
 	return file_path
 
@@ -394,7 +394,7 @@ def get_file_name(fname, optional_suffix):
 	# convert to unicode
 	fname = cstr(fname)
 
-	n_records = frappe.get_all("File", {"file_name": fname}, pluck="name")
+	n_records = stylo.get_all("File", {"file_name": fname}, pluck="name")
 	if len(n_records) > 0 or os.path.exists(encode(get_files_path(fname))):
 		f = fname.rsplit(".", 1)
 		if len(f) == 1:
@@ -405,28 +405,28 @@ def get_file_name(fname, optional_suffix):
 	return fname
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def download_file(file_url):
 	"""
 	Download file using token and REST API. Valid session or
 	token is required to download private files.
 
 	Method : GET
-	Endpoint : frappe.utils.file_manager.download_file
+	Endpoint : stylo.utils.file_manager.download_file
 	URL Params : file_name = /path/to/file relative to site path
 	"""
-	file_doc = frappe.get_doc("File", {"file_url": file_url})
+	file_doc = stylo.get_doc("File", {"file_url": file_url})
 	file_doc.check_permission("read")
 	path = os.path.join(get_files_path(), os.path.basename(file_url))
 
 	with open(path, "rb") as fileobj:
 		filedata = fileobj.read()
-	frappe.local.response.filename = os.path.basename(file_url)
-	frappe.local.response.filecontent = filedata
-	frappe.local.response.type = "download"
+	stylo.local.response.filename = os.path.basename(file_url)
+	stylo.local.response.filecontent = filedata
+	stylo.local.response.type = "download"
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def add_attachments(doctype, name, attachments):
 	"""Add attachments to the given DocType"""
 	if isinstance(attachments, str):
@@ -435,7 +435,7 @@ def add_attachments(doctype, name, attachments):
 	files = []
 	for a in attachments:
 		if isinstance(a, str):
-			attach = frappe.db.get_value(
+			attach = stylo.db.get_value(
 				"File", {"name": a}, ["file_name", "file_url", "is_private"], as_dict=1
 			)
 			# save attachments to new doc
@@ -451,7 +451,7 @@ def is_safe_path(path: str) -> bool:
 	if path.startswith(("http://", "https://")):
 		return True
 
-	basedir = frappe.get_site_path()
+	basedir = stylo.get_site_path()
 	# ref: https://docs.python.org/3/library/os.path.html#os.path.commonpath
 	matchpath = os.path.abspath(path)
 	basedir = os.path.abspath(basedir)

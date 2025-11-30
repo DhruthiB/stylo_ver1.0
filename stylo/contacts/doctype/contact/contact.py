@@ -1,12 +1,12 @@
 # Copyright (c) 2021, Stylo Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import frappe
-from frappe import _
-from frappe.contacts.address_and_contact import set_link_title
-from frappe.core.doctype.dynamic_link.dynamic_link import deduplicate_dynamic_links
-from frappe.model.document import Document
-from frappe.model.naming import append_number_if_name_exists
-from frappe.utils import cstr, has_gravatar
+import stylo
+from stylo import _
+from stylo.contacts.address_and_contact import set_link_title
+from stylo.core.doctype.dynamic_link.dynamic_link import deduplicate_dynamic_links
+from stylo.model.document import Document
+from stylo.model.naming import append_number_if_name_exists
+from stylo.utils import cstr, has_gravatar
 
 
 class Contact(Document):
@@ -19,7 +19,7 @@ class Contact(Document):
 			self.name = self.name + "-" + link.link_name.strip()
 			break
 
-		if frappe.db.exists("Contact", self.name):
+		if stylo.db.exists("Contact", self.name):
 			self.name = append_number_if_name_exists("Contact", self.name)
 
 	def validate(self):
@@ -35,13 +35,13 @@ class Contact(Document):
 			self.image = has_gravatar(self.email_id)
 
 		if self.get("sync_with_google_contacts") and not self.get("google_contacts"):
-			frappe.throw(_("Select Google Contacts to which contact should be synced."))
+			stylo.throw(_("Select Google Contacts to which contact should be synced."))
 
 		deduplicate_dynamic_links(self)
 
 	def set_user(self):
 		if not self.user and self.email_id:
-			self.user = frappe.db.get_value("User", {"email": self.email_id})
+			self.user = stylo.db.get_value("User", {"email": self.email_id})
 
 	def get_link_for(self, link_doctype):
 		"""Return the link name, if exists for the given link DocType"""
@@ -63,14 +63,14 @@ class Contact(Document):
 				return True
 
 	def add_email(self, email_id, is_primary=0, autosave=False):
-		if not frappe.db.exists("Contact Email", {"email_id": email_id, "parent": self.name}):
+		if not stylo.db.exists("Contact Email", {"email_id": email_id, "parent": self.name}):
 			self.append("email_ids", {"email_id": email_id, "is_primary": is_primary})
 
 			if autosave:
 				self.save(ignore_permissions=True)
 
 	def add_phone(self, phone, is_primary_phone=0, is_primary_mobile_no=0, autosave=False):
-		if not frappe.db.exists("Contact Phone", {"phone": phone, "parent": self.name}):
+		if not stylo.db.exists("Contact Phone", {"phone": phone, "parent": self.name}):
 			self.append(
 				"phone_nos",
 				{
@@ -89,7 +89,7 @@ class Contact(Document):
 			return
 
 		if len([email.email_id for email in self.email_ids if email.is_primary]) > 1:
-			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold("Email ID")))
+			stylo.throw(_("Only one {0} can be set as primary.").format(stylo.bold("Email ID")))
 
 		if len(self.email_ids) == 1:
 			self.email_ids[0].is_primary = 1
@@ -115,8 +115,8 @@ class Contact(Document):
 		is_primary = [phone.phone for phone in self.phone_nos if phone.get(field_name)]
 
 		if len(is_primary) > 1:
-			frappe.throw(
-				_("Only one {0} can be set as primary.").format(frappe.bold(frappe.unscrub(fieldname)))
+			stylo.throw(
+				_("Only one {0} can be set as primary.").format(stylo.bold(stylo.unscrub(fieldname)))
 			)
 
 		primary_number_exists = False
@@ -132,7 +132,7 @@ class Contact(Document):
 
 def get_default_contact(doctype, name):
 	"""Returns default contact for the given doctype, name"""
-	out = frappe.db.sql(
+	out = stylo.db.sql(
 		"""select parent,
 			IFNULL((select is_primary_contact from tabContact c where c.name = dl.parent), 0)
 				as is_primary_contact
@@ -155,15 +155,15 @@ def get_default_contact(doctype, name):
 		return None
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def invite_user(contact: str):
-	contact = frappe.get_doc("Contact", contact)
+	contact = stylo.get_doc("Contact", contact)
 	contact.check_permission()
 
 	if not contact.email_id:
-		frappe.throw(_("Please set Email Address"))
+		stylo.throw(_("Please set Email Address"))
 
-	user = frappe.get_doc(
+	user = stylo.get_doc(
 		{
 			"doctype": "User",
 			"first_name": contact.first_name,
@@ -177,9 +177,9 @@ def invite_user(contact: str):
 	return user.name
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_contact_details(contact):
-	contact = frappe.get_doc("Contact", contact)
+	contact = stylo.get_doc("Contact", contact)
 	contact.check_permission()
 
 	return {
@@ -197,9 +197,9 @@ def get_contact_details(contact):
 
 def update_contact(doc, method):
 	"""Update contact when user is updated, if contact is found. Called via hooks"""
-	contact_name = frappe.db.get_value("Contact", {"email_id": doc.name})
+	contact_name = stylo.db.get_value("Contact", {"email_id": doc.name})
 	if contact_name:
-		contact = frappe.get_doc("Contact", contact_name)
+		contact = stylo.get_doc("Contact", contact_name)
 		for key in ("first_name", "last_name", "phone"):
 			if doc.get(key):
 				contact.set(key, doc.get(key))
@@ -207,19 +207,19 @@ def update_contact(doc, method):
 		contact.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
+@stylo.whitelist()
+@stylo.validate_and_sanitize_search_inputs
 def contact_query(doctype, txt, searchfield, start, page_len, filters):
-	from frappe.desk.reportview import get_match_cond
+	from stylo.desk.reportview import get_match_cond
 
 	doctype = "Contact"
-	if not frappe.get_meta(doctype).get_field(searchfield) and searchfield not in frappe.db.DEFAULT_COLUMNS:
+	if not stylo.get_meta(doctype).get_field(searchfield) and searchfield not in stylo.db.DEFAULT_COLUMNS:
 		return []
 
 	link_doctype = filters.pop("link_doctype")
 	link_name = filters.pop("link_name")
 
-	return frappe.db.sql(
+	return stylo.db.sql(
 		f"""select
 			`tabContact`.name, `tabContact`.first_name, `tabContact`.last_name
 		from
@@ -246,7 +246,7 @@ def contact_query(doctype, txt, searchfield, start, page_len, filters):
 	)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def address_query(links):
 	import json
 
@@ -256,12 +256,12 @@ def address_query(links):
 	result = []
 
 	for link in links:
-		if not frappe.has_permission(
+		if not stylo.has_permission(
 			doctype=link.get("link_doctype"), ptype="read", doc=link.get("link_name")
 		):
 			continue
 
-		res = frappe.db.sql(
+		res = stylo.db.sql(
 			"""
 			SELECT `tabAddress`.name
 			FROM `tabAddress`, `tabDynamic Link`
@@ -286,7 +286,7 @@ def get_contact_with_phone_number(number):
 	if not number:
 		return
 
-	contacts = frappe.get_all(
+	contacts = stylo.get_all(
 		"Contact Phone", filters=[["phone", "like", f"%{number}"]], fields=["parent"], limit=1
 	)
 
@@ -295,16 +295,16 @@ def get_contact_with_phone_number(number):
 
 def get_contact_name(email_id: str) -> str | None:
 	"""Return the contact ID for the given email ID."""
-	for contact_id in frappe.get_all(
+	for contact_id in stylo.get_all(
 		"Contact Email", filters={"email_id": email_id, "parenttype": "Contact"}, pluck="parent"
 	):
-		if frappe.db.exists("Contact", contact_id):
+		if stylo.db.exists("Contact", contact_id):
 			return contact_id
 
 
 def get_contacts_linking_to(doctype, docname, fields=None):
 	"""Return a list of contacts containing a link to the given document."""
-	return frappe.get_list(
+	return stylo.get_list(
 		"Contact",
 		fields=fields,
 		filters=[
@@ -316,12 +316,12 @@ def get_contacts_linking_to(doctype, docname, fields=None):
 
 def get_contacts_linked_from(doctype, docname, fields=None):
 	"""Return a list of contacts that are contained in (linked from) the given document."""
-	link_fields = frappe.get_meta(doctype).get("fields", {"fieldtype": "Link", "options": "Contact"})
+	link_fields = stylo.get_meta(doctype).get("fields", {"fieldtype": "Link", "options": "Contact"})
 	if not link_fields:
 		return []
 
-	contact_names = frappe.get_value(doctype, docname, fieldname=[f.fieldname for f in link_fields])
+	contact_names = stylo.get_value(doctype, docname, fieldname=[f.fieldname for f in link_fields])
 	if not contact_names:
 		return []
 
-	return frappe.get_list("Contact", fields=fields, filters={"name": ("in", contact_names)})
+	return stylo.get_list("Contact", fields=fields, filters={"name": ("in", contact_names)})

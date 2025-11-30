@@ -1,12 +1,12 @@
 // Copyright (c) 2015, Stylo Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
-frappe.ui.form.on("Web Page", {
+stylo.ui.form.on("Web Page", {
 	layout: function (frm) {
 		if (frm.is_new()) {
 			if (frm.doc.insert_code) {
 				if (!frm.doc.javascript) {
-					frm.set_value("javascript", `frappe.ready(() => {\n\t\n});`);
+					frm.set_value("javascript", `stylo.ready(() => {\n\t\n});`);
 				}
 			}
 		}
@@ -25,7 +25,7 @@ frappe.ui.form.on("Web Page", {
 	},
 	validate: function (frm) {
 		if (frm.doc.title && !frm.doc.route) {
-			frm.set_value("route", frappe.scrub(frm.doc.title, "-"));
+			frm.set_value("route", stylo.scrub(frm.doc.title, "-"));
 		}
 	},
 	refresh: function (frm) {
@@ -40,7 +40,7 @@ frappe.ui.form.on("Web Page", {
 		// and web page is manually unpublished,
 		// set end date to current date.
 		if (!frm.doc.published && frm.doc.end_date) {
-			var end_date = frappe.datetime.str_to_obj(frappe.datetime.now_datetime());
+			var end_date = stylo.datetime.str_to_obj(stylo.datetime.now_datetime());
 
 			// Set date a few seconds in the future to avoid throwing
 			// start and end date validation error
@@ -50,21 +50,21 @@ frappe.ui.form.on("Web Page", {
 		}
 	},
 	set_meta_tags(frm) {
-		frappe.utils.set_meta_tag(frm.doc.route);
+		stylo.utils.set_meta_tag(frm.doc.route);
 	},
 });
 
-frappe.ui.form.on("Web Page Block", {
+stylo.ui.form.on("Web Page Block", {
 	edit_values(frm, cdt, cdn) {
 		let row = frm.selected_doc;
 		let values = JSON.parse(row.web_template_values || "{}");
 		open_web_template_values_editor(row.web_template, values).then((new_values) => {
-			frappe.model.set_value(cdt, cdn, "web_template_values", JSON.stringify(new_values));
+			stylo.model.set_value(cdt, cdn, "web_template_values", JSON.stringify(new_values));
 		});
 	},
 });
 
-frappe.tour["Web Page"] = [
+stylo.tour["Web Page"] = [
 	{
 		fieldname: "title",
 		title: __("Title of the page"),

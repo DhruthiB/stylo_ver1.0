@@ -4,10 +4,10 @@ from urllib.parse import urlparse
 import requests
 
 docs_repos = [
-	"frappe_docs",
+	"stylo_docs",
 	"erpnext_documentation",
 	"erpnext_com",
-	"frappe_io",
+	"stylo_io",
 ]
 
 
@@ -23,15 +23,15 @@ def docs_link_exists(body):
 				parsed_url = urlparse(word)
 				if parsed_url.netloc == "github.com":
 					parts = parsed_url.path.split("/")
-					if len(parts) == 5 and parts[1] == "frappe" and parts[2] in docs_repos:
+					if len(parts) == 5 and parts[1] == "stylo" and parts[2] in docs_repos:
 						return True
-				if parsed_url.netloc in ["docs.erpnext.com", "frappeframework.com"]:
+				if parsed_url.netloc in ["docs.erpnext.com", "styloframework.com"]:
 					return True
 
 
 if __name__ == "__main__":
 	pr = sys.argv[1]
-	response = requests.get(f"https://api.github.com/repos/frappe/frappe/pulls/{pr}")
+	response = requests.get(f"https://api.github.com/repos/stylo/stylo/pulls/{pr}")
 
 	if response.ok:
 		payload = response.json()

@@ -57,10 +57,10 @@ context("Control Currency", () => {
 
 		TEST_CASES.forEach((test_case) => {
 			cy.window()
-				.its("frappe")
-				.then((frappe) => {
-					frappe.boot.sysdefaults.currency = test_case.currency;
-					frappe.boot.sysdefaults.currency_precision = test_case.default_precision ?? 2;
+				.its("stylo")
+				.then((stylo) => {
+					stylo.boot.sysdefaults.currency = test_case.currency;
+					stylo.boot.sysdefaults.currency_precision = test_case.default_precision ?? 2;
 				});
 
 			get_dialog_with_currency(test_case.df_options).as("dialog");

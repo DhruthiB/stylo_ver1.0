@@ -5,9 +5,9 @@ removed without any warning.
 """
 from contextlib import suppress
 
-import frappe
-from frappe.utils import getdate
-from frappe.utils.caching import site_cache
+import stylo
+from stylo.utils import getdate
+from stylo.utils.caching import site_cache
 
 from posthog import Posthog  # isort: skip
 
@@ -16,11 +16,11 @@ POSTHOG_HOST_FIELD = "posthog_host"
 
 
 def add_bootinfo(bootinfo):
-	if not frappe.get_system_settings("enable_telemetry"):
+	if not stylo.get_system_settings("enable_telemetry"):
 		return
 
-	bootinfo.posthog_host = frappe.conf.get(POSTHOG_HOST_FIELD)
-	bootinfo.posthog_project_id = frappe.conf.get(POSTHOG_PROJECT_FIELD)
+	bootinfo.posthog_host = stylo.conf.get(POSTHOG_HOST_FIELD)
+	bootinfo.posthog_project_id = stylo.conf.get(POSTHOG_PROJECT_FIELD)
 	bootinfo.enable_telemetry = True
 	bootinfo.telemetry_site_age = site_age()
 
@@ -28,7 +28,7 @@ def add_bootinfo(bootinfo):
 @site_cache(ttl=60 * 60 * 12)
 def site_age():
 	try:
-		est_creation = frappe.db.get_value("User", "Administrator", "creation")
+		est_creation = stylo.db.get_value("User", "Administrator", "creation")
 		return (getdate() - getdate(est_creation)).days
 	except Exception:
 		pass
@@ -36,27 +36,27 @@ def site_age():
 
 def init_telemetry():
 	"""Init posthog for server side telemetry."""
-	if hasattr(frappe.local, "posthog"):
+	if hasattr(stylo.local, "posthog"):
 		return
 
-	if not frappe.get_system_settings("enable_telemetry"):
+	if not stylo.get_system_settings("enable_telemetry"):
 		return
 
-	posthog_host = frappe.conf.get(POSTHOG_HOST_FIELD)
-	posthog_project_id = frappe.conf.get(POSTHOG_PROJECT_FIELD)
+	posthog_host = stylo.conf.get(POSTHOG_HOST_FIELD)
+	posthog_project_id = stylo.conf.get(POSTHOG_PROJECT_FIELD)
 
 	if not posthog_host or not posthog_project_id:
 		return
 
 	with suppress(Exception):
-		frappe.local.posthog = Posthog(posthog_project_id, host=posthog_host)
+		stylo.local.posthog = Posthog(posthog_project_id, host=posthog_host)
 
 
 def capture(event, app, **kwargs):
 	init_telemetry()
-	ph: Posthog = getattr(frappe.local, "posthog", None)
+	ph: Posthog = getattr(stylo.local, "posthog", None)
 	with suppress(Exception):
-		ph and ph.capture(distinct_id=frappe.local.site, event=f"{app}_{event}", **kwargs)
+		ph and ph.capture(distinct_id=stylo.local.site, event=f"{app}_{event}", **kwargs)
 
 
 def capture_doc(doc, action):
@@ -66,6 +66,6 @@ def capture_doc(doc, action):
 			return
 
 		if doc.get("__islocal") or not doc.get("name"):
-			capture("document_created", "frappe", properties={"doctype": doc.doctype, "action": "Insert"})
+			capture("document_created", "stylo", properties={"doctype": doc.doctype, "action": "Insert"})
 		else:
-			capture("document_modified", "frappe", properties={"doctype": doc.doctype, "action": action})
+			capture("document_modified", "stylo", properties={"doctype": doc.doctype, "action": action})

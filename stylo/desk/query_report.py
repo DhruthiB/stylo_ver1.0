@@ -6,16 +6,16 @@ import json
 import os
 from datetime import timedelta
 
-import frappe
-import frappe.desk.reportview
-from frappe import _
-from frappe.core.utils import ljust_list
-from frappe.desk.reportview import clean_params, parse_json
-from frappe.model.utils import render_include
-from frappe.modules import get_module_path, scrub
-from frappe.monitor import add_data_to_monitor
-from frappe.permissions import get_role_permissions
-from frappe.utils import (
+import stylo
+import stylo.desk.reportview
+from stylo import _
+from stylo.core.utils import ljust_list
+from stylo.desk.reportview import clean_params, parse_json
+from stylo.model.utils import render_include
+from stylo.modules import get_module_path, scrub
+from stylo.monitor import add_data_to_monitor
+from stylo.permissions import get_role_permissions
+from stylo.utils import (
 	cint,
 	cstr,
 	flt,
@@ -28,7 +28,7 @@ from frappe.utils import (
 
 
 def get_report_doc(report_name):
-	doc = frappe.get_doc("Report", report_name)
+	doc = stylo.get_doc("Report", report_name)
 	doc.custom_columns = []
 	doc.custom_filters = []
 
@@ -48,19 +48,19 @@ def get_report_doc(report_name):
 		doc.disable_prepared_report = custom_report_doc.disable_prepared_report
 
 	if not doc.is_permitted():
-		frappe.throw(
+		stylo.throw(
 			_("You don't have access to Report: {0}").format(_(doc.name)),
-			frappe.PermissionError,
+			stylo.PermissionError,
 		)
 
-	if not frappe.has_permission(doc.ref_doctype, "report"):
-		frappe.throw(
+	if not stylo.has_permission(doc.ref_doctype, "report"):
+		stylo.throw(
 			_("You don't have permission to get a report on: {0}").format(doc.ref_doctype),
-			frappe.PermissionError,
+			stylo.PermissionError,
 		)
 
 	if doc.disabled:
-		frappe.throw(_("Report {0} is disabled").format(report_name))
+		stylo.throw(_("Report {0} is disabled").format(report_name))
 
 	return doc
 
@@ -81,11 +81,11 @@ def get_report_result(report, filters):
 	return res
 
 
-@frappe.read_only()
+@stylo.read_only()
 def generate_report_result(
 	report, filters=None, user=None, custom_columns=None, is_tree=False, parent_field=None
 ):
-	user = user or frappe.session.user
+	user = user or stylo.session.user
 	filters = filters or []
 
 	if filters and isinstance(filters, str):
@@ -129,7 +129,7 @@ def generate_report_result(
 		"report_summary": report_summary,
 		"skip_total_row": skip_total_row or 0,
 		"status": None,
-		"execution_time": frappe.cache().hget("report_execution_time", report.name) or 0,
+		"execution_time": stylo.cache().hget("report_execution_time", report.name) or 0,
 	}
 
 
@@ -149,19 +149,19 @@ def normalize_result(result, columns):
 	return data
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def background_enqueue_run(report_name, filters=None, user=None):
-	from frappe.core.doctype.prepared_report.prepared_report import make_prepared_report
+	from stylo.core.doctype.prepared_report.prepared_report import make_prepared_report
 
 	return make_prepared_report(report_name, filters)
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_script(report_name):
 	report = get_report_doc(report_name)
-	module = report.module or frappe.db.get_value("DocType", report.ref_doctype, "module")
+	module = report.module or stylo.db.get_value("DocType", report.ref_doctype, "module")
 
-	is_custom_module = frappe.get_cached_value("Module Def", module, "custom")
+	is_custom_module = stylo.get_cached_value("Module Def", module, "custom")
 
 	# custom modules are virtual modules those exists in DB but not in disk.
 	module_path = "" if is_custom_module else get_module_path(module)
@@ -182,12 +182,12 @@ def get_script(report_name):
 		script += f"\n\n//# sourceURL={scrub(report.name)}__custom"
 
 	if not script:
-		script = "frappe.query_reports['%s']={}" % report_name
+		script = "stylo.query_reports['%s']={}" % report_name
 
 	return {
 		"script": render_include(script),
 		"html_format": html_format,
-		"execution_time": frappe.cache().hget("report_execution_time", report_name) or 0,
+		"execution_time": stylo.cache().hget("report_execution_time", report_name) or 0,
 		"filters": report.filters,
 		"custom_report_name": report.name if report.get("is_custom_report") else None,
 	}
@@ -196,12 +196,12 @@ def get_script(report_name):
 def get_reference_report(report):
 	if report.report_type != "Custom Report":
 		return report
-	reference_report = frappe.get_doc("Report", report.reference_report)
+	reference_report = stylo.get_doc("Report", report.reference_report)
 	return get_reference_report(reference_report)
 
 
-@frappe.whitelist()
-@frappe.read_only()
+@stylo.whitelist()
+@stylo.read_only()
 def run(
 	report_name,
 	filters=None,
@@ -214,9 +214,9 @@ def run(
 ):
 	report = get_report_doc(report_name)
 	if not user:
-		user = frappe.session.user
-	if not frappe.has_permission(report.ref_doctype, "report"):
-		frappe.msgprint(
+		user = stylo.session.user
+	if not stylo.has_permission(report.ref_doctype, "report"):
+		stylo.msgprint(
 			_("Must have report permission to access this report."),
 			raise_exception=True,
 		)
@@ -255,7 +255,7 @@ def add_custom_column_data(custom_columns, result):
 	for column in custom_columns:
 		if len(column["fieldname"].split("-")) > 1:
 			# length greater than 1, means that the column is a custom field with confilicting fieldname
-			doctype_name = frappe.unscrub(column["fieldname"].split("-")[1])
+			doctype_name = stylo.unscrub(column["fieldname"].split("-")[1])
 			doctype_names_from_custom_field.append(doctype_name)
 		column["fieldname"] = column["fieldname"].split("-")[0]
 
@@ -270,7 +270,7 @@ def add_custom_column_data(custom_columns, result):
 				# backwards compatibile `link_field`
 				# old custom reports which use `str` should not break.
 				if isinstance(link_field, str):
-					link_field = frappe._dict({"fieldname": link_field, "names": []})
+					link_field = stylo._dict({"fieldname": link_field, "names": []})
 
 				row_reference = row.get(link_field.get("fieldname"))
 				# possible if the row is empty
@@ -284,7 +284,7 @@ def add_custom_column_data(custom_columns, result):
 
 
 def get_prepared_report_result(report, filters, dn=None, user=None):
-	from frappe.core.doctype.prepared_report.prepared_report import get_completed_prepared_report
+	from stylo.core.doctype.prepared_report.prepared_report import get_completed_prepared_report
 
 	def get_report_data(doc, data):
 		# backwards compatibility - prepared report used to have a columns field,
@@ -307,48 +307,48 @@ def get_prepared_report_result(report, filters, dn=None, user=None):
 			filters, user, report.get("custom_report") or report.get("report_name")
 		)
 
-	doc = frappe.get_doc("Prepared Report", dn) if dn else None
+	doc = stylo.get_doc("Prepared Report", dn) if dn else None
 	if doc:
 		try:
 			if data := json.loads(doc.get_prepared_data().decode("utf-8")):
 				report_data = get_report_data(doc, data)
 		except Exception as e:
 			doc.log_error("Prepared report render failed")
-			frappe.msgprint(_("Prepared report render failed") + f": {e!s}")
+			stylo.msgprint(_("Prepared report render failed") + f": {e!s}")
 			doc = None
 
 	return report_data | {"prepared_report": True, "doc": doc}
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def export_query():
 	"""export from query reports"""
-	from frappe.desk.utils import pop_csv_params
+	from stylo.desk.utils import pop_csv_params
 
-	form_params = frappe._dict(frappe.local.form_dict)
+	form_params = stylo._dict(stylo.local.form_dict)
 	csv_params = pop_csv_params(form_params)
 	clean_params(form_params)
 	parse_json(form_params)
 
 	report_name = form_params.report_name
-	frappe.permissions.can_export(
-		frappe.get_cached_value("Report", report_name, "ref_doctype"),
+	stylo.permissions.can_export(
+		stylo.get_cached_value("Report", report_name, "ref_doctype"),
 		raise_exception=True,
 	)
 
 	export_in_background = int(form_params.export_in_background or 0)
 	if export_in_background:
-		user = frappe.session.user
-		user_email = frappe.get_cached_value("User", user, "email")
-		frappe.enqueue(
-			"frappe.desk.query_report.run_export_query_job",
+		user = stylo.session.user
+		user_email = stylo.get_cached_value("User", user, "email")
+		stylo.enqueue(
+			"stylo.desk.query_report.run_export_query_job",
 			user_email=user_email,
 			form_params=form_params,
 			csv_params=csv_params,
 			queue="long",
-			now=frappe.flags.in_test,
+			now=stylo.flags.in_test,
 		)
-		frappe.msgprint(
+		stylo.msgprint(
 			_(
 				"Your report is being generated in the background. You will receive an email on {0} with a download link once it is ready."
 			).format(user_email)
@@ -359,7 +359,7 @@ def export_query():
 
 
 def run_export_query_job(user_email: str, form_params, csv_params):
-	from frappe.desk.utils import send_report_email
+	from stylo.desk.utils import send_report_email
 
 	report_name, file_extension, content = _export_query(form_params, csv_params, populate_response=False)
 	send_report_email(
@@ -368,12 +368,12 @@ def run_export_query_job(user_email: str, form_params, csv_params):
 
 
 def _export_query(form_params, csv_params, populate_response=True):
-	from frappe.desk.utils import get_csv_bytes, provide_binary_file
-	from frappe.utils.xlsxutils import handle_html, make_xlsx
+	from stylo.desk.utils import get_csv_bytes, provide_binary_file
+	from stylo.utils.xlsxutils import handle_html, make_xlsx
 
 	report_name = form_params.report_name
 	file_format_type = form_params.file_format_type
-	custom_columns = frappe.parse_json(form_params.custom_columns or "[]")
+	custom_columns = stylo.parse_json(form_params.custom_columns or "[]")
 	include_indentation = form_params.include_indentation
 	visible_idx = form_params.visible_idx
 
@@ -381,9 +381,9 @@ def _export_query(form_params, csv_params, populate_response=True):
 		visible_idx = json.loads(visible_idx)
 
 	data = run(report_name, form_params.filters, custom_columns=custom_columns, are_default_filters=False)
-	data = frappe._dict(data)
+	data = stylo._dict(data)
 	if not data.columns:
-		frappe.respond_as_web_page(
+		stylo.respond_as_web_page(
 			_("No data to export"),
 			_("You can try changing the filters of your report."),
 		)
@@ -405,7 +405,7 @@ def _export_query(form_params, csv_params, populate_response=True):
 	provide_binary_file(_(report_name), file_extension, content)
 
 
-def format_duration_fields(data: frappe._dict) -> None:
+def format_duration_fields(data: stylo._dict) -> None:
 	for i, col in enumerate(data.columns):
 		if col.get("fieldtype") != "Duration":
 			continue
@@ -543,18 +543,18 @@ def add_total_row(result, columns, meta=None, is_tree=False, parent_field=None):
 	return result
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def get_data_for_custom_field(doctype, field, names=None):
-	if not frappe.has_permission(doctype, "read"):
-		frappe.throw(_("Not Permitted to read {0}").format(doctype), frappe.PermissionError)
+	if not stylo.has_permission(doctype, "read"):
+		stylo.throw(_("Not Permitted to read {0}").format(doctype), stylo.PermissionError)
 
 	filters = {}
 	if names:
 		if isinstance(names, str | bytearray):
-			names = frappe.json.loads(names)
+			names = stylo.json.loads(names)
 		filters.update({"name": ["in", names]})
 
-	value_map = frappe._dict(frappe.get_list(doctype, filters=filters, fields=["name", field], as_list=1))
+	value_map = stylo._dict(stylo.get_list(doctype, filters=filters, fields=["name", field], as_list=1))
 	return value_map
 
 
@@ -566,7 +566,7 @@ def get_data_for_custom_report(columns, result):
 			# backwards compatibile `link_field`
 			# old custom reports which use `str` should not break
 			if isinstance(link_field, str):
-				link_field = frappe._dict({"fieldname": link_field, "names": []})
+				link_field = stylo._dict({"fieldname": link_field, "names": []})
 
 			fieldname = column.get("fieldname")
 			doctype = column.get("doctype")
@@ -582,11 +582,11 @@ def get_data_for_custom_report(columns, result):
 	return doc_field_value_map
 
 
-@frappe.whitelist()
+@stylo.whitelist()
 def save_report(reference_report, report_name, columns, filters):
 	report_doc = get_report_doc(reference_report)
 
-	docname = frappe.db.exists(
+	docname = stylo.db.exists(
 		"Report",
 		{
 			"report_name": report_name,
@@ -596,17 +596,17 @@ def save_report(reference_report, report_name, columns, filters):
 	)
 
 	if docname:
-		report = frappe.get_doc("Report", docname)
+		report = stylo.get_doc("Report", docname)
 		existing_jd = json.loads(report.json)
 		existing_jd["columns"] = json.loads(columns)
 		existing_jd["filters"] = json.loads(filters)
 		report.update({"json": json.dumps(existing_jd, separators=(",", ":"))})
 		report.save()
-		frappe.msgprint(_("Report updated successfully"))
+		stylo.msgprint(_("Report updated successfully"))
 
 		return docname
 	else:
-		new_report = frappe.get_doc(
+		new_report = stylo.get_doc(
 			{
 				"doctype": "Report",
 				"report_name": report_name,
@@ -617,7 +617,7 @@ def save_report(reference_report, report_name, columns, filters):
 				"reference_report": reference_report,
 			}
 		).insert(ignore_permissions=True)
-		frappe.msgprint(_("{0} saved successfully").format(new_report.name))
+		stylo.msgprint(_("{0} saved successfully").format(new_report.name))
 		return new_report.name
 
 
@@ -625,10 +625,10 @@ def get_filtered_data(ref_doctype, columns, data, user):
 	result = []
 	linked_doctypes = get_linked_doctypes(columns, data)
 	match_filters_per_doctype = get_user_match_filters(linked_doctypes, user=user)
-	shared = frappe.share.get_shared(ref_doctype, user)
+	shared = stylo.share.get_shared(ref_doctype, user)
 	columns_dict = get_columns_dict(columns)
 
-	role_permissions = get_role_permissions(frappe.get_meta(ref_doctype), user)
+	role_permissions = get_role_permissions(stylo.get_meta(ref_doctype), user)
 	if_owner = role_permissions.get("if_owner", {}).get("report")
 
 	if match_filters_per_doctype:
@@ -709,7 +709,7 @@ def has_match(
 					if (
 						dt in match_filters
 						and cell_value not in match_filters.get(dt)
-						and frappe.db.exists(dt, cell_value)
+						and stylo.db.exists(dt, cell_value)
 					):
 						match = False
 						break
@@ -772,7 +772,7 @@ def get_columns_dict(columns):
 	The keys for the dict are both idx and fieldname,
 	so either index or fieldname can be used to search for a column's docfield properties
 	"""
-	columns_dict = frappe._dict()
+	columns_dict = stylo._dict()
 	for idx, col in enumerate(columns):
 		col_dict = get_column_as_dict(col)
 		columns_dict[idx] = col_dict
@@ -782,7 +782,7 @@ def get_columns_dict(columns):
 
 
 def get_column_as_dict(col):
-	col_dict = frappe._dict()
+	col_dict = stylo._dict()
 
 	# string
 	if isinstance(col, str):
@@ -796,13 +796,13 @@ def get_column_as_dict(col):
 				col_dict["width"] = col[2]
 
 		col_dict["label"] = col[0]
-		col_dict["fieldname"] = frappe.scrub(col[0])
+		col_dict["fieldname"] = stylo.scrub(col[0])
 
 	# dict
 	else:
 		col_dict.update(col)
 		if "fieldname" not in col_dict:
-			col_dict["fieldname"] = frappe.scrub(col_dict["label"])
+			col_dict["fieldname"] = stylo.scrub(col_dict["label"])
 
 	return col_dict
 
@@ -811,7 +811,7 @@ def get_user_match_filters(doctypes, user):
 	match_filters = {}
 
 	for dt in doctypes:
-		filter_list = frappe.desk.reportview.build_match_conditions(dt, user, False)
+		filter_list = stylo.desk.reportview.build_match_conditions(dt, user, False)
 		if filter_list:
 			match_filters[dt] = filter_list
 
